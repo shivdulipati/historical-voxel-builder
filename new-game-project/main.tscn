@@ -1,0 +1,289 @@
+[gd_scene format=3 uid="uid://cqow47bch5ocs"]
+
+[ext_resource type="Script" uid="uid://bkacm3icayaa6" path="res://draggable_object.gd" id="1_ig7tw"]
+[ext_resource type="Script" uid="uid://bempvqvskvxb7" path="res://main.gd" id="1_lquwl"]
+[ext_resource type="Script" uid="uid://uusxfhw2epny" path="res://button.gd" id="4_1bvp3"]
+[ext_resource type="Texture2D" uid="uid://4q335xxs2p" path="res://icon.svg" id="6_7mycd"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_0xm2m"]
+size = Vector3(7, 1, 7)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_h2yge"]
+albedo_color = Color(0.05322109, 0.137149, 0.3804473, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_lquwl"]
+size = Vector3(7, 0.5, 0.1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7mycd"]
+albedo_color = Color(0.01541291, 0.6302165, 0.6864255, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_272bh"]
+size = Vector3(7, 0.5, 0.1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5vw27"]
+albedo_color = Color(0.015686275, 0.6313726, 0.6862745, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_kek77"]
+size = Vector3(0.1, 0.5, 7)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4c57u"]
+albedo_color = Color(0.015686275, 0.6313726, 0.6862745, 1)
+
+[sub_resource type="BoxMesh" id="BoxMesh_efxa6"]
+size = Vector3(0.1, 0.5, 7)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dg77c"]
+albedo_color = Color(0.015686275, 0.6313726, 0.6862745, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_h2yge"]
+size = Vector3(7, 1, 7)
+
+[sub_resource type="BoxMesh" id="BoxMesh_1bvp3"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1bvp3"]
+depth_draw_mode = 1
+albedo_color = Color(0.9428177, 0.8581989, 0.3901112, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_lquwl"]
+
+[sub_resource type="BoxMesh" id="BoxMesh_7mycd"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_272bh"]
+transparency = 1
+albedo_color = Color(1, 1, 1, 0.39215687)
+
+[sub_resource type="Environment" id="Environment_1bvp3"]
+background_mode = 1
+background_color = Color(0.42636967, 0.8912395, 0.9703683, 1)
+ssao_enabled = true
+
+[sub_resource type="BoxMesh" id="BoxMesh_5vw27"]
+size = Vector3(2, 2, 2)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kek77"]
+transparency = 1
+albedo_color = Color(0.43137255, 1, 1, 0.15686275)
+
+[node name="Main" type="Node3D" unique_id=1359699047]
+script = ExtResource("1_lquwl")
+
+[node name="Camera3D" type="Camera3D" parent="." unique_id=367626471]
+transform = Transform3D(0.70710677, -0.4055798, 0.579228, 0, 0.81915206, 0.57357645, -0.70710677, -0.4055798, 0.579228, 5, 5, 5)
+keep_aspect = 0
+projection = 1
+current = true
+size = 10.5
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=881821492]
+transform = Transform3D(1, 0, 0, 0, 0.25881907, 0.9659258, 0, -0.9659258, 0.25881907, 0, 0, 0)
+shadow_enabled = true
+shadow_blur = 0.0
+
+[node name="Floor" type="StaticBody3D" parent="." unique_id=1165671224]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -2, 0)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=1834396108]
+mesh = SubResource("BoxMesh_0xm2m")
+surface_material_override/0 = SubResource("StandardMaterial3D_h2yge")
+
+[node name="Border_North" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=499614805]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -3.5)
+mesh = SubResource("BoxMesh_lquwl")
+surface_material_override/0 = SubResource("StandardMaterial3D_7mycd")
+
+[node name="Border_South" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=1774381681]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 3.5)
+mesh = SubResource("BoxMesh_272bh")
+surface_material_override/0 = SubResource("StandardMaterial3D_5vw27")
+
+[node name="Border_East" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=1983037966]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 0.5, 0)
+mesh = SubResource("BoxMesh_kek77")
+surface_material_override/0 = SubResource("StandardMaterial3D_4c57u")
+
+[node name="Border_West" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=1928196421]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 0.5, 0)
+mesh = SubResource("BoxMesh_efxa6")
+surface_material_override/0 = SubResource("StandardMaterial3D_dg77c")
+
+[node name="MeshInstance3D2" type="MeshInstance3D" parent="Floor" unique_id=838970351]
+transform = Transform3D(1.05, 0, 0, 0, 1, 0, 0, 0, 1.05, 0, -0.1, 0)
+visible = false
+mesh = SubResource("BoxMesh_0xm2m")
+surface_material_override/0 = SubResource("StandardMaterial3D_h2yge")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Floor" unique_id=661795688]
+shape = SubResource("BoxShape3D_h2yge")
+
+[node name="Box" type="RigidBody3D" parent="." unique_id=428292310]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
+collision_layer = 2
+continuous_cd = true
+contact_monitor = true
+max_contacts_reported = 5
+script = ExtResource("1_ig7tw")
+touch_offset = Vector3(0, 1.5, -2)
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="Box" unique_id=1562146547]
+mesh = SubResource("BoxMesh_1bvp3")
+surface_material_override/0 = SubResource("StandardMaterial3D_1bvp3")
+
+[node name="ShadowCaster" type="MeshInstance3D" parent="Box" unique_id=1555735360]
+cast_shadow = 3
+mesh = SubResource("BoxMesh_1bvp3")
+surface_material_override/0 = SubResource("StandardMaterial3D_1bvp3")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="Box" unique_id=1483054862]
+shape = SubResource("BoxShape3D_lquwl")
+
+[node name="DropIndicator" type="MeshInstance3D" parent="Box" unique_id=290753473]
+visible = false
+cast_shadow = 0
+mesh = SubResource("BoxMesh_7mycd")
+surface_material_override/0 = SubResource("StandardMaterial3D_272bh")
+
+[node name="HUD" type="CanvasLayer" parent="." unique_id=1325654036]
+
+[node name="Control" type="Control" parent="HUD" unique_id=454372676]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = 80.0
+offset_bottom = 80.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="RestartButton" type="Button" parent="HUD/Control" unique_id=1409581574]
+layout_mode = 1
+offset_right = 75.0
+offset_bottom = 31.0
+theme_override_font_sizes/font_size = 48
+text = "RESTART"
+script = ExtResource("4_1bvp3")
+
+[node name="TimerLabel" type="Label" parent="HUD/Control" unique_id=1166518386]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -20.0
+offset_top = 80.0
+offset_right = 20.0
+offset_bottom = 168.0
+grow_horizontal = 2
+theme_override_font_sizes/font_size = 64
+horizontal_alignment = 1
+
+[node name="DebugButton" type="Button" parent="HUD/Control" unique_id=1869369630]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -63.0
+offset_bottom = 31.0
+grow_horizontal = 0
+theme_override_font_sizes/font_size = 48
+text = "DEBUG"
+
+[node name="DebugPanel" type="PanelContainer" parent="HUD/Control" unique_id=626239056]
+visible = false
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -56.5
+offset_top = 80.0
+offset_right = 56.5
+offset_bottom = 123.0
+grow_horizontal = 2
+mouse_filter = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/Control/DebugPanel" unique_id=659598492]
+layout_mode = 2
+
+[node name="Touch Offset Y" type="Label" parent="HUD/Control/DebugPanel/VBoxContainer" unique_id=634689810]
+layout_mode = 2
+text = "Touch Offset Y"
+
+[node name="OffsetSlider" type="HSlider" parent="HUD/Control/DebugPanel/VBoxContainer" unique_id=366294153]
+custom_minimum_size = Vector2(300, 80)
+layout_mode = 2
+theme_override_icons/grabber = ExtResource("6_7mycd")
+theme_override_icons/grabber_highlight = ExtResource("6_7mycd")
+min_value = 0.5
+max_value = 3.0
+step = 0.1
+value = 0.5
+
+[node name="GhostHeight" type="Label" parent="HUD/Control/DebugPanel/VBoxContainer" unique_id=1062633808]
+layout_mode = 2
+text = "Ghost Height"
+
+[node name="GhostSlider" type="HSlider" parent="HUD/Control/DebugPanel/VBoxContainer" unique_id=217733283]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+min_value = -2.0
+max_value = 2.0
+step = 0.1
+
+[node name="InventoryTray" type="PanelContainer" parent="HUD/Control" unique_id=1134000262]
+custom_minimum_size = Vector2(0, 150)
+layout_mode = 1
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -320.0
+offset_bottom = -170.0
+grow_horizontal = 2
+grow_vertical = 0
+mouse_filter = 1
+
+[node name="ScrollContainer" type="ScrollContainer" parent="HUD/Control/InventoryTray" unique_id=162591656]
+layout_mode = 2
+vertical_scroll_mode = 0
+
+[node name="BlockList" type="HBoxContainer" parent="HUD/Control/InventoryTray/ScrollContainer" unique_id=1763157303]
+layout_mode = 2
+theme_override_constants/separation = 20
+
+[node name="Red" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=1274814471]
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+color = Color(0.7635024, 0.15671891, 0.16404146, 1)
+
+[node name="Blue" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=376225648]
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+color = Color(0.12999678, 0.45803988, 0.80540425, 1)
+
+[node name="Green" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=672786365]
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+color = Color(0.20784314, 0.8901961, 0.28235295, 1)
+
+[node name="Orange" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=358216395]
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+color = Color(0.98039216, 0.41960785, 0.16470589, 1)
+
+[node name="White" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=425952757]
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+
+[node name="Yellow" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=2046339594]
+custom_minimum_size = Vector2(120, 120)
+layout_mode = 2
+color = Color(1, 1, 0.25882354, 1)
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1134175239]
+environment = SubResource("Environment_1bvp3")
+
+[node name="BlueprintTarget" type="MeshInstance3D" parent="." unique_id=1578581524 groups=["blueprint"]]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+mesh = SubResource("BoxMesh_5vw27")
+surface_material_override/0 = SubResource("StandardMaterial3D_kek77")
+
+[connection signal="input_event" from="Box" to="Box" method="_on_input_event"]
