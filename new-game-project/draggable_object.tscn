@@ -1,6 +1,7 @@
 [gd_scene format=3 uid="uid://c04ixih3t6o20"]
 
 [ext_resource type="Script" uid="uid://bkacm3icayaa6" path="res://draggable_object.gd" id="1_s0tg5"]
+[ext_resource type="AudioStream" uid="uid://b07pftecudbdt" path="res://click3.ogg" id="2_88eo7"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_1bvp3"]
 
@@ -41,5 +42,8 @@ visible = false
 cast_shadow = 0
 mesh = SubResource("BoxMesh_7mycd")
 surface_material_override/0 = SubResource("StandardMaterial3D_272bh")
+
+[node name="AudioStreamPlayer" type="AudioStreamPlayer3D" parent="." unique_id=1685561404]
+stream = ExtResource("2_88eo7")
 
 [connection signal="input_event" from="." to="." method="_on_input_event"]
