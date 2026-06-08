@@ -46,26 +46,43 @@ func _ready() -> void:
 
 
 func _input(event: InputEvent) -> void:
-	# Mouse release — only when the drag was started by mouse.
-	if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
-		if is_dragging and _drag_touch_index == -1:
-			is_dragging = false
-			_drop_to_grid()
+	if not is_dragging:
+		return
 
-	# Keep _drag_touch_pos current for the dragging finger.
-	elif event is InputEventScreenDrag and event.index == _drag_touch_index:
+	var is_touch_release = (
+		event is InputEventScreenTouch
+		and (not event.pressed or event.is_canceled())
+		and event.index == _drag_touch_index
+	)
+	var is_mouse_release = (
+		event is InputEventMouseButton
+		and event.button_index == MOUSE_BUTTON_LEFT
+		and not event.pressed
+	)
+
+	if is_touch_release or is_mouse_release:
+		is_dragging       = false
+		_drag_touch_index = -1
+		_drop_to_grid()
+		return
+
+	# Second finger tap (mobile) or right-click (desktop) — rotate 90 degrees.
+	var is_second_finger = (
+		event is InputEventScreenTouch
+		and event.pressed
+		and event.index != _drag_touch_index
+	)
+	var is_right_click = (
+		event is InputEventMouseButton
+		and event.pressed
+		and event.button_index == MOUSE_BUTTON_RIGHT
+	)
+	if is_second_finger or is_right_click:
+		rotate_y(deg_to_rad(90))
+		return
+
+	if event is InputEventScreenDrag and event.index == _drag_touch_index:
 		_drag_touch_pos = event.position
-
-	# Primary finger lifted — stop dragging.
-	elif event is InputEventScreenTouch and not event.pressed and event.index == _drag_touch_index:
-		if is_dragging:
-			is_dragging = false
-			_drag_touch_index = -1
-			_drop_to_grid()
-
-	# Second finger tapped while dragging — rotate 90 degrees.
-	elif event is InputEventScreenTouch and event.pressed and is_dragging and event.index != _drag_touch_index:
-		_rotate_90()
 
 
 ## Snaps the block to the nearest 1×1×1 world-space grid cell with a short tween.
@@ -78,9 +95,12 @@ func _drop_to_grid() -> void:
 
 	var snap_x: float = floor(global_position.x) + 0.5
 	var snap_z: float = floor(global_position.z) + 0.5
-	var final_snap_pos := Vector3(snap_x, FLOOR_Y, snap_z)
+	var snap_y: float = _get_stack_height(snap_x, snap_z)
+	var final_snap_pos := Vector3(snap_x, snap_y, snap_z)
 
 	gravity_scale = 0.0
+	freeze = true
+	$CollisionShape3D.disabled = false
 
 	var blueprints := get_tree().get_nodes_in_group("blueprint")
 	if blueprints.is_empty():
@@ -95,6 +115,27 @@ func _drop_to_grid() -> void:
 		_tween_to(final_snap_pos)
 	else:
 		queue_free()
+
+
+## Casts a ray straight down at (snap_x, snap_z) and returns the Y center the
+## new block should occupy. Excludes self so the held block is never the hit target.
+func _get_stack_height(snap_x: float, snap_z: float) -> float:
+	var space := get_world_3d().direct_space_state
+	var query := PhysicsRayQueryParameters3D.create(
+		Vector3(snap_x, 100.0, snap_z),
+		Vector3(snap_x, -1.0,  snap_z)
+	)
+	query.exclude = [get_rid()]
+	var result := space.intersect_ray(query)
+	if result:
+		return result.position.y + 0.5
+	return FLOOR_Y
+
+
+func set_block_color(new_color: Color) -> void:
+	if _material == null:
+		return
+	_material.albedo_color = new_color
 
 
 func _tween_to(target: Vector3) -> void:
@@ -116,6 +157,8 @@ func _start_drag(touch_index: int, touch_pos: Vector2) -> void:
 	_drag_touch_pos   = touch_pos
 	is_dragging       = true
 	gravity_scale     = 0.0
+	freeze            = false
+	$CollisionShape3D.disabled = true
 	_tween_alpha(0.4)
 	_drop_indicator.visible = true
 
@@ -158,7 +201,7 @@ func _physics_process(delta: float) -> void:
 
 	if is_dragging and camera:
 		# Use the tracked touch position for touch input; fall back to mouse.
-		var screen_pos = _drag_touch_pos if _drag_touch_index >= 0 else get_viewport().get_mouse_position()
+		var screen_pos = _drag_touch_pos if _drag_touch_index != -1 else get_viewport().get_mouse_position()
 		var ray_origin = camera.project_ray_origin(screen_pos)
 		var ray_normal = camera.project_ray_normal(screen_pos)
 
@@ -167,8 +210,12 @@ func _physics_process(delta: float) -> void:
 		if target_pos != null:
 			var effective_offset = Vector3(touch_offset.x, current_y_offset, touch_offset.z)
 
-			# Ghost predicts the offset landing position, flush on the floor.
-			_drop_indicator.global_position = Vector3(target_pos.x + effective_offset.x, current_ghost_height, target_pos.z + effective_offset.z)
+			# Ghost predicts the snapped landing position, flush on top of any existing stack.
+			var hover_snap_x: float = floor(target_pos.x + effective_offset.x) + 0.5
+			var hover_snap_z: float = floor(target_pos.z + effective_offset.z) + 0.5
+			var hover_y: float = _get_stack_height(hover_snap_x, hover_snap_z)
+			var target_ghost_pos := Vector3(hover_snap_x, hover_y, hover_snap_z)
+			_drop_indicator.global_position = _drop_indicator.global_position.lerp(target_ghost_pos, delta * 15.0)
 
 			var push_vector = (target_pos + effective_offset - global_position) / delta
 

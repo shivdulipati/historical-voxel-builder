@@ -1,7 +1,7 @@
 [gd_scene format=3 uid="uid://cqow47bch5ocs"]
 
-[ext_resource type="Script" uid="uid://bkacm3icayaa6" path="res://draggable_object.gd" id="1_ig7tw"]
 [ext_resource type="Script" uid="uid://bempvqvskvxb7" path="res://main.gd" id="1_lquwl"]
+[ext_resource type="PackedScene" uid="uid://c04ixih3t6o20" path="res://draggable_object.tscn" id="2_1bvp3"]
 [ext_resource type="Script" uid="uid://uusxfhw2epny" path="res://button.gd" id="4_1bvp3"]
 [ext_resource type="Texture2D" uid="uid://4q335xxs2p" path="res://icon.svg" id="6_7mycd"]
 
@@ -9,6 +9,7 @@
 size = Vector3(7, 1, 7)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_h2yge"]
+depth_draw_mode = 1
 albedo_color = Color(0.05322109, 0.137149, 0.3804473, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_lquwl"]
@@ -38,20 +39,6 @@ albedo_color = Color(0.015686275, 0.6313726, 0.6862745, 1)
 [sub_resource type="BoxShape3D" id="BoxShape3D_h2yge"]
 size = Vector3(7, 1, 7)
 
-[sub_resource type="BoxMesh" id="BoxMesh_1bvp3"]
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_1bvp3"]
-depth_draw_mode = 1
-albedo_color = Color(0.9428177, 0.8581989, 0.3901112, 1)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_lquwl"]
-
-[sub_resource type="BoxMesh" id="BoxMesh_7mycd"]
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_272bh"]
-transparency = 1
-albedo_color = Color(1, 1, 1, 0.39215687)
-
 [sub_resource type="Environment" id="Environment_1bvp3"]
 background_mode = 1
 background_color = Color(0.42636967, 0.8912395, 0.9703683, 1)
@@ -62,10 +49,14 @@ size = Vector3(2, 2, 2)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kek77"]
 transparency = 1
-albedo_color = Color(0.43137255, 1, 1, 0.15686275)
+blend_mode = 1
+cull_mode = 1
+shading_mode = 0
+albedo_color = Color(0.43137255, 1, 1, 0.078431375)
 
 [node name="Main" type="Node3D" unique_id=1359699047]
 script = ExtResource("1_lquwl")
+block_scene = ExtResource("2_1bvp3")
 
 [node name="Camera3D" type="Camera3D" parent="." unique_id=367626471]
 transform = Transform3D(0.70710677, -0.4055798, 0.579228, 0, 0.81915206, 0.57357645, -0.70710677, -0.4055798, 0.579228, 5, 5, 5)
@@ -115,33 +106,6 @@ surface_material_override/0 = SubResource("StandardMaterial3D_h2yge")
 [node name="CollisionShape3D" type="CollisionShape3D" parent="Floor" unique_id=661795688]
 shape = SubResource("BoxShape3D_h2yge")
 
-[node name="Box" type="RigidBody3D" parent="." unique_id=428292310]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-collision_layer = 2
-continuous_cd = true
-contact_monitor = true
-max_contacts_reported = 5
-script = ExtResource("1_ig7tw")
-touch_offset = Vector3(0, 1.5, -2)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Box" unique_id=1562146547]
-mesh = SubResource("BoxMesh_1bvp3")
-surface_material_override/0 = SubResource("StandardMaterial3D_1bvp3")
-
-[node name="ShadowCaster" type="MeshInstance3D" parent="Box" unique_id=1555735360]
-cast_shadow = 3
-mesh = SubResource("BoxMesh_1bvp3")
-surface_material_override/0 = SubResource("StandardMaterial3D_1bvp3")
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="Box" unique_id=1483054862]
-shape = SubResource("BoxShape3D_lquwl")
-
-[node name="DropIndicator" type="MeshInstance3D" parent="Box" unique_id=290753473]
-visible = false
-cast_shadow = 0
-mesh = SubResource("BoxMesh_7mycd")
-surface_material_override/0 = SubResource("StandardMaterial3D_272bh")
-
 [node name="HUD" type="CanvasLayer" parent="." unique_id=1325654036]
 
 [node name="Control" type="Control" parent="HUD" unique_id=454372676]
@@ -160,7 +124,7 @@ layout_mode = 1
 offset_right = 75.0
 offset_bottom = 31.0
 theme_override_font_sizes/font_size = 48
-text = "RESTART"
+text = "REST"
 script = ExtResource("4_1bvp3")
 
 [node name="TimerLabel" type="Label" parent="HUD/Control" unique_id=1166518386]
@@ -283,7 +247,6 @@ environment = SubResource("Environment_1bvp3")
 
 [node name="BlueprintTarget" type="MeshInstance3D" parent="." unique_id=1578581524 groups=["blueprint"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+cast_shadow = 0
 mesh = SubResource("BoxMesh_5vw27")
 surface_material_override/0 = SubResource("StandardMaterial3D_kek77")
-
-[connection signal="input_event" from="Box" to="Box" method="_on_input_event"]
