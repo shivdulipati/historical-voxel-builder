@@ -150,8 +150,8 @@ func _drop_to_grid() -> void:
 
 	_tween_alpha(1.0)
 
-	var snap_x: float = floor(global_position.x) + 0.5
-	var snap_z: float = floor(global_position.z) + 0.5
+	var snap_x: float = round(global_position.x)
+	var snap_z: float = round(global_position.z)
 	var snap_y: float = _get_stack_height(snap_x, snap_z)
 	var final_snap_pos := Vector3(snap_x, snap_y, snap_z)
 
@@ -166,7 +166,7 @@ func _drop_to_grid() -> void:
 		_squish_on_land()
 		$AudioStreamPlayer.play()
 		is_placed = true
-		current_grid_position = final_snap_pos - Vector3(0.5, 0.5, 0.5)
+		current_grid_position = Vector3(snap_x, round(snap_y - FLOOR_Y), snap_z)
 		var main_scene_fb = get_tree().current_scene
 		main_scene_fb.current_build[current_grid_position] = block_color_name
 		print("Block Dropped -> Color: ", block_color_name, " | Saved Pos: ", current_grid_position)
@@ -181,7 +181,7 @@ func _drop_to_grid() -> void:
 		_squish_on_land()
 		$AudioStreamPlayer.play()
 		is_placed = true
-		current_grid_position = final_snap_pos - Vector3(0.5, 0.5, 0.5)
+		current_grid_position = Vector3(snap_x, round(snap_y - FLOOR_Y), snap_z)
 		var main_scene = get_tree().current_scene
 		main_scene.current_build[current_grid_position] = block_color_name
 		print("Block Dropped -> Color: ", block_color_name, " | Saved Pos: ", current_grid_position)
@@ -348,8 +348,8 @@ func _physics_process(delta: float) -> void:
 			var effective_offset = Vector3(touch_offset.x, current_y_offset, touch_offset.z)
 
 			# Ghost predicts the snapped landing position, flush on top of any existing stack.
-			var hover_snap_x: float = floor(target_pos.x + effective_offset.x) + 0.5
-			var hover_snap_z: float = floor(target_pos.z + effective_offset.z) + 0.5
+			var hover_snap_x: float = round(target_pos.x + effective_offset.x)
+			var hover_snap_z: float = round(target_pos.z + effective_offset.z)
 			var hover_y: float = _get_stack_height(hover_snap_x, hover_snap_z)
 			var target_ghost_pos := Vector3(hover_snap_x, hover_y, hover_snap_z)
 			_drop_indicator.global_position = _drop_indicator.global_position.lerp(target_ghost_pos, delta * 15.0)
