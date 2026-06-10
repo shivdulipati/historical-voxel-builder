@@ -7,32 +7,32 @@
 [ext_resource type="Texture2D" uid="uid://4q335xxs2p" path="res://icon.svg" id="6_7mycd"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_0xm2m"]
-size = Vector3(7, 1, 7)
+size = Vector3(14, 1, 21)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_h2yge"]
 depth_draw_mode = 1
 albedo_color = Color(0.05322109, 0.137149, 0.3804473, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_lquwl"]
-size = Vector3(7, 0.5, 0.1)
+size = Vector3(14, 0.5, 0.1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7mycd"]
 albedo_color = Color(0.01541291, 0.6302165, 0.6864255, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_272bh"]
-size = Vector3(7, 0.5, 0.1)
+size = Vector3(14, 0.5, 0.1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5vw27"]
 albedo_color = Color(0.015686275, 0.6313726, 0.6862745, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_kek77"]
-size = Vector3(0.1, 0.5, 7)
+size = Vector3(0.1, 0.5, 21)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4c57u"]
 albedo_color = Color(0.015686275, 0.6313726, 0.6862745, 1)
 
 [sub_resource type="BoxMesh" id="BoxMesh_efxa6"]
-size = Vector3(0.1, 0.5, 7)
+size = Vector3(0.1, 0.5, 21)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dg77c"]
 albedo_color = Color(0.015686275, 0.6313726, 0.6862745, 1)
@@ -49,6 +49,7 @@ background_color = Color(0.42636967, 0.8912395, 0.9703683, 1)
 ssao_enabled = true
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_7mycd"]
+resource_local_to_scene = true
 render_priority = 0
 shader = ExtResource("5_lquwl")
 shader_parameter/line_color = Color(0.2, 0.8, 1, 1)
@@ -82,22 +83,22 @@ mesh = SubResource("BoxMesh_0xm2m")
 surface_material_override/0 = SubResource("StandardMaterial3D_h2yge")
 
 [node name="Border_North" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=499614805]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -3.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -10.5)
 mesh = SubResource("BoxMesh_lquwl")
 surface_material_override/0 = SubResource("StandardMaterial3D_7mycd")
 
 [node name="Border_South" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=1774381681]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 3.5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 10.5)
 mesh = SubResource("BoxMesh_272bh")
 surface_material_override/0 = SubResource("StandardMaterial3D_5vw27")
 
 [node name="Border_East" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=1983037966]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 3.5, 0.5, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.5, 0)
 mesh = SubResource("BoxMesh_kek77")
 surface_material_override/0 = SubResource("StandardMaterial3D_4c57u")
 
 [node name="Border_West" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=1928196421]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -3.5, 0.5, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.5, 0)
 mesh = SubResource("BoxMesh_efxa6")
 surface_material_override/0 = SubResource("StandardMaterial3D_dg77c")
 
@@ -298,7 +299,7 @@ render_target_update_mode = 4
 [node name="Camera3D" type="Camera3D" parent="HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld" unique_id=237950843]
 transform = Transform3D(0.70710677, -0.49999997, 0.49999997, 0, 0.70710677, 0.70710677, -0.70710677, -0.49999997, 0.49999997, 5, 5, 5)
 projection = 1
-size = 10.0
+size = 12.0
 near = 0.5
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld" unique_id=671050006]
@@ -313,10 +314,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -140.0
+offset_left = -290.0
 offset_top = -310.0
-offset_right = 160.0
-offset_bottom = -10.0
+offset_right = 310.0
+offset_bottom = 290.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -333,7 +334,7 @@ offset_right = 68.5
 offset_bottom = 11.5
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_font_sizes/font_size = 32
+theme_override_font_sizes/font_size = 64
 text = "LEVEL COMPLETE!"
 horizontal_alignment = 1
 vertical_alignment = 1
@@ -351,7 +352,7 @@ offset_right = 49.0
 offset_bottom = -49.0
 grow_horizontal = 2
 grow_vertical = 0
-theme_override_font_sizes/font_size = 24
+theme_override_font_sizes/font_size = 56
 text = "NEXT LEVEL"
 
 [node name="InspectOverlay" type="ColorRect" parent="HUD/Control" unique_id=1904319987]
@@ -370,10 +371,10 @@ anchor_left = 0.5
 anchor_top = 0.5
 anchor_right = 0.5
 anchor_bottom = 0.5
-offset_left = -240.0
-offset_top = -360.0
-offset_right = 260.0
-offset_bottom = 140.0
+offset_left = -390.0
+offset_top = -410.0
+offset_right = 410.0
+offset_bottom = 390.0
 grow_horizontal = 2
 grow_vertical = 2
 
@@ -437,16 +438,34 @@ border_color = Color(0, 0, 0, 1)
 border_width = 3.0
 editor_only = false
 
-[node name="TrashZone" type="ColorRect" parent="HUD" unique_id=226752441 groups=["trash_zone"]]
-visible = false
-anchors_preset = 12
-anchor_top = 1.0
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_top = -399.0
+[node name="ToolTray" type="HBoxContainer" parent="HUD/Control" unique_id=1783591147]
+layout_mode = 1
+anchors_preset = 5
+anchor_left = 0.5
+anchor_right = 0.5
+offset_left = -43.0
+offset_top = 250.0
+offset_right = 43.0
+offset_bottom = 290.0
 grow_horizontal = 2
-grow_vertical = 0
-color = Color(0.7490196, 0.05882353, 0.07058824, 0.39215687)
+
+[node name="BtnSingle" type="Button" parent="HUD/Control/ToolTray" unique_id=1150580734]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "Single"
+
+[node name="BtnPaint" type="Button" parent="HUD/Control/ToolTray" unique_id=968635176]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "Paint"
+
+[node name="BtnEraser" type="Button" parent="HUD/Control/ToolTray" unique_id=574385367]
+custom_minimum_size = Vector2(0, 80)
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "Erase"
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1134175239]
 environment = SubResource("Environment_1bvp3")

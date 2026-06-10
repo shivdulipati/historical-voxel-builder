@@ -18,7 +18,7 @@ albedo_color = Color(0.9428177, 0.8581989, 0.3901112, 1)
 render_priority = 0
 shader = ExtResource("2_m24kv")
 shader_parameter/line_color = Color(0.9250329, 0.929443, 0.45099247, 1)
-shader_parameter/glass_color = Color(0.2, 0.8, 1, 0.1)
+shader_parameter/glass_color = Color(1, 1, 1, 0.101960786)
 shader_parameter/line_thickness = 0.02000000095
 
 [node name="Box" type="RigidBody3D" unique_id=845027019]

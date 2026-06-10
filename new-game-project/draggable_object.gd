@@ -6,10 +6,10 @@ var drag_plane: Plane
 
 ## Shifts the drag target above and away from the thumb so the object stays visible.
 ## X and Z components are fixed; Y is driven at runtime by current_y_offset.
-@export var touch_offset: Vector3 = Vector3(0, 3.0, -0.5)
+@export var touch_offset: Vector3 = Vector3(0, 4.5, -1.5)
 
 ## Vertical lift above the drag plane. Updated by the OffsetSlider in the debug panel.
-var current_y_offset: float = 3.0
+var current_y_offset: float = 4.5
 
 ## Y-height of the drop indicator ghost. Updated by the GhostSlider in the debug panel.
 var current_ghost_height: float = 0.0
@@ -44,6 +44,9 @@ var is_pressing: bool = false
 
 ## Grid coordinate (integer-valued Vector3) where this block is currently placed.
 var current_grid_position: Vector3 = Vector3.ZERO
+
+## Tracks the last snapped XZ cell the ghost occupied; used for trail painting.
+var last_hover_pos: Vector3 = Vector3(999, 999, 999)
 
 ## Color identifier used for win-condition matching against the target puzzle.
 var block_color_name: String = ""
@@ -117,36 +120,11 @@ func _input(event: InputEvent) -> void:
 
 
 ## Snaps the block to the nearest 1×1×1 world-space grid cell with a short tween.
-## If released inside the TrashZone the block spins into a black hole and vanishes.
-## If the snapped position falls outside the BlueprintTarget volume, the block is deleted.
+## If the snapped position falls outside the active grid limits, the block is deleted.
 func _drop_to_grid() -> void:
 	linear_velocity  = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
 	_drop_indicator.visible = false
-
-	var trash_zone    = _get_drag_ui()[0]
-	var inventory_tray = _get_drag_ui()[1]
-
-	# --- Trash zone check ---
-	if trash_zone and trash_zone.is_visible_in_tree() and trash_zone.get_global_rect().has_point(_drag_touch_pos):
-		var main_scene_trash = get_tree().current_scene
-		main_scene_trash.current_build.erase(current_grid_position)
-		freeze = true
-		$CollisionShape3D.disabled = true
-		var tween = create_tween().set_parallel(true)
-		tween.tween_property(self, "scale", Vector3.ZERO, 0.25)\
-			.set_trans(Tween.TRANS_BACK)\
-			.set_ease(Tween.EASE_IN)
-		tween.tween_property(self, "rotation:y", rotation.y + (PI * 4.0), 0.25)
-		await tween.finished
-		trash_zone.visible = false
-		if inventory_tray: inventory_tray.visible = true
-		queue_free()
-		return
-
-	# Not trashed — restore UI and continue with normal grid placement.
-	if trash_zone:      trash_zone.visible     = false
-	if inventory_tray:  inventory_tray.visible  = true
 
 	_tween_alpha(1.0)
 
@@ -159,30 +137,15 @@ func _drop_to_grid() -> void:
 	freeze = true
 	$CollisionShape3D.disabled = false
 
-	var blueprints := get_tree().get_nodes_in_group("blueprint")
-	if blueprints.is_empty():
-		push_warning("DraggableObject: no node in group 'blueprint' found — dropping freely.")
+	# We add +0.1 to the X/Z limits to prevent floating-point errors from rejecting valid center-snaps
+	var main_scene = get_tree().current_scene
+	if abs(snap_x) <= (main_scene.limit_x + 0.1) and abs(snap_z) <= (main_scene.limit_z + 0.1) and snap_y <= main_scene.limit_y:
 		_tween_to(final_snap_pos)
 		_squish_on_land()
 		$AudioStreamPlayer.play()
+		Input.vibrate_handheld(50)
 		is_placed = true
 		current_grid_position = Vector3(snap_x, round(snap_y - FLOOR_Y), snap_z)
-		var main_scene_fb = get_tree().current_scene
-		main_scene_fb.current_build[current_grid_position] = block_color_name
-		print("Block Dropped -> Color: ", block_color_name, " | Saved Pos: ", current_grid_position)
-		main_scene_fb.check_win_condition()
-		return
-
-	var blueprint := blueprints[0]
-	var bounds: AABB = blueprint.global_transform * blueprint.mesh.get_aabb()
-
-	if bounds.has_point(final_snap_pos):
-		_tween_to(final_snap_pos)
-		_squish_on_land()
-		$AudioStreamPlayer.play()
-		is_placed = true
-		current_grid_position = Vector3(snap_x, round(snap_y - FLOOR_Y), snap_z)
-		var main_scene = get_tree().current_scene
 		main_scene.current_build[current_grid_position] = block_color_name
 		print("Block Dropped -> Color: ", block_color_name, " | Saved Pos: ", current_grid_position)
 		main_scene.check_win_condition()
@@ -238,6 +201,17 @@ func _squish_on_land() -> void:
 
 
 func _on_input_event(_camera, event, _position, _normal, _shape_idx) -> void:
+	# --- Eraser tool: delete this block on touch/click ---
+	var is_press: bool = (event is InputEventScreenTouch and event.pressed) \
+		or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed)
+	if is_placed and is_press and get_tree().current_scene.current_tool == 2:
+		var main_scene_erase = get_tree().current_scene
+		main_scene_erase.current_build.erase(current_grid_position)
+		main_scene_erase.check_win_condition()
+		Input.vibrate_handheld(100)
+		queue_free()
+		return
+
 	if event is InputEventScreenTouch and event.pressed:
 		if is_placed:
 			# Block is resting on the grid — arm the long-press timer instead of
@@ -249,7 +223,7 @@ func _on_input_event(_camera, event, _position, _normal, _shape_idx) -> void:
 			_drag_touch_pos   = event.position
 		else:
 			_start_drag(event.index, event.position)
-	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and OS.get_name() not in ["iOS", "Android"]:
 		# Mouse always picks up immediately (desktop testing convenience).
 		if is_placed:
 			var main_scene_mouse = get_tree().current_scene
@@ -261,6 +235,7 @@ func _on_input_event(_camera, event, _position, _normal, _shape_idx) -> void:
 func _start_drag(touch_index: int, touch_pos: Vector2) -> void:
 	_drag_touch_index = touch_index
 	_drag_touch_pos   = touch_pos
+	last_hover_pos    = Vector3(999, 999, 999)
 	is_dragging       = true
 	gravity_scale     = 0.0
 	freeze            = false
@@ -268,23 +243,7 @@ func _start_drag(touch_index: int, touch_pos: Vector2) -> void:
 	_tween_alpha(0.4)
 	_drop_indicator.visible = true
 
-	var trash_zone    = _get_drag_ui()[0]
-	var inventory_tray = _get_drag_ui()[1]
-	if trash_zone:     trash_zone.visible     = true
-	if inventory_tray: inventory_tray.visible = false
-
 	drag_plane = Plane(Vector3.UP, Vector3.ZERO)
-
-
-## Returns [trash_zone, inventory_tray] looked up by group — null if not found.
-func _get_drag_ui() -> Array:
-	var trash_zones    := get_tree().get_nodes_in_group("trash_zone")
-	var inventory_trays := get_tree().get_nodes_in_group("inventory_tray")
-	return [
-		trash_zones[0]    if trash_zones.size()    > 0 else null,
-		inventory_trays[0] if inventory_trays.size() > 0 else null,
-	]
-
 
 
 func _rotate_90() -> void:
@@ -331,9 +290,6 @@ func _physics_process(delta: float) -> void:
 		_target_rotation_y      = 0.0
 		_drag_touch_index       = -1
 		_drop_indicator.visible = false
-		var _ui := _get_drag_ui()
-		if _ui[0]: (_ui[0] as Node).set("visible", false)
-		if _ui[1]: (_ui[1] as Node).set("visible", true)
 		_tween_alpha(1.0)
 
 	if is_dragging and camera:
@@ -353,6 +309,17 @@ func _physics_process(delta: float) -> void:
 			var hover_y: float = _get_stack_height(hover_snap_x, hover_snap_z)
 			var target_ghost_pos := Vector3(hover_snap_x, hover_y, hover_snap_z)
 			_drop_indicator.global_position = _drop_indicator.global_position.lerp(target_ghost_pos, delta * 15.0)
+
+			var current_xz := Vector2(hover_snap_x, hover_snap_z)
+			var last_xz    := Vector2(last_hover_pos.x, last_hover_pos.z)
+
+			if get_tree().current_scene.current_tool == 1: # PAINT
+				if current_xz != last_xz:
+					if last_hover_pos.x != 999: # Skip the very first initial pickup frame
+						var main_scene = get_tree().current_scene
+						if abs(last_hover_pos.x) <= (main_scene.limit_x + 0.1) and abs(last_hover_pos.z) <= (main_scene.limit_z + 0.1) and last_hover_pos.y <= main_scene.limit_y:
+							main_scene.paint_block_at(last_hover_pos, block_color_name, _material.albedo_color)
+					last_hover_pos = target_ghost_pos
 
 			var push_vector = (target_pos + effective_offset - global_position) / delta
 
