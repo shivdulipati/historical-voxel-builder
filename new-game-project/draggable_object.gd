@@ -6,10 +6,10 @@ var drag_plane: Plane
 
 ## Shifts the drag target above and away from the thumb so the object stays visible.
 ## X and Z components are fixed; Y is driven at runtime by current_y_offset.
-@export var touch_offset: Vector3 = Vector3(0, 1.5, -0.5)
+@export var touch_offset: Vector3 = Vector3(0, 3.0, -0.5)
 
 ## Vertical lift above the drag plane. Updated by the OffsetSlider in the debug panel.
-var current_y_offset: float = 1.5
+var current_y_offset: float = 3.0
 
 ## Y-height of the drop indicator ghost. Updated by the GhostSlider in the debug panel.
 var current_ghost_height: float = 0.0

@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bkacm3icayaa6" path="res://draggable_object.gd" id="1_s0tg5"]
 [ext_resource type="AudioStream" uid="uid://b07pftecudbdt" path="res://click3.ogg" id="2_88eo7"]
-[ext_resource type="Shader" uid="uid://dn74tjtqtbawu" path="res://hologram_ghost.gdshader" id="2_m24kv"]
+[ext_resource type="Shader" uid="uid://bri02xyg2hxn0" path="res://grid_box.gdshader" id="2_m24kv"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_1bvp3"]
 
@@ -17,11 +17,9 @@ albedo_color = Color(0.9428177, 0.8581989, 0.3901112, 1)
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_el065"]
 render_priority = 0
 shader = ExtResource("2_m24kv")
-shader_parameter/albedo_color = Color(0, 0.8, 1, 1)
-shader_parameter/base_alpha = 0.08
-shader_parameter/rim_alpha = 0.75
-shader_parameter/rim_emission_strength = 2.5
-shader_parameter/rim_power = 3.0
+shader_parameter/line_color = Color(0.9250329, 0.929443, 0.45099247, 1)
+shader_parameter/glass_color = Color(0.2, 0.8, 1, 0.1)
+shader_parameter/line_thickness = 0.02000000095
 
 [node name="Box" type="RigidBody3D" unique_id=845027019]
 collision_layer = 2

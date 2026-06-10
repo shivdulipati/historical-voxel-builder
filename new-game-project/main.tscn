@@ -3,6 +3,7 @@
 [ext_resource type="Script" uid="uid://bempvqvskvxb7" path="res://main.gd" id="1_lquwl"]
 [ext_resource type="PackedScene" uid="uid://c04ixih3t6o20" path="res://draggable_object.tscn" id="2_1bvp3"]
 [ext_resource type="Script" uid="uid://uusxfhw2epny" path="res://button.gd" id="4_1bvp3"]
+[ext_resource type="Shader" uid="uid://bri02xyg2hxn0" path="res://grid_box.gdshader" id="5_lquwl"]
 [ext_resource type="Texture2D" uid="uid://4q335xxs2p" path="res://icon.svg" id="6_7mycd"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_0xm2m"]
@@ -46,6 +47,13 @@ viewport_path = NodePath("HUD/Control/ReferenceContainer/SubViewport")
 background_mode = 1
 background_color = Color(0.42636967, 0.8912395, 0.9703683, 1)
 ssao_enabled = true
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_7mycd"]
+render_priority = 0
+shader = ExtResource("5_lquwl")
+shader_parameter/line_color = Color(0.2, 0.8, 1, 1)
+shader_parameter/glass_color = Color(0.2, 0.8, 1, 0.09803922)
+shader_parameter/line_thickness = 0.02000000095
 
 [sub_resource type="BoxMesh" id="BoxMesh_5vw27"]
 size = Vector3(3, 3, 3)
@@ -445,6 +453,7 @@ environment = SubResource("Environment_1bvp3")
 
 [node name="BlueprintTarget" type="MeshInstance3D" parent="." unique_id=1578581524 groups=["blueprint"]]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+material_override = SubResource("ShaderMaterial_7mycd")
 cast_shadow = 0
 mesh = SubResource("BoxMesh_5vw27")
 surface_material_override/0 = SubResource("StandardMaterial3D_kek77")
