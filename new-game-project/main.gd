@@ -1,6 +1,6 @@
 extends Node3D
 
-enum ToolMode { SINGLE, PAINT, ERASER }
+enum ToolMode { SINGLE, PAINT, ERASER, ROTATE }
 var current_tool: ToolMode = ToolMode.SINGLE
 
 @export var block_scene: PackedScene
@@ -39,6 +39,20 @@ var limit_y: float = 1.0
 @onready var btn_single = $HUD/Control/ToolTray/BtnSingle
 @onready var btn_paint  = $HUD/Control/ToolTray/BtnPaint
 @onready var btn_eraser = $HUD/Control/ToolTray/BtnEraser
+
+@onready var ref_camera_pivot = $HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld/RefCameraPivot
+
+@onready var btn_top    = $HUD/Control/CubeUI/BtnTop
+@onready var btn_front  = $HUD/Control/CubeUI/BtnFront
+@onready var btn_side   = $HUD/Control/CubeUI/BtnSide
+
+@onready var btn_rotate = $HUD/Control/ToolTray/BtnRotate
+@onready var btn_reset  = $HUD/Control/BtnReset
+
+## Stores the initial isometric rotation of camera_pivot, set in _ready().
+var default_cam_rot := Vector3.ZERO
+## Tracks which CubeUI face button is currently active (null = isometric default).
+var active_cube_face: Button = null
 
 @onready var ref_container    = $HUD/Control/ReferenceContainer
 @onready var inspect_overlay  = $HUD/Control/InspectOverlay
@@ -82,6 +96,14 @@ func _ready() -> void:
 	btn_eraser.pressed.connect(func(): set_tool(ToolMode.ERASER))
 	set_tool(ToolMode.SINGLE)
 
+	default_cam_rot = camera_pivot.rotation
+	btn_top.pressed.connect(func(): _snap_camera(Vector3(-PI / 2.0, 0.0, 0.0), btn_top))
+	btn_front.pressed.connect(func(): _snap_camera(Vector3(0.0, 0.0, 0.0), btn_front))
+	btn_side.pressed.connect(func(): _snap_camera(Vector3(0.0, -PI / 2.0, 0.0), btn_side))
+
+	btn_rotate.pressed.connect(func(): set_tool(ToolMode.ROTATE))
+	btn_reset.pressed.connect(_reset_camera_look)
+
 	var _ok := load_level(current_level_index + 1)
 
 
@@ -90,6 +112,33 @@ func set_tool(mode: ToolMode) -> void:
 	btn_single.modulate = Color.GREEN if mode == ToolMode.SINGLE else Color.WHITE
 	btn_paint.modulate  = Color.GREEN if mode == ToolMode.PAINT  else Color.WHITE
 	btn_eraser.modulate = Color.GREEN if mode == ToolMode.ERASER else Color.WHITE
+	btn_rotate.modulate = Color.GREEN if mode == ToolMode.ROTATE else Color.WHITE
+
+
+func _input(event: InputEvent) -> void:
+	var is_touch_drag = event is InputEventScreenDrag
+	var is_mouse_drag = event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
+
+	if current_tool == ToolMode.ROTATE and (is_touch_drag or is_mouse_drag):
+		var sensitivity: float = 0.005
+		camera_pivot.rotation.y -= event.relative.x * sensitivity
+		camera_pivot.rotation.x -= event.relative.y * sensitivity
+		camera_pivot.rotation.x = clamp(camera_pivot.rotation.x, -PI / 2.0, 0.0)
+
+		# Magnetic snap to 90-degree increments (~5-degree pull margin)
+		var snap_margin := 0.087
+		var snap_step := PI / 2.0
+
+		var target_x: float = round(camera_pivot.rotation.x / snap_step) * snap_step
+		if abs(camera_pivot.rotation.x - target_x) < snap_margin:
+			camera_pivot.rotation.x = target_x
+
+		var target_y: float = round(camera_pivot.rotation.y / snap_step) * snap_step
+		if abs(camera_pivot.rotation.y - target_y) < snap_margin:
+			camera_pivot.rotation.y = target_y
+
+		if ref_camera_pivot:
+			ref_camera_pivot.rotation = camera_pivot.rotation
 
 
 func _on_inventory_gui_input(event: InputEvent, item_node: Control) -> void:
@@ -98,6 +147,9 @@ func _on_inventory_gui_input(event: InputEvent, item_node: Control) -> void:
 
 	if not (is_touch or is_click):
 		return
+
+	if current_tool == ToolMode.ROTATE:
+		set_tool(ToolMode.SINGLE)
 
 	item_node.accept_event()
 
@@ -119,6 +171,8 @@ func _on_inventory_gui_input(event: InputEvent, item_node: Control) -> void:
 func _process(delta: float) -> void:
 	_elapsed += delta
 	_timer_label.text = "%02d:%02d" % [int(_elapsed) / 60, int(_elapsed) % 60]
+	if ref_camera_pivot:
+		ref_camera_pivot.rotation = camera_pivot.rotation
 
 
 func _on_restart_pressed() -> void:
@@ -168,6 +222,30 @@ func _on_rotate_right_pressed() -> void:
 	is_orbiting = false
 
 
+
+func _reset_camera_look() -> void:
+	var tween = create_tween()
+	tween.tween_property(camera_pivot, "rotation", default_cam_rot, 0.3)\
+		.set_trans(Tween.TRANS_QUAD)\
+		.set_ease(Tween.EASE_OUT)
+
+
+func _snap_camera(target_rot: Vector3, clicked_btn: Button) -> void:
+	if active_cube_face == clicked_btn:
+		_reset_camera_look()
+		active_cube_face = null
+		return
+
+	active_cube_face = clicked_btn
+	var tween = create_tween()
+	tween.tween_property(camera_pivot, "rotation", target_rot, 0.3)\
+		.set_trans(Tween.TRANS_QUAD)\
+		.set_ease(Tween.EASE_OUT)
+	await tween.finished
+	if ref_camera_pivot:
+		ref_camera_pivot.rotation = target_rot
+
+
 func load_level(target_id: int) -> bool:
 	# --- Parse levels.json and locate the requested level entry ---
 	var file := FileAccess.open("res://levels.json", FileAccess.READ)
@@ -215,10 +293,15 @@ func load_level(target_id: int) -> bool:
 	)
 
 	# --- Clear live blocks and reset state ---
-	for block in get_tree().get_nodes_in_group("draggable"):
+	var tree = get_tree()
+	if tree == null:
+		return false
+
+	for block in tree.get_nodes_in_group("draggable"):
 		block.queue_free()
 	current_build.clear()
 	_inspect_target_rotation_y = 0.0
+	_reset_camera_look()
 
 	# --- Parse "x,y,z" string keys into Vector3 and populate target_puzzle ---
 	target_puzzle.clear()
@@ -272,23 +355,18 @@ func _build_reference_model() -> void:
 
 		target_container.add_child(mesh_instance)
 
-	# 3. Holographic bounding box that wraps all target blocks.
+	# 3. Apply the Clear Glass Holographic Grid
 	var bounds_size := Vector3((limit_x * 2.0) + 1.0, limit_y, (limit_z * 2.0) + 1.0)
 	var bounds_center := Vector3(0.0, limit_y / 2.0, 0.0)
 
-	var holo_mat := StandardMaterial3D.new()
-	holo_mat.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
-	holo_mat.albedo_color = Color(0.0, 1.0, 1.0, 0.2)
-	holo_mat.emission_enabled = true
-	holo_mat.emission = Color(0.0, 1.0, 1.0)
-
+	var holo_instance := MeshInstance3D.new()
 	var holo_box := BoxMesh.new()
 	holo_box.size = bounds_size
-
-	var holo_instance := MeshInstance3D.new()
 	holo_instance.mesh = holo_box
-	holo_instance.material_override = holo_mat
 	holo_instance.position = bounds_center
+
+	if _grid_mesh and _grid_mesh.get_active_material(0):
+		holo_instance.material_override = _grid_mesh.get_active_material(0)
 
 	target_container.add_child(holo_instance)
 
@@ -296,18 +374,18 @@ func _build_reference_model() -> void:
 	var ref_camera = reference_world.get_node_or_null("Camera3D")
 	var ref_light = reference_world.get_node_or_null("DirectionalLight3D")
 
-	if ref_camera:
+	if ref_camera and ref_camera_pivot:
 		# Calculate the true diagonal width of the puzzle base
 		var diagonal: float = sqrt((bounds_size.x * bounds_size.x) + (bounds_size.z * bounds_size.z))
-
-		# The required size must encapsulate the diagonal width, or the total height for tall towers
 		var required_size: float = maxf(diagonal, bounds_size.y * 1.5)
 
-		# Move the camera back proportionally and look at the center
-		ref_camera.position = bounds_center + Vector3(1.0, 1.2, 1.0).normalized() * (required_size * 2.5)
-		ref_camera.look_at(bounds_center)
+		# Center the pivot exactly on the puzzle
+		ref_camera_pivot.position = bounds_center
 
-		# Pad the final size by 20% to leave a comfortable margin around the puzzle edges
+		# Push the camera straight back on the local Z axis with zero rotation
+		ref_camera.position = Vector3(0.0, 0.0, required_size * 2.5)
+		ref_camera.rotation = Vector3.ZERO
+
 		if ref_camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
 			ref_camera.size = required_size * 1.2
 

@@ -20,6 +20,7 @@ const FLOOR_Y: float = 0.5
 
 var _mesh: MeshInstance3D
 var _material: StandardMaterial3D
+var _outline_mat: Material
 
 ## Ghost indicator that slides on the floor while the object floats above it.
 @onready var _drop_indicator: MeshInstance3D = $DropIndicator
@@ -61,9 +62,14 @@ func _ready() -> void:
 		# Duplicate so each instance owns its own material copy.
 		_material = _mesh.get_active_material(0).duplicate() as StandardMaterial3D
 		_mesh.set_surface_override_material(0, _material)
+		_outline_mat = _material.next_pass
 
 
 func _input(event: InputEvent) -> void:
+	var main_scene = get_tree().current_scene
+	if main_scene.current_tool == 3: # 3 == ToolMode.ROTATE
+		return
+
 	# While waiting for a long-press on a placed block, watch only for the
 	# matching finger lifting early — that cancels the pick-up attempt.
 	if is_placed and is_pressing:
@@ -201,6 +207,10 @@ func _squish_on_land() -> void:
 
 
 func _on_input_event(_camera, event, _position, _normal, _shape_idx) -> void:
+	var main_scene = get_tree().current_scene
+	if main_scene.current_tool == 3: # 3 == ToolMode.ROTATE
+		return
+
 	# --- Eraser tool: delete this block on touch/click ---
 	var is_press: bool = (event is InputEventScreenTouch and event.pressed) \
 		or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed)
@@ -257,14 +267,23 @@ func _rotate_90() -> void:
 func _tween_alpha(target_alpha: float) -> void:
 	if _material == null:
 		return
-	_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+
+	# Hide the outline while translucent
+	if target_alpha < 1.0:
+		_material.next_pass = null
+		_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+
 	var t = get_tree().create_tween()
 	t.tween_property(_material, "albedo_color:a", target_alpha, 0.15)\
 	 .set_trans(Tween.TRANS_SINE)\
 	 .set_ease(Tween.EASE_OUT)
+
+	# Restore the outline when fully opaque
 	if target_alpha >= 1.0:
-		# Restore opaque rendering mode once fully solid so it renders correctly.
-		t.tween_callback(func(): _material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED)
+		t.tween_callback(func():
+			_material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
+			_material.next_pass = _outline_mat
+		)
 
 
 func _physics_process(delta: float) -> void:

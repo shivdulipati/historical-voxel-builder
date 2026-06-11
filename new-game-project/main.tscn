@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://bempvqvskvxb7" path="res://main.gd" id="1_lquwl"]
 [ext_resource type="PackedScene" uid="uid://c04ixih3t6o20" path="res://draggable_object.tscn" id="2_1bvp3"]
-[ext_resource type="Script" uid="uid://uusxfhw2epny" path="res://button.gd" id="4_1bvp3"]
 [ext_resource type="Shader" uid="uid://bri02xyg2hxn0" path="res://grid_box.gdshader" id="5_lquwl"]
 [ext_resource type="Texture2D" uid="uid://4q335xxs2p" path="res://icon.svg" id="6_7mycd"]
 
@@ -52,8 +51,7 @@ ssao_enabled = true
 resource_local_to_scene = true
 render_priority = 0
 shader = ExtResource("5_lquwl")
-shader_parameter/line_color = Color(0.2, 0.8, 1, 1)
-shader_parameter/glass_color = Color(0.2, 0.8, 1, 0.09803922)
+shader_parameter/grid_color = Color(0, 0.5, 1, 1)
 shader_parameter/line_thickness = 0.02000000095
 
 [sub_resource type="BoxMesh" id="BoxMesh_5vw27"]
@@ -130,7 +128,6 @@ offset_right = 75.0
 offset_bottom = 31.0
 theme_override_font_sizes/font_size = 48
 text = "REST"
-script = ExtResource("4_1bvp3")
 
 [node name="TimerLabel" type="Label" parent="HUD/Control" unique_id=1166518386]
 layout_mode = 1
@@ -296,16 +293,19 @@ render_target_update_mode = 4
 
 [node name="ReferenceWorld" type="Node3D" parent="HUD/Control/ReferenceContainer/SubViewport" unique_id=652240800]
 
-[node name="Camera3D" type="Camera3D" parent="HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld" unique_id=237950843]
-transform = Transform3D(0.70710677, -0.49999997, 0.49999997, 0, 0.70710677, 0.70710677, -0.70710677, -0.49999997, 0.49999997, 5, 5, 5)
+[node name="TargetBlocks" type="Node3D" parent="HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld" unique_id=641373745]
+
+[node name="RefCameraPivot" type="Node3D" parent="HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld" unique_id=153138645]
+transform = Transform3D(0.70710677, -0.40860704, 0.5770964, 0, 0.8161376, 0.5778576, -0.70710677, -0.40860704, 0.5770964, 0, 0, 0)
+
+[node name="Camera3D" type="Camera3D" parent="HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld/RefCameraPivot" unique_id=237950843]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 30)
 projection = 1
 size = 12.0
 near = 0.5
 
-[node name="DirectionalLight3D" type="DirectionalLight3D" parent="HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld" unique_id=671050006]
-transform = Transform3D(1, 0, 0, 0, 0.25881907, 0.9659258, 0, -0.9659258, 0.25881907, 0, 0, 0)
-
-[node name="TargetBlocks" type="Node3D" parent="HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld" unique_id=641373745]
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld/RefCameraPivot/Camera3D" unique_id=671050006]
+transform = Transform3D(0.70710677, 0.68301266, -0.18301274, -0.4086071, 0.60591614, 0.6825731, 0.57709646, -0.40787172, 0.7075312, 0, 0, 0)
 
 [node name="WinPanel" type="Panel" parent="HUD/Control" unique_id=198717561]
 layout_mode = 1
@@ -467,6 +467,51 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 40
 text = "Erase"
 
+[node name="BtnRotate" type="Button" parent="HUD/Control/ToolTray" unique_id=132595851]
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "ROTATE"
+
+[node name="BtnReset" type="Button" parent="HUD/Control" unique_id=612641704]
+custom_minimum_size = Vector2(0, 100)
+layout_mode = 0
+offset_left = 75.0
+offset_top = 400.0
+offset_right = 307.0
+offset_bottom = 500.0
+theme_override_font_sizes/font_size = 48
+text = "RESETV"
+
+[node name="CubeUI" type="HBoxContainer" parent="HUD/Control" unique_id=122628037]
+custom_minimum_size = Vector2(0, 200)
+layout_mode = 1
+anchors_preset = 7
+anchor_left = 0.5
+anchor_top = 1.0
+anchor_right = 0.5
+anchor_bottom = 1.0
+offset_left = -90.0
+offset_top = -595.0
+offset_right = 110.0
+offset_bottom = -395.0
+grow_horizontal = 2
+grow_vertical = 0
+
+[node name="BtnTop" type="Button" parent="HUD/Control/CubeUI" unique_id=2016415287]
+layout_mode = 2
+theme_override_font_sizes/font_size = 64
+text = "TOP"
+
+[node name="BtnFront" type="Button" parent="HUD/Control/CubeUI" unique_id=1935901460]
+layout_mode = 2
+theme_override_font_sizes/font_size = 64
+text = "FRONT"
+
+[node name="BtnSide" type="Button" parent="HUD/Control/CubeUI" unique_id=1763639038]
+layout_mode = 2
+theme_override_font_sizes/font_size = 64
+text = "SIDE"
+
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1134175239]
 environment = SubResource("Environment_1bvp3")
 
@@ -478,9 +523,10 @@ mesh = SubResource("BoxMesh_5vw27")
 surface_material_override/0 = SubResource("StandardMaterial3D_kek77")
 
 [node name="CameraPivot" type="Node3D" parent="." unique_id=2025048182]
+transform = Transform3D(0.70710677, -0.40860704, 0.5770964, 0, 0.8161376, 0.5778576, -0.70710677, -0.40860704, 0.5770964, 0, 0, 0)
 
 [node name="Camera3D" type="Camera3D" parent="CameraPivot" unique_id=367626471]
-transform = Transform3D(0.7071068, -0.4055798, 0.579228, 0, 0.81915206, 0.57357645, -0.7071068, -0.4055798, 0.579228, 25, 25, 25)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 30)
 keep_aspect = 0
 projection = 1
 current = true
