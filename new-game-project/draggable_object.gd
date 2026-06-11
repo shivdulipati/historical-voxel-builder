@@ -19,8 +19,7 @@ var current_ghost_height: float = 0.0
 const FLOOR_Y: float = 0.5
 
 var _mesh: MeshInstance3D
-var _material: StandardMaterial3D
-var _outline_mat: Material
+var _material: ShaderMaterial
 
 ## Ghost indicator that slides on the floor while the object floats above it.
 @onready var _drop_indicator: MeshInstance3D = $DropIndicator
@@ -51,6 +50,7 @@ var last_hover_pos: Vector3 = Vector3(999, 999, 999)
 
 ## Color identifier used for win-condition matching against the target puzzle.
 var block_color_name: String = ""
+var block_color: Color = Color.WHITE
 
 
 func _ready() -> void:
@@ -59,10 +59,9 @@ func _ready() -> void:
 
 	_mesh = get_node("MeshInstance3D") as MeshInstance3D
 	if _mesh:
-		# Duplicate so each instance owns its own material copy.
-		_material = _mesh.get_active_material(0).duplicate() as StandardMaterial3D
+		_material = ShaderMaterial.new()
+		_material.shader = load("res://block.gdshader")
 		_mesh.set_surface_override_material(0, _material)
-		_outline_mat = _material.next_pass
 
 
 func _input(event: InputEvent) -> void:
@@ -177,7 +176,8 @@ func _get_stack_height(snap_x: float, snap_z: float) -> float:
 func set_block_color(new_color: Color, color_name: String = "") -> void:
 	if _material == null:
 		return
-	_material.albedo_color = new_color
+	_material.set_shader_parameter("albedo_color", new_color)
+	block_color = new_color
 	if color_name != "":
 		block_color_name = color_name
 
@@ -268,22 +268,18 @@ func _tween_alpha(target_alpha: float) -> void:
 	if _material == null:
 		return
 
-	# Hide the outline while translucent
-	if target_alpha < 1.0:
-		_material.next_pass = null
-		_material.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	var current_alpha: float = 1.0
+	var val = _material.get_shader_parameter("alpha")
+	if val != null:
+		current_alpha = float(val)
 
 	var t = get_tree().create_tween()
-	t.tween_property(_material, "albedo_color:a", target_alpha, 0.15)\
-	 .set_trans(Tween.TRANS_SINE)\
-	 .set_ease(Tween.EASE_OUT)
-
-	# Restore the outline when fully opaque
-	if target_alpha >= 1.0:
-		t.tween_callback(func():
-			_material.transparency = BaseMaterial3D.TRANSPARENCY_DISABLED
-			_material.next_pass = _outline_mat
-		)
+	t.tween_method(
+		func(a: float): _material.set_shader_parameter("alpha", a),
+		current_alpha,
+		target_alpha,
+		0.15
+	).set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 
 
 func _physics_process(delta: float) -> void:
@@ -337,7 +333,7 @@ func _physics_process(delta: float) -> void:
 					if last_hover_pos.x != 999: # Skip the very first initial pickup frame
 						var main_scene = get_tree().current_scene
 						if abs(last_hover_pos.x) <= (main_scene.limit_x + 0.1) and abs(last_hover_pos.z) <= (main_scene.limit_z + 0.1) and last_hover_pos.y <= main_scene.limit_y:
-							main_scene.paint_block_at(last_hover_pos, block_color_name, _material.albedo_color)
+							main_scene.paint_block_at(last_hover_pos, block_color_name, block_color)
 					last_hover_pos = target_ghost_pos
 
 			var push_vector = (target_pos + effective_offset - global_position) / delta

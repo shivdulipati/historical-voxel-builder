@@ -288,9 +288,9 @@ func load_level(target_id: int) -> bool:
 	_grid_mesh.position.y = dim_y / 2.0
 
 	# --- Update grid shader to keep line density proportional to grid size ---
-	_grid_mesh.get_active_material(0).set_shader_parameter(
-		"line_thickness", 0.06 / dim_x
-	)
+	var grid_mat = _grid_mesh.get_active_material(0)
+	grid_mat.set_shader_parameter("line_thickness", 0.06 / dim_x)
+	grid_mat.set_shader_parameter("box_height", float(dim_y))
 
 	# --- Clear live blocks and reset state ---
 	var tree = get_tree()
@@ -335,15 +335,17 @@ func _build_reference_model() -> void:
 	for grid_pos: Vector3 in target_puzzle:
 		var color_name: String = target_puzzle[grid_pos]
 
-		var mat := StandardMaterial3D.new()
+		var mat := ShaderMaterial.new()
+		mat.shader = load("res://block.gdshader")
+		var c := Color.MAGENTA
 		match color_name:
-			"Red":    mat.albedo_color = Color.RED
-			"Blue":   mat.albedo_color = Color.BLUE
-			"Green":  mat.albedo_color = Color.GREEN
-			"Yellow": mat.albedo_color = Color.YELLOW
-			"Orange": mat.albedo_color = Color.ORANGE
-			"White":  mat.albedo_color = Color.WHITE
-			_:        mat.albedo_color = Color.MAGENTA
+			"Red":    c = Color.RED
+			"Blue":   c = Color.BLUE
+			"Green":  c = Color.GREEN
+			"Yellow": c = Color.YELLOW
+			"Orange": c = Color.ORANGE
+			"White":  c = Color.WHITE
+		mat.set_shader_parameter("albedo_color", c)
 
 		var box := BoxMesh.new()
 		box.size = Vector3(1.0, 1.0, 1.0)
