@@ -170,7 +170,9 @@ func _on_inventory_gui_input(event: InputEvent, item_node: Control) -> void:
 
 func _process(delta: float) -> void:
 	_elapsed += delta
-	_timer_label.text = "%02d:%02d" % [int(_elapsed) / 60, int(_elapsed) % 60]
+	# Prepends the level number (1-indexed) to the timer format
+	_timer_label.text = "LVL %d - %02d:%02d" % [current_level_index + 1, int(_elapsed) / 60, int(_elapsed) % 60]
+
 	if ref_camera_pivot:
 		ref_camera_pivot.rotation = camera_pivot.rotation
 
@@ -283,14 +285,42 @@ func load_level(target_id: int) -> bool:
 	limit_z = maxf(0.0, (dim_z - 1.0) / 2.0)
 	limit_y = dim_y
 
-	# Size the grid as a true 3D volume and lift it so its base sits flush on the floor.
-	_grid_mesh.mesh.size = Vector3(dim_x, dim_y, dim_z)
-	_grid_mesh.position.y = dim_y / 2.0
+	# --- Dynamic Camera Framing & Environment Scale ---
+	# Find the largest dimension of the current puzzle (hoisted for scope safety)
+	var max_dim = maxf(dim_x, maxf(dim_y, dim_z))
 
-	# --- Update grid shader to keep line density proportional to grid size ---
+	var main_camera = camera_pivot.get_node_or_null("Camera3D")
+	if main_camera:
+		# Calculate a comfortable viewing distance/size
+		var required_size = max_dim * 1.8 + 4.0
+
+		if main_camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
+			main_camera.size = required_size
+		else:
+			main_camera.position = Vector3(0.0, 0.0, required_size)
+
+	# Scale up the background environment
+	var bg_floor = get_node_or_null("Floor/BackgroundFloor")
+	if bg_floor:
+		# Ensure the floor is always vastly larger than the puzzle grid
+		var floor_scale = maxf(20.0, max_dim * 4.0)
+		bg_floor.scale = Vector3(floor_scale, 1.0, floor_scale)
+
+	# --- Convert mesh to a flat PlaneMesh to prevent 3D clipping quirks ---
+	var flat_plane = PlaneMesh.new()
+	flat_plane.size = Vector2(dim_x, dim_z)
+	_grid_mesh.mesh = flat_plane
+
+	# --- Position flat plane exactly at the base, slightly lifted to prevent Z-fighting ---
+	_grid_mesh.position = Vector3(0.0, 0.002, 0.0)
+
+	# --- Pass dimensions to the clean flat shader ---
 	var grid_mat = _grid_mesh.get_active_material(0)
-	grid_mat.set_shader_parameter("line_thickness", 0.06 / dim_x)
-	grid_mat.set_shader_parameter("box_height", float(dim_y))
+	grid_mat.set_shader_parameter("line_thickness", 0.04)
+	grid_mat.set_shader_parameter("grid_dimensions", Vector2(dim_x, dim_z))
+
+	# Force the grid plane to render BEFORE the blocks to fix transparency sorting
+	grid_mat.render_priority = -1
 
 	# --- Clear live blocks and reset state ---
 	var tree = get_tree()
@@ -353,19 +383,26 @@ func _build_reference_model() -> void:
 		var mesh_instance := MeshInstance3D.new()
 		mesh_instance.mesh = box
 		mesh_instance.material_override = mat
-		mesh_instance.position = grid_pos
+		# Add 0.5 to the Y coordinate so the center of the block sits above the floor plane
+		mesh_instance.position = Vector3(grid_pos.x, grid_pos.y + 0.5, grid_pos.z)
 
 		target_container.add_child(mesh_instance)
 
-	# 3. Apply the Clear Glass Holographic Grid
+	# 3. Apply the Flat Glass Holographic Grid
 	var bounds_size := Vector3((limit_x * 2.0) + 1.0, limit_y, (limit_z * 2.0) + 1.0)
 	var bounds_center := Vector3(0.0, limit_y / 2.0, 0.0)
 
 	var holo_instance := MeshInstance3D.new()
-	var holo_box := BoxMesh.new()
-	holo_box.size = bounds_size
-	holo_instance.mesh = holo_box
-	holo_instance.position = bounds_center
+	var flat_plane := PlaneMesh.new()
+
+	# Size the plane based on the exact grid limits
+	var plane_x: float = (limit_x * 2.0) + 1.0
+	var plane_z: float = (limit_z * 2.0) + 1.0
+	flat_plane.size = Vector2(plane_x, plane_z)
+
+	holo_instance.mesh = flat_plane
+	# Position at base, slightly lifted to prevent Z-fighting with floor faces
+	holo_instance.position = Vector3(0.0, 0.002, 0.0)
 
 	if _grid_mesh and _grid_mesh.get_active_material(0):
 		holo_instance.material_override = _grid_mesh.get_active_material(0)
@@ -473,14 +510,18 @@ func _on_inspect_rot_right() -> void:
 
 
 func paint_block_at(grid_pos: Vector3, color_name: String, color_val: Color) -> void:
-	if current_build.has(grid_pos):
+	# Convert physical world Y (e.g., 0.5) to logical grid Y (e.g., 0)
+	var logical_pos = Vector3(grid_pos.x, round(grid_pos.y - 0.5), grid_pos.z)
+
+	if current_build.has(logical_pos):
 		return
+
 	var new_block = block_scene.instantiate()
 	add_child(new_block)
 	new_block.set_block_color(color_val, color_name)
 	new_block.global_position = grid_pos
 	new_block.is_placed = true
-	new_block.current_grid_position = grid_pos
+	new_block.current_grid_position = logical_pos
 	new_block.freeze = true
 	new_block.gravity_scale = 0.0
 	new_block.get_node("CollisionShape3D").disabled = false
@@ -490,5 +531,6 @@ func paint_block_at(grid_pos: Vector3, color_name: String, color_val: Color) -> 
 	if new_block.has_node("AudioStreamPlayer"):
 		new_block.get_node("AudioStreamPlayer").play()
 
-	current_build[grid_pos] = color_name
+	# Save the logical integer position to the build dictionary
+	current_build[logical_pos] = color_name
 	check_win_condition()

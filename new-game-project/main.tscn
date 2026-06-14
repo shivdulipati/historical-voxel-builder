@@ -53,6 +53,8 @@ render_priority = 0
 shader = ExtResource("5_lquwl")
 shader_parameter/grid_color = Color(0, 0.5, 1, 1)
 shader_parameter/line_thickness = 0.02000000095
+shader_parameter/floor_opacity = 0.2
+shader_parameter/grid_dimensions = Vector2(5, 5)
 
 [sub_resource type="BoxMesh" id="BoxMesh_5vw27"]
 size = Vector3(3, 3, 3)
@@ -76,26 +78,26 @@ shadow_blur = 0.0
 [node name="Floor" type="StaticBody3D" parent="." unique_id=1165671224]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, -2, -0.5)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="Floor" unique_id=1834396108]
+[node name="BackgroundFloor" type="MeshInstance3D" parent="Floor" unique_id=1834396108]
 mesh = SubResource("BoxMesh_0xm2m")
 surface_material_override/0 = SubResource("StandardMaterial3D_h2yge")
 
-[node name="Border_North" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=499614805]
+[node name="Border_North" type="MeshInstance3D" parent="Floor/BackgroundFloor" unique_id=499614805]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -10.5)
 mesh = SubResource("BoxMesh_lquwl")
 surface_material_override/0 = SubResource("StandardMaterial3D_7mycd")
 
-[node name="Border_South" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=1774381681]
+[node name="Border_South" type="MeshInstance3D" parent="Floor/BackgroundFloor" unique_id=1774381681]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 10.5)
 mesh = SubResource("BoxMesh_272bh")
 surface_material_override/0 = SubResource("StandardMaterial3D_5vw27")
 
-[node name="Border_East" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=1983037966]
+[node name="Border_East" type="MeshInstance3D" parent="Floor/BackgroundFloor" unique_id=1983037966]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.5, 0)
 mesh = SubResource("BoxMesh_kek77")
 surface_material_override/0 = SubResource("StandardMaterial3D_4c57u")
 
-[node name="Border_West" type="MeshInstance3D" parent="Floor/MeshInstance3D" unique_id=1928196421]
+[node name="Border_West" type="MeshInstance3D" parent="Floor/BackgroundFloor" unique_id=1928196421]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.5, 0)
 mesh = SubResource("BoxMesh_efxa6")
 surface_material_override/0 = SubResource("StandardMaterial3D_dg77c")
