@@ -15,6 +15,19 @@ var current_build: Dictionary = {}
 var current_level_index: int = 0
 var total_levels: int = 0
 
+const SAVE_PATH = "user://save_game.json"
+var pending_saved_build: Dictionary = {}
+
+## Palette map matching the exact sRGB values used by the inventory ColorRect nodes.
+const color_map: Dictionary = {
+	"Red":    Color(0.7635024,  0.15671891, 0.16404146, 1.0),
+	"Blue":   Color(0.12999678, 0.45803988, 0.80540425, 1.0),
+	"Green":  Color(0.20784314, 0.8901961,  0.28235295, 1.0),
+	"Orange": Color(0.98039216, 0.41960785, 0.16470589, 1.0),
+	"Yellow": Color(1.0,        1.0,        0.25882354, 1.0),
+	"White":  Color(1.0,        1.0,        1.0,        1.0),
+}
+
 ## Half-extents of the active grid, derived from levels.json dimensions.
 ## limit_x = (dim_x - 1) / 2,  limit_z = (dim_z - 1) / 2
 var limit_x: float = 1.0
@@ -104,6 +117,7 @@ func _ready() -> void:
 	btn_rotate.pressed.connect(func(): set_tool(ToolMode.ROTATE))
 	btn_reset.pressed.connect(_reset_camera_look)
 
+	load_game()
 	var _ok := load_level(current_level_index + 1)
 
 
@@ -348,6 +362,37 @@ func load_level(target_id: int) -> bool:
 	for child in _block_list.get_children():
 		child.visible = child.name in allowed
 
+	if not pending_saved_build.is_empty():
+		for pos in pending_saved_build:
+			var color_name = pending_saved_build[pos]
+			# Dynamically fetch the precise color from our palette map
+			var c := Color.MAGENTA
+			if color_map.has(color_name):
+				c = color_map[color_name]
+			else:
+				# Fallback to standard constants if not found in palette
+				match color_name:
+					"Red":    c = Color.RED
+					"Blue":   c = Color.BLUE
+					"Green":  c = Color.GREEN
+					"Yellow": c = Color.YELLOW
+					"Orange": c = Color.ORANGE
+					"White":  c = Color.WHITE
+
+			var new_block = block_scene.instantiate()
+			add_child(new_block)
+			new_block.set_block_color(c, color_name)
+			# Offset the physical position by 0.5 on Y so the block center sits above the floor
+			new_block.global_position = Vector3(pos.x, pos.y + 0.5, pos.z)
+			new_block.is_placed = true
+			new_block.current_grid_position = pos
+			new_block.freeze = true
+			new_block.gravity_scale = 0.0
+			new_block.get_node("CollisionShape3D").disabled = false
+			current_build[pos] = color_name
+		pending_saved_build.clear()
+
+	save_game()
 	return true
 
 
@@ -365,17 +410,23 @@ func _build_reference_model() -> void:
 	for grid_pos: Vector3 in target_puzzle:
 		var color_name: String = target_puzzle[grid_pos]
 
-		var mat := ShaderMaterial.new()
-		mat.shader = load("res://block.gdshader")
-		var c := Color.MAGENTA
-		match color_name:
-			"Red":    c = Color.RED
-			"Blue":   c = Color.BLUE
-			"Green":  c = Color.GREEN
-			"Yellow": c = Color.YELLOW
-			"Orange": c = Color.ORANGE
-			"White":  c = Color.WHITE
-		mat.set_shader_parameter("albedo_color", c)
+		# Fetch the precise color from the palette map for visual consistency
+		var block_color := Color.MAGENTA
+		if color_map.has(color_name):
+			block_color = color_map[color_name]
+		else:
+			# Fallback constants if not defined in the palette
+			match color_name:
+				"Red":    block_color = Color.RED
+				"Blue":   block_color = Color.BLUE
+				"Green":  block_color = Color.GREEN
+				"Yellow": block_color = Color.YELLOW
+				"Orange": block_color = Color.ORANGE
+				"White":  block_color = Color.WHITE
+
+		var mat = StandardMaterial3D.new()
+		mat.albedo_color = block_color
+		mat.roughness = 0.5
 
 		var box := BoxMesh.new()
 		box.size = Vector3(1.0, 1.0, 1.0)
@@ -431,6 +482,43 @@ func _build_reference_model() -> void:
 	if ref_light:
 		ref_light.position = Vector3(2.0, 5.0, 3.0)
 		ref_light.look_at(Vector3(0.0, 0.0, 0.0))
+
+
+func save_game() -> void:
+	var save_dict := {
+		"level_index": current_level_index,
+		"build": {}
+	}
+	# Convert Vector3 keys to strings for JSON serialization
+	for pos in current_build:
+		var pos_str = "%f,%f,%f" % [pos.x, pos.y, pos.z]
+		save_dict["build"][pos_str] = current_build[pos]
+
+	var file = FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(save_dict))
+		file.close()
+
+
+func load_game() -> void:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	var file = FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file:
+		var json = JSON.new()
+		if json.parse(file.get_as_text()) == OK:
+			var data = json.data
+			current_level_index = int(data.get("level_index", 0))
+			var raw_build = data.get("build", {})
+			pending_saved_build.clear()
+
+			# Convert string keys back to Vector3
+			for pos_str in raw_build:
+				var parts = pos_str.split(",")
+				if parts.size() == 3:
+					var vec = Vector3(float(parts[0]), float(parts[1]), float(parts[2]))
+					pending_saved_build[vec] = raw_build[pos_str]
+		file.close()
 
 
 func check_win_condition() -> void:
@@ -534,3 +622,4 @@ func paint_block_at(grid_pos: Vector3, color_name: String, color_val: Color) -> 
 	# Save the logical integer position to the build dictionary
 	current_build[logical_pos] = color_name
 	check_win_condition()
+	save_game()

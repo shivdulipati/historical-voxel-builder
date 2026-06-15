@@ -154,6 +154,7 @@ func _drop_to_grid() -> void:
 		main_scene.current_build[current_grid_position] = block_color_name
 		print("Block Dropped -> Color: ", block_color_name, " | Saved Pos: ", current_grid_position)
 		main_scene.check_win_condition()
+		main_scene.save_game()
 	else:
 		queue_free()
 
@@ -217,6 +218,7 @@ func _on_input_event(_camera, event, _position, _normal, _shape_idx) -> void:
 	if is_placed and is_press and get_tree().current_scene.current_tool == 2:
 		var main_scene_erase = get_tree().current_scene
 		main_scene_erase.current_build.erase(current_grid_position)
+		main_scene_erase.save_game()
 		main_scene_erase.check_win_condition()
 		Input.vibrate_handheld(100)
 		queue_free()
@@ -238,6 +240,7 @@ func _on_input_event(_camera, event, _position, _normal, _shape_idx) -> void:
 		if is_placed:
 			var main_scene_mouse = get_tree().current_scene
 			main_scene_mouse.current_build.erase(current_grid_position)
+			main_scene_mouse.save_game()
 			is_placed = false
 		_start_drag(-1, event.position)
 
@@ -289,6 +292,7 @@ func _physics_process(delta: float) -> void:
 		if elapsed > 0.3:
 			var main_scene_lp = get_tree().current_scene
 			main_scene_lp.current_build.erase(current_grid_position)
+			main_scene_lp.save_game()
 			is_placed  = false
 			is_pressing = false
 			_start_drag(_drag_touch_index, _drag_touch_pos)
