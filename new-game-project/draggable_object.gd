@@ -57,11 +57,24 @@ func _ready() -> void:
 	camera = get_viewport().get_camera_3d()
 	add_to_group("draggable")
 
-	_mesh = get_node("MeshInstance3D") as MeshInstance3D
+	_mesh = _find_mesh_instance(self)
 	if _mesh:
 		_material = ShaderMaterial.new()
+		_material.resource_local_to_scene = true
 		_material.shader = load("res://block.gdshader")
 		_mesh.set_surface_override_material(0, _material)
+
+
+## Recursively searches the node tree for the first MeshInstance3D descendant.
+## Works with both procedural nodes and imported GLTF hierarchies.
+func _find_mesh_instance(node: Node) -> MeshInstance3D:
+	if node is MeshInstance3D:
+		return node as MeshInstance3D
+	for child in node.get_children():
+		var result := _find_mesh_instance(child)
+		if result:
+			return result
+	return null
 
 
 func _input(event: InputEvent) -> void:
@@ -193,15 +206,17 @@ func _tween_to(target: Vector3) -> void:
 ## Plays a squish-and-bounce on the mesh scale timed to start when the block lands.
 ## The interval matches _tween_to's duration so both tweens are naturally in sync.
 func _squish_on_land() -> void:
+	if _mesh == null:
+		return
 	var drop_tween = create_tween()
 	drop_tween.tween_interval(0.1)
-	drop_tween.tween_property($MeshInstance3D, "scale", Vector3(1.3, 0.5, 1.3), 0.05)\
+	drop_tween.tween_property(_mesh, "scale", Vector3(1.3, 0.5, 1.3), 0.05)\
 		.set_trans(Tween.TRANS_QUAD)\
 		.set_ease(Tween.EASE_OUT)
-	drop_tween.tween_property($MeshInstance3D, "scale", Vector3(0.8, 1.25, 0.8), 0.1)\
+	drop_tween.tween_property(_mesh, "scale", Vector3(0.8, 1.25, 0.8), 0.1)\
 		.set_trans(Tween.TRANS_QUAD)\
 		.set_ease(Tween.EASE_IN_OUT)
-	drop_tween.tween_property($MeshInstance3D, "scale", Vector3.ONE, 0.15)\
+	drop_tween.tween_property(_mesh, "scale", Vector3.ONE, 0.15)\
 		.set_trans(Tween.TRANS_BOUNCE)\
 		.set_ease(Tween.EASE_OUT)
 

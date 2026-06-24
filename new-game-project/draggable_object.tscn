@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bkacm3icayaa6" path="res://draggable_object.gd" id="1_s0tg5"]
 [ext_resource type="AudioStream" uid="uid://b07pftecudbdt" path="res://click3.ogg" id="2_88eo7"]
+[ext_resource type="PackedScene" uid="uid://dfwgipxpga4a" path="res://assets/models/block_1x1.glb" id="2_m24kv"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_1bvp3"]
 
@@ -33,9 +34,8 @@ max_contacts_reported = 5
 script = ExtResource("1_s0tg5")
 touch_offset = Vector3(0, 1.5, -2)
 
-[node name="MeshInstance3D" type="MeshInstance3D" parent="." unique_id=1200044605]
-mesh = SubResource("BoxMesh_1bvp3")
-surface_material_override/0 = SubResource("StandardMaterial3D_1bvp3")
+[node name="block_1x1" parent="." unique_id=2104050853 instance=ExtResource("2_m24kv")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.5, 0)
 
 [node name="ShadowCaster" type="MeshInstance3D" parent="." unique_id=1386963568]
 cast_shadow = 3
@@ -55,3 +55,5 @@ surface_material_override/0 = SubResource("StandardMaterial3D_88eo7")
 stream = ExtResource("2_88eo7")
 
 [connection signal="input_event" from="." to="." method="_on_input_event"]
+
+[editable path="block_1x1"]
