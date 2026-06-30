@@ -2,7 +2,7 @@
 
 [ext_resource type="Script" uid="uid://bempvqvskvxb7" path="res://main.gd" id="1_lquwl"]
 [ext_resource type="PackedScene" uid="uid://c04ixih3t6o20" path="res://draggable_object.tscn" id="2_1bvp3"]
-[ext_resource type="Shader" uid="uid://bri02xyg2hxn0" path="res://grid_box.gdshader" id="5_lquwl"]
+[ext_resource type="PackedScene" uid="uid://d1dbajfkifwv3" path="res://assets/models/diorama_base.glb" id="3_lquwl"]
 [ext_resource type="Texture2D" uid="uid://4q335xxs2p" path="res://icon.svg" id="6_7mycd"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_0xm2m"]
@@ -12,32 +12,11 @@ size = Vector3(14, 1, 21)
 depth_draw_mode = 1
 albedo_color = Color(0.05322109, 0.137149, 0.3804473, 1)
 
-[sub_resource type="BoxMesh" id="BoxMesh_lquwl"]
-size = Vector3(14, 0.5, 0.1)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_7mycd"]
-albedo_color = Color(0.01541291, 0.6302165, 0.6864255, 1)
-
-[sub_resource type="BoxMesh" id="BoxMesh_272bh"]
-size = Vector3(14, 0.5, 0.1)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_5vw27"]
-albedo_color = Color(0.015686275, 0.6313726, 0.6862745, 1)
-
-[sub_resource type="BoxMesh" id="BoxMesh_kek77"]
-size = Vector3(0.1, 0.5, 21)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_4c57u"]
-albedo_color = Color(0.015686275, 0.6313726, 0.6862745, 1)
-
-[sub_resource type="BoxMesh" id="BoxMesh_efxa6"]
-size = Vector3(0.1, 0.5, 21)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dg77c"]
-albedo_color = Color(0.015686275, 0.6313726, 0.6862745, 1)
-
 [sub_resource type="BoxShape3D" id="BoxShape3D_h2yge"]
 size = Vector3(7, 1, 7)
+
+[sub_resource type="Theme" id="Theme_1bvp3"]
+default_font_size = 64
 
 [sub_resource type="ViewportTexture" id="ViewportTexture_1bvp3"]
 viewport_path = NodePath("HUD/Control/ReferenceContainer/SubViewport")
@@ -46,25 +25,6 @@ viewport_path = NodePath("HUD/Control/ReferenceContainer/SubViewport")
 background_mode = 1
 background_color = Color(0.42636967, 0.8912395, 0.9703683, 1)
 ssao_enabled = true
-
-[sub_resource type="ShaderMaterial" id="ShaderMaterial_7mycd"]
-resource_local_to_scene = true
-render_priority = 0
-shader = ExtResource("5_lquwl")
-shader_parameter/grid_color = Color(0, 0.5, 1, 1)
-shader_parameter/line_thickness = 0.02000000095
-shader_parameter/floor_opacity = 0.2
-shader_parameter/grid_dimensions = Vector2(5, 5)
-
-[sub_resource type="BoxMesh" id="BoxMesh_5vw27"]
-size = Vector3(3, 3, 3)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_kek77"]
-transparency = 1
-blend_mode = 1
-cull_mode = 1
-shading_mode = 0
-albedo_color = Color(0.43137255, 1, 1, 0.078431375)
 
 [node name="Main" type="Node3D" unique_id=1359699047]
 script = ExtResource("1_lquwl")
@@ -78,29 +38,8 @@ shadow_blur = 0.0
 [node name="Floor" type="StaticBody3D" parent="." unique_id=1165671224]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -0.5, -2, -0.5)
 
-[node name="BackgroundFloor" type="MeshInstance3D" parent="Floor" unique_id=1834396108]
-mesh = SubResource("BoxMesh_0xm2m")
-surface_material_override/0 = SubResource("StandardMaterial3D_h2yge")
-
-[node name="Border_North" type="MeshInstance3D" parent="Floor/BackgroundFloor" unique_id=499614805]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, -10.5)
-mesh = SubResource("BoxMesh_lquwl")
-surface_material_override/0 = SubResource("StandardMaterial3D_7mycd")
-
-[node name="Border_South" type="MeshInstance3D" parent="Floor/BackgroundFloor" unique_id=1774381681]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 10.5)
-mesh = SubResource("BoxMesh_272bh")
-surface_material_override/0 = SubResource("StandardMaterial3D_5vw27")
-
-[node name="Border_East" type="MeshInstance3D" parent="Floor/BackgroundFloor" unique_id=1983037966]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 7, 0.5, 0)
-mesh = SubResource("BoxMesh_kek77")
-surface_material_override/0 = SubResource("StandardMaterial3D_4c57u")
-
-[node name="Border_West" type="MeshInstance3D" parent="Floor/BackgroundFloor" unique_id=1928196421]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -7, 0.5, 0)
-mesh = SubResource("BoxMesh_efxa6")
-surface_material_override/0 = SubResource("StandardMaterial3D_dg77c")
+[node name="diorama_base" parent="Floor" unique_id=931508032 instance=ExtResource("3_lquwl")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0.5, 1, 0.5)
 
 [node name="MeshInstance3D2" type="MeshInstance3D" parent="Floor" unique_id=838970351]
 transform = Transform3D(1.05, 0, 0, 0, 1, 0, 0, 0, 1.05, 0, -0.1, 0)
@@ -156,23 +95,24 @@ theme_override_font_sizes/font_size = 48
 text = "DEBUG"
 
 [node name="DebugPanel" type="PanelContainer" parent="HUD/Control" unique_id=626239056]
-visible = false
 layout_mode = 1
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -56.5
-offset_top = 80.0
-offset_right = 56.5
-offset_bottom = 123.0
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
 grow_horizontal = 2
+grow_vertical = 2
 mouse_filter = 2
+
+[node name="ColorRect" type="ColorRect" parent="HUD/Control/DebugPanel" unique_id=446033878]
+layout_mode = 2
+color = Color(0, 0, 0, 1)
 
 [node name="VBoxContainer" type="VBoxContainer" parent="HUD/Control/DebugPanel" unique_id=659598492]
 layout_mode = 2
 
 [node name="Touch Offset Y" type="Label" parent="HUD/Control/DebugPanel/VBoxContainer" unique_id=634689810]
 layout_mode = 2
+theme_override_font_sizes/font_size = 64
 text = "Touch Offset Y"
 
 [node name="OffsetSlider" type="HSlider" parent="HUD/Control/DebugPanel/VBoxContainer" unique_id=366294153]
@@ -187,6 +127,7 @@ value = 0.5
 
 [node name="GhostHeight" type="Label" parent="HUD/Control/DebugPanel/VBoxContainer" unique_id=1062633808]
 layout_mode = 2
+theme_override_font_sizes/font_size = 64
 text = "Ghost Height"
 
 [node name="GhostSlider" type="HSlider" parent="HUD/Control/DebugPanel/VBoxContainer" unique_id=217733283]
@@ -195,6 +136,24 @@ layout_mode = 2
 min_value = -2.0
 max_value = 2.0
 step = 0.1
+
+[node name="HBoxContainer" type="HBoxContainer" parent="HUD/Control/DebugPanel/VBoxContainer" unique_id=1888848409]
+layout_mode = 2
+
+[node name="LevelSpinBox" type="SpinBox" parent="HUD/Control/DebugPanel/VBoxContainer/HBoxContainer" unique_id=1858835931]
+custom_minimum_size = Vector2(250, 100)
+layout_mode = 2
+size_flags_horizontal = 3
+theme = SubResource("Theme_1bvp3")
+
+[node name="JumpBtn" type="Button" parent="HUD/Control/DebugPanel/VBoxContainer/HBoxContainer" unique_id=579500099]
+layout_mode = 2
+theme_override_font_sizes/font_size = 64
+text = "JUMP"
+
+[node name="PaletteDropdown" type="OptionButton" parent="HUD/Control/DebugPanel/VBoxContainer" unique_id=384212477]
+layout_mode = 2
+theme_override_font_sizes/font_size = 64
 
 [node name="InventoryTray" type="PanelContainer" parent="HUD/Control" unique_id=1134000262 groups=["inventory_tray"]]
 custom_minimum_size = Vector2(0, 150)
@@ -215,36 +174,10 @@ vertical_scroll_mode = 0
 
 [node name="BlockList" type="HBoxContainer" parent="HUD/Control/InventoryTray/ScrollContainer" unique_id=1763157303]
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 3
 theme_override_constants/separation = 20
-
-[node name="Red" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=1274814471]
-custom_minimum_size = Vector2(120, 120)
-layout_mode = 2
-color = Color(0.7635024, 0.15671891, 0.16404146, 1)
-
-[node name="Blue" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=376225648]
-custom_minimum_size = Vector2(120, 120)
-layout_mode = 2
-color = Color(0.12999678, 0.45803988, 0.80540425, 1)
-
-[node name="Green" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=672786365]
-custom_minimum_size = Vector2(120, 120)
-layout_mode = 2
-color = Color(0.20784314, 0.8901961, 0.28235295, 1)
-
-[node name="Orange" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=358216395]
-custom_minimum_size = Vector2(120, 120)
-layout_mode = 2
-color = Color(0.98039216, 0.41960785, 0.16470589, 1)
-
-[node name="White" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=425952757]
-custom_minimum_size = Vector2(120, 120)
-layout_mode = 2
-
-[node name="Yellow" type="ColorRect" parent="HUD/Control/InventoryTray/ScrollContainer/BlockList" unique_id=2046339594]
-custom_minimum_size = Vector2(120, 120)
-layout_mode = 2
-color = Color(1, 1, 0.25882354, 1)
+alignment = 1
 
 [node name="RotateLeftBtn" type="Button" parent="HUD/Control" unique_id=266128198]
 layout_mode = 1
@@ -516,13 +449,6 @@ text = "SIDE"
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1134175239]
 environment = SubResource("Environment_1bvp3")
-
-[node name="BlueprintTarget" type="MeshInstance3D" parent="." unique_id=1578581524 groups=["blueprint"]]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
-material_override = SubResource("ShaderMaterial_7mycd")
-cast_shadow = 0
-mesh = SubResource("BoxMesh_5vw27")
-surface_material_override/0 = SubResource("StandardMaterial3D_kek77")
 
 [node name="CameraPivot" type="Node3D" parent="." unique_id=2025048182]
 transform = Transform3D(0.70710677, -0.40860704, 0.5770964, 0, 0.8161376, 0.5778576, -0.70710677, -0.40860704, 0.5770964, 0, 0, 0)

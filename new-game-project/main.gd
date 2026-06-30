@@ -18,14 +18,16 @@ var total_levels: int = 0
 const SAVE_PATH = "user://save_game.json"
 var pending_saved_build: Dictionary = {}
 
-## Palette map matching the exact sRGB values used by the inventory ColorRect nodes.
-const color_map: Dictionary = {
-	"Red":    Color(0.7635024,  0.15671891, 0.16404146, 1.0),
-	"Blue":   Color(0.12999678, 0.45803988, 0.80540425, 1.0),
-	"Green":  Color(0.20784314, 0.8901961,  0.28235295, 1.0),
-	"Orange": Color(0.98039216, 0.41960785, 0.16470589, 1.0),
-	"Yellow": Color(1.0,        1.0,        0.25882354, 1.0),
-	"White":  Color(1.0,        1.0,        1.0,        1.0),
+var current_palette_name: String = "Soft Rainbow"
+var current_color_map: Dictionary = {}
+
+@export var block_icon_texture: Texture2D = preload("res://assets/models/block_icon.png")
+
+const PALETTES: Dictionary = {
+	"Soft Rainbow":    {"Red": Color("#FFCFD2"), "Orange": Color("#FDE4CF"), "Yellow": Color("#FBF8CC"), "Green": Color("#B9FBC0"), "Blue": Color("#A3C4F3"), "White": Color("#FFFFFF")},
+	"Sunny Beach Day": {"Red": Color("#E76F51"), "Orange": Color("#F4A261"), "Yellow": Color("#E9C46A"), "Green": Color("#2A9D8F"), "Blue": Color("#264653"), "White": Color("#FFFFFF")},
+	"Candy Pop":       {"Red": Color("#F15BB5"), "Orange": Color("#9B5DE5"), "Yellow": Color("#FEE440"), "Green": Color("#00F5D4"), "Blue": Color("#00BBF9"), "White": Color("#FFFFFF")},
+	"Oceanic Cactus":  {"Red": Color("#FF6B6B"), "Orange": Color("#FF9F1C"), "Yellow": Color("#FFE66D"), "Green": Color("#4ECDC4"), "Blue": Color("#1A535C"), "White": Color("#F7FFF7")}
 }
 
 ## Half-extents of the active grid, derived from levels.json dimensions.
@@ -39,15 +41,18 @@ var limit_y: float = 1.0
 @onready var _restart_btn: Button  = $HUD/Control/RestartButton
 @onready var _debug_btn: Button    = $HUD/Control/DebugButton
 @onready var _debug_panel: Control = $HUD/Control/DebugPanel
-@onready var _offset_slider: HSlider = $HUD/Control/DebugPanel/VBoxContainer/OffsetSlider
-@onready var _ghost_slider: HSlider  = $HUD/Control/DebugPanel/VBoxContainer/GhostSlider
+@onready var _offset_slider: HSlider  = $HUD/Control/DebugPanel/VBoxContainer/OffsetSlider
+@onready var _ghost_slider: HSlider   = $HUD/Control/DebugPanel/VBoxContainer/GhostSlider
+@onready var _level_spinbox: SpinBox  = $HUD/Control/DebugPanel/VBoxContainer/HBoxContainer/LevelSpinBox
+@onready var _jump_btn: Button        = $HUD/Control/DebugPanel/VBoxContainer/HBoxContainer/JumpBtn
 
 @onready var camera_pivot = $CameraPivot
 @onready var reference_world = $HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld
 @onready var _win_panel: Control     = $HUD/Control/WinPanel
 @onready var _next_level_btn: Button = $HUD/Control/WinPanel/NextLevelBtn
 
-@onready var _grid_mesh: MeshInstance3D = $BlueprintTarget
+const _BASEPLATE_SCENE: PackedScene = preload("res://assets/models/baseplate_1x1.glb")
+var _baseplate_container: Node3D
 
 @onready var btn_single = $HUD/Control/ToolTray/BtnSingle
 @onready var btn_paint  = $HUD/Control/ToolTray/BtnPaint
@@ -92,6 +97,12 @@ func _ready() -> void:
 	$HUD/Control/RotateLeftBtn.pressed.connect(_on_rotate_left_pressed)
 	$HUD/Control/RotateRightBtn.pressed.connect(_on_rotate_right_pressed)
 
+	var dropdown: OptionButton = $HUD/Control/DebugPanel/VBoxContainer/PaletteDropdown
+	dropdown.clear()
+	for p_name in PALETTES.keys():
+		dropdown.add_item(p_name)
+	dropdown.item_selected.connect(_on_palette_selected)
+	_apply_palette()
 	for child in _block_list.get_children():
 		child.gui_input.connect(_on_inventory_gui_input.bind(child))
 
@@ -117,8 +128,17 @@ func _ready() -> void:
 	btn_rotate.pressed.connect(func(): set_tool(ToolMode.ROTATE))
 	btn_reset.pressed.connect(_reset_camera_look)
 
+	_baseplate_container = Node3D.new()
+	_baseplate_container.name = "BaseplateContainer"
+	add_child(_baseplate_container)
+
+	_jump_btn.pressed.connect(_on_jump_pressed)
+
 	load_game()
 	var _ok := load_level(current_level_index + 1)
+	_level_spinbox.min_value = 1
+	_level_spinbox.max_value = total_levels
+	_level_spinbox.value = current_level_index + 1
 
 
 func set_tool(mode: ToolMode) -> void:
@@ -175,8 +195,7 @@ func _on_inventory_gui_input(event: InputEvent, item_node: Control) -> void:
 	new_block.current_y_offset = global_y_offset
 	new_block.current_ghost_height = global_ghost_height
 	add_child(new_block)
-	if "color" in item_node:
-		new_block.set_block_color(item_node.color, item_node.name)
+	new_block.set_block_color(item_node.modulate, item_node.name)
 
 	var touch_index: int = event.index if is_touch else -1
 	new_block._start_drag(touch_index, event.position)
@@ -198,6 +217,32 @@ func _on_restart_pressed() -> void:
 
 func _on_debug_pressed() -> void:
 	_debug_panel.visible = not _debug_panel.visible
+	if _debug_panel.visible:
+		_debug_panel.move_to_front()
+		_debug_btn.move_to_front()
+
+
+func _on_jump_pressed() -> void:
+	var target: int = int(_level_spinbox.value)
+	current_level_index = target - 1
+	var _ok := load_level(target)
+	_debug_panel.visible = false
+
+
+func _on_palette_selected(index: int) -> void:
+	var dropdown: OptionButton = $HUD/Control/DebugPanel/VBoxContainer/PaletteDropdown
+	current_palette_name = dropdown.get_item_text(index)
+	_apply_palette()
+
+
+func _apply_palette() -> void:
+	var color_values = PALETTES[current_palette_name].values()
+	current_color_map.clear()
+	for i in range(color_values.size()):
+		current_color_map["Color%d" % i] = color_values[i]
+
+	if not current_build.is_empty() or not target_puzzle.is_empty():
+		var _ok := load_level(current_level_index + 1)
 
 
 func _on_offset_slider_changed(value: float) -> void:
@@ -320,22 +365,6 @@ func load_level(target_id: int) -> bool:
 		var floor_scale = maxf(20.0, max_dim * 4.0)
 		bg_floor.scale = Vector3(floor_scale, 1.0, floor_scale)
 
-	# --- Convert mesh to a flat PlaneMesh to prevent 3D clipping quirks ---
-	var flat_plane = PlaneMesh.new()
-	flat_plane.size = Vector2(dim_x, dim_z)
-	_grid_mesh.mesh = flat_plane
-
-	# --- Position flat plane exactly at the base, slightly lifted to prevent Z-fighting ---
-	_grid_mesh.position = Vector3(0.0, 0.002, 0.0)
-
-	# --- Pass dimensions to the clean flat shader ---
-	var grid_mat = _grid_mesh.get_active_material(0)
-	grid_mat.set_shader_parameter("line_thickness", 0.04)
-	grid_mat.set_shader_parameter("grid_dimensions", Vector2(dim_x, dim_z))
-
-	# Force the grid plane to render BEFORE the blocks to fix transparency sorting
-	grid_mat.render_priority = -1
-
 	# --- Clear live blocks and reset state ---
 	var tree = get_tree()
 	if tree == null:
@@ -347,6 +376,16 @@ func load_level(target_id: int) -> bool:
 	_inspect_target_rotation_y = 0.0
 	_reset_camera_look()
 
+	# --- Regenerate baseplate tiles for the new grid footprint ---
+	for child in _baseplate_container.get_children():
+		child.queue_free()
+	for bx in range(int(-limit_x), int(limit_x) + 1):
+		for bz in range(int(-limit_z), int(limit_z) + 1):
+			var tile: Node3D = _BASEPLATE_SCENE.instantiate()
+			tile.scale    = Vector3(0.95, 0.1, 0.95)
+			tile.position = Vector3(bx, 0.05, bz)
+			_baseplate_container.add_child(tile)
+
 	# --- Parse "x,y,z" string keys into Vector3 and populate target_puzzle ---
 	target_puzzle.clear()
 	var raw_puzzle: Dictionary = level_data.get("target_puzzle", {})
@@ -357,27 +396,29 @@ func load_level(target_id: int) -> bool:
 
 	_build_reference_model()
 
-	# --- Show only the block types permitted by this level ---
-	var allowed: Array = level_data.get("allowed_blocks", [])
+	# --- Rebuild inventory swatches for this level's allowed abstract colors ---
 	for child in _block_list.get_children():
-		child.visible = child.name in allowed
+		child.queue_free()
+
+	var allowed: Array = level_data.get("allowed_blocks", [])
+	for abstract_color in allowed:
+		if current_color_map.has(abstract_color):
+			var tex_rect := TextureRect.new()
+			tex_rect.name = abstract_color
+			tex_rect.texture = block_icon_texture
+			tex_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tex_rect.custom_minimum_size = Vector2(80, 80)
+			tex_rect.modulate = current_color_map[abstract_color]
+			tex_rect.gui_input.connect(_on_inventory_gui_input.bind(tex_rect))
+			_block_list.add_child(tex_rect)
 
 	if not pending_saved_build.is_empty():
 		for pos in pending_saved_build:
 			var color_name = pending_saved_build[pos]
-			# Dynamically fetch the precise color from our palette map
 			var c := Color.MAGENTA
-			if color_map.has(color_name):
-				c = color_map[color_name]
-			else:
-				# Fallback to standard constants if not found in palette
-				match color_name:
-					"Red":    c = Color.RED
-					"Blue":   c = Color.BLUE
-					"Green":  c = Color.GREEN
-					"Yellow": c = Color.YELLOW
-					"Orange": c = Color.ORANGE
-					"White":  c = Color.WHITE
+			if current_color_map.has(color_name):
+				c = current_color_map[color_name]
 
 			var new_block = block_scene.instantiate()
 			add_child(new_block)
@@ -410,19 +451,9 @@ func _build_reference_model() -> void:
 	for grid_pos: Vector3 in target_puzzle:
 		var color_name: String = target_puzzle[grid_pos]
 
-		# Fetch the precise color from the palette map for visual consistency
 		var block_color := Color.MAGENTA
-		if color_map.has(color_name):
-			block_color = color_map[color_name]
-		else:
-			# Fallback constants if not defined in the palette
-			match color_name:
-				"Red":    block_color = Color.RED
-				"Blue":   block_color = Color.BLUE
-				"Green":  block_color = Color.GREEN
-				"Yellow": block_color = Color.YELLOW
-				"Orange": block_color = Color.ORANGE
-				"White":  block_color = Color.WHITE
+		if current_color_map.has(color_name):
+			block_color = current_color_map[color_name]
 
 		var mat = StandardMaterial3D.new()
 		mat.albedo_color = block_color
@@ -439,28 +470,9 @@ func _build_reference_model() -> void:
 
 		target_container.add_child(mesh_instance)
 
-	# 3. Apply the Flat Glass Holographic Grid
+	# 3. Frame the camera on the bounding box center.
 	var bounds_size := Vector3((limit_x * 2.0) + 1.0, limit_y, (limit_z * 2.0) + 1.0)
 	var bounds_center := Vector3(0.0, limit_y / 2.0, 0.0)
-
-	var holo_instance := MeshInstance3D.new()
-	var flat_plane := PlaneMesh.new()
-
-	# Size the plane based on the exact grid limits
-	var plane_x: float = (limit_x * 2.0) + 1.0
-	var plane_z: float = (limit_z * 2.0) + 1.0
-	flat_plane.size = Vector2(plane_x, plane_z)
-
-	holo_instance.mesh = flat_plane
-	# Position at base, slightly lifted to prevent Z-fighting with floor faces
-	holo_instance.position = Vector3(0.0, 0.002, 0.0)
-
-	if _grid_mesh and _grid_mesh.get_active_material(0):
-		holo_instance.material_override = _grid_mesh.get_active_material(0)
-
-	target_container.add_child(holo_instance)
-
-	# 4. Frame the camera on the bounding box center.
 	var ref_camera = reference_world.get_node_or_null("Camera3D")
 	var ref_light = reference_world.get_node_or_null("DirectionalLight3D")
 
