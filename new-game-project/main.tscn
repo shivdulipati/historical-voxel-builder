@@ -3,7 +3,10 @@
 [ext_resource type="Script" uid="uid://bempvqvskvxb7" path="res://main.gd" id="1_lquwl"]
 [ext_resource type="PackedScene" uid="uid://c04ixih3t6o20" path="res://draggable_object.tscn" id="2_1bvp3"]
 [ext_resource type="PackedScene" uid="uid://d1dbajfkifwv3" path="res://assets/models/diorama_base.glb" id="3_lquwl"]
+[ext_resource type="Texture2D" uid="uid://gdfgel6tvs8t" path="res://assets/ui/kenney/button_rectangle_depth_gloss.png" id="4_7mycd"]
+[ext_resource type="Texture2D" uid="uid://bm7yrkxhmyu8i" path="res://assets/ui/kenney/button_square_depth_gloss.png" id="5_lquwl"]
 [ext_resource type="Texture2D" uid="uid://4q335xxs2p" path="res://icon.svg" id="6_7mycd"]
+[ext_resource type="Texture2D" uid="uid://dqf5w6qk2wkob" path="res://assets/ui/kenney/panel_grey_gloss.png" id="6_272bh"]
 
 [sub_resource type="BoxMesh" id="BoxMesh_0xm2m"]
 size = Vector3(14, 1, 21)
@@ -15,11 +18,281 @@ albedo_color = Color(0.05322109, 0.137149, 0.3804473, 1)
 [sub_resource type="BoxShape3D" id="BoxShape3D_h2yge"]
 size = Vector3(7, 1, 7)
 
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_074og"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_cegan"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_82xsv"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_getpj"]
+content_margin_left = 8.0
+content_margin_top = 8.0
+content_margin_right = 8.0
+content_margin_bottom = 8.0
+bg_color = Color(0.101960786, 0.101960786, 0.18039216, 0.8509804)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ryguw"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_d13ii"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_1u8w0"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
 [sub_resource type="Theme" id="Theme_1bvp3"]
 default_font_size = 64
 
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_getpj"]
+texture = ExtResource("6_272bh")
+texture_margin_left = 12.0
+texture_margin_top = 12.0
+texture_margin_right = 12.0
+texture_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_lswn8"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_a6jrf"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_xuqvo"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_qsp4k"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_kq58d"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_seu75"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
 [sub_resource type="ViewportTexture" id="ViewportTexture_1bvp3"]
 viewport_path = NodePath("HUD/Control/ReferenceContainer/SubViewport")
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_7mycd"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_272bh"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_5vw27"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_kek77"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_4c57u"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_efxa6"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_dg77c"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ycdy4"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_w48qg"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_vivmo"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_2cqfq"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_yaehf"]
+texture = ExtResource("5_lquwl")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_0rl1p"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_ok6jj"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_facbu"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_b1qrp"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_come4"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_h8e4i"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_4lmeg"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_0cp0l"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_d2t1y"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_htxhm"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_jq2sk"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxTexture" id="StyleBoxTexture_4k2k6"]
+texture = ExtResource("4_7mycd")
+texture_margin_left = 8.0
+texture_margin_top = 8.0
+texture_margin_right = 8.0
+texture_margin_bottom = 8.0
 
 [sub_resource type="Environment" id="Environment_1bvp3"]
 background_mode = 1
@@ -29,6 +302,8 @@ ssao_enabled = true
 [node name="Main" type="Node3D" unique_id=1359699047]
 script = ExtResource("1_lquwl")
 block_scene = ExtResource("2_1bvp3")
+metadata/_edit_horizontal_guides_ = [1509.0]
+metadata/_edit_vertical_guides_ = [540.0]
 
 [node name="DirectionalLight3D" type="DirectionalLight3D" parent="." unique_id=881821492]
 transform = Transform3D(1, 0, 0, 0, 0.25881907, 0.9659258, 0, -0.9659258, 0.25881907, 0, 0, 0)
@@ -67,7 +342,11 @@ mouse_filter = 2
 layout_mode = 1
 offset_right = 75.0
 offset_bottom = 31.0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 48
+theme_override_styles/normal = SubResource("StyleBoxTexture_074og")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_cegan")
+theme_override_styles/hover = SubResource("StyleBoxTexture_82xsv")
 text = "REST"
 
 [node name="TimerLabel" type="Label" parent="HUD/Control" unique_id=1166518386]
@@ -81,6 +360,7 @@ offset_right = 20.0
 offset_bottom = 168.0
 grow_horizontal = 2
 theme_override_font_sizes/font_size = 64
+theme_override_styles/normal = SubResource("StyleBoxFlat_getpj")
 horizontal_alignment = 1
 
 [node name="DebugButton" type="Button" parent="HUD/Control" unique_id=1869369630]
@@ -91,7 +371,11 @@ anchor_right = 1.0
 offset_left = -63.0
 offset_bottom = 31.0
 grow_horizontal = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 48
+theme_override_styles/normal = SubResource("StyleBoxTexture_ryguw")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_d13ii")
+theme_override_styles/hover = SubResource("StyleBoxTexture_1u8w0")
 text = "DEBUG"
 
 [node name="DebugPanel" type="PanelContainer" parent="HUD/Control" unique_id=626239056]
@@ -167,6 +451,7 @@ offset_bottom = -170.0
 grow_horizontal = 2
 grow_vertical = 0
 mouse_filter = 1
+theme_override_styles/panel = SubResource("StyleBoxTexture_getpj")
 
 [node name="ScrollContainer" type="ScrollContainer" parent="HUD/Control/InventoryTray" unique_id=162591656]
 layout_mode = 2
@@ -189,7 +474,11 @@ offset_top = -513.0
 offset_right = 220.0
 offset_bottom = -460.0
 grow_vertical = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("StyleBoxTexture_lswn8")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_a6jrf")
+theme_override_styles/hover = SubResource("StyleBoxTexture_xuqvo")
 text = "RotLFT"
 
 [node name="RotateRightBtn" type="Button" parent="HUD/Control" unique_id=1159438248]
@@ -205,7 +494,11 @@ offset_right = -88.0
 offset_bottom = -460.0
 grow_horizontal = 0
 grow_vertical = 0
+theme_override_colors/font_color = Color(1, 1, 1, 1)
 theme_override_font_sizes/font_size = 32
+theme_override_styles/normal = SubResource("StyleBoxTexture_qsp4k")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_kq58d")
+theme_override_styles/hover = SubResource("StyleBoxTexture_seu75")
 text = "RotRT"
 
 [node name="ReferenceContainer" type="SubViewportContainer" parent="HUD/Control" unique_id=1748799666]
@@ -369,7 +662,7 @@ offset_right = -30.0
 offset_bottom = 450.0
 grow_horizontal = 0
 mouse_filter = 2
-border_color = Color(0, 0, 0, 1)
+border_color = Color(0.26666668, 0.53333336, 1, 1)
 border_width = 3.0
 editor_only = false
 
@@ -388,64 +681,98 @@ grow_horizontal = 2
 custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 theme_override_font_sizes/font_size = 40
+theme_override_styles/normal = SubResource("StyleBoxTexture_7mycd")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_272bh")
+theme_override_styles/hover = SubResource("StyleBoxTexture_5vw27")
 text = "Single"
 
 [node name="BtnPaint" type="Button" parent="HUD/Control/ToolTray" unique_id=968635176]
 custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 theme_override_font_sizes/font_size = 40
+theme_override_styles/normal = SubResource("StyleBoxTexture_kek77")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_4c57u")
+theme_override_styles/hover = SubResource("StyleBoxTexture_efxa6")
 text = "Paint"
 
 [node name="BtnEraser" type="Button" parent="HUD/Control/ToolTray" unique_id=574385367]
 custom_minimum_size = Vector2(0, 80)
 layout_mode = 2
 theme_override_font_sizes/font_size = 40
+theme_override_styles/normal = SubResource("StyleBoxTexture_dg77c")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_ycdy4")
+theme_override_styles/hover = SubResource("StyleBoxTexture_w48qg")
 text = "Erase"
 
 [node name="BtnRotate" type="Button" parent="HUD/Control/ToolTray" unique_id=132595851]
 layout_mode = 2
 theme_override_font_sizes/font_size = 40
+theme_override_styles/normal = SubResource("StyleBoxTexture_vivmo")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_2cqfq")
+theme_override_styles/hover = SubResource("StyleBoxTexture_yaehf")
 text = "ROTATE"
 
-[node name="BtnReset" type="Button" parent="HUD/Control" unique_id=612641704]
-custom_minimum_size = Vector2(0, 100)
-layout_mode = 0
-offset_left = 75.0
-offset_top = 400.0
-offset_right = 307.0
-offset_bottom = 500.0
-theme_override_font_sizes/font_size = 48
-text = "RESETV"
-
-[node name="CubeUI" type="HBoxContainer" parent="HUD/Control" unique_id=122628037]
-custom_minimum_size = Vector2(0, 200)
+[node name="CubeUI" type="VBoxContainer" parent="HUD/Control" unique_id=1449427697]
+custom_minimum_size = Vector2(385, 0)
 layout_mode = 1
 anchors_preset = 7
 anchor_left = 0.5
 anchor_top = 1.0
 anchor_right = 0.5
 anchor_bottom = 1.0
-offset_left = -90.0
-offset_top = -595.0
-offset_right = 110.0
-offset_bottom = -395.0
+offset_left = -219.5
+offset_top = -540.0
+offset_right = 219.5
+offset_bottom = -370.0
 grow_horizontal = 2
 grow_vertical = 0
+alignment = 1
 
-[node name="BtnTop" type="Button" parent="HUD/Control/CubeUI" unique_id=2016415287]
+[node name="CubeRow" type="HBoxContainer" parent="HUD/Control/CubeUI" unique_id=962783463]
+custom_minimum_size = Vector2(385, 80)
 layout_mode = 2
-theme_override_font_sizes/font_size = 64
+alignment = 1
+
+[node name="BtnTop" type="Button" parent="HUD/Control/CubeUI/CubeRow" unique_id=2016415287]
+custom_minimum_size = Vector2(128, 80)
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 48
+theme_override_styles/normal = SubResource("StyleBoxTexture_0rl1p")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_ok6jj")
+theme_override_styles/hover = SubResource("StyleBoxTexture_facbu")
 text = "TOP"
 
-[node name="BtnFront" type="Button" parent="HUD/Control/CubeUI" unique_id=1935901460]
+[node name="BtnFront" type="Button" parent="HUD/Control/CubeUI/CubeRow" unique_id=1935901460]
+custom_minimum_size = Vector2(128, 80)
 layout_mode = 2
-theme_override_font_sizes/font_size = 64
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 48
+theme_override_styles/normal = SubResource("StyleBoxTexture_b1qrp")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_come4")
+theme_override_styles/hover = SubResource("StyleBoxTexture_h8e4i")
 text = "FRONT"
 
-[node name="BtnSide" type="Button" parent="HUD/Control/CubeUI" unique_id=1763639038]
+[node name="BtnSide" type="Button" parent="HUD/Control/CubeUI/CubeRow" unique_id=1763639038]
+custom_minimum_size = Vector2(128, 80)
 layout_mode = 2
-theme_override_font_sizes/font_size = 64
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 48
+theme_override_styles/normal = SubResource("StyleBoxTexture_4lmeg")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_0cp0l")
+theme_override_styles/hover = SubResource("StyleBoxTexture_d2t1y")
 text = "SIDE"
+
+[node name="BtnReset" type="Button" parent="HUD/Control/CubeUI" unique_id=612641704]
+custom_minimum_size = Vector2(128, 80)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_colors/font_color = Color(1, 1, 1, 1)
+theme_override_font_sizes/font_size = 48
+theme_override_styles/normal = SubResource("StyleBoxTexture_htxhm")
+theme_override_styles/pressed = SubResource("StyleBoxTexture_jq2sk")
+theme_override_styles/hover = SubResource("StyleBoxTexture_4k2k6")
+text = "RESETV"
 
 [node name="WorldEnvironment" type="WorldEnvironment" parent="." unique_id=1134175239]
 environment = SubResource("Environment_1bvp3")

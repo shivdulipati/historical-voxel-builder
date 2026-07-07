@@ -18,7 +18,7 @@ var total_levels: int = 0
 const SAVE_PATH = "user://save_game.json"
 var pending_saved_build: Dictionary = {}
 
-var current_palette_name: String = "Soft Rainbow"
+var current_palette_name: String = "Candy Pop"
 var current_color_map: Dictionary = {}
 
 @export var block_icon_texture: Texture2D = preload("res://assets/models/block_icon.png")
@@ -60,12 +60,12 @@ var _baseplate_container: Node3D
 
 @onready var ref_camera_pivot = $HUD/Control/ReferenceContainer/SubViewport/ReferenceWorld/RefCameraPivot
 
-@onready var btn_top    = $HUD/Control/CubeUI/BtnTop
-@onready var btn_front  = $HUD/Control/CubeUI/BtnFront
-@onready var btn_side   = $HUD/Control/CubeUI/BtnSide
+@onready var btn_top    = $HUD/Control/CubeUI/CubeRow/BtnTop
+@onready var btn_front  = $HUD/Control/CubeUI/CubeRow/BtnFront
+@onready var btn_side   = $HUD/Control/CubeUI/CubeRow/BtnSide
 
 @onready var btn_rotate = $HUD/Control/ToolTray/BtnRotate
-@onready var btn_reset  = $HUD/Control/BtnReset
+@onready var btn_reset  = $HUD/Control/CubeUI/BtnReset
 
 ## Stores the initial isometric rotation of camera_pivot, set in _ready().
 var default_cam_rot := Vector3.ZERO
@@ -86,6 +86,61 @@ var is_orbiting: bool = false
 var _inspect_target_rotation_y: float = 0.0
 ## Prevents queuing a new inspect rotation while one is already animating.
 var _inspect_is_rotating: bool = false
+
+## Tracks two active touch points for pinch/pan gestures.
+var _touch_points: Dictionary = {}   # index -> Vector2 position
+var _last_pinch_distance: float = 0.0
+var _last_pan_midpoint: Vector2 = Vector2.ZERO
+
+
+func _apply_kenney_theme() -> void:
+	var theme := Theme.new()
+
+	# --- RECTANGLE BUTTONS (RestartBtn, DebugBtn, JumpBtn, NextLevelBtn,
+	#     RotateLeftBtn, RotateRightBtn, InspectRotLeftBtn, InspectRotRightBtn) ---
+	var rect_tex := load("res://assets/ui/kenney/button_rectangle_depth_gloss.png") as Texture2D
+	if rect_tex:
+		var rect_normal := StyleBoxTexture.new()
+		rect_normal.texture = rect_tex
+		rect_normal.texture_margin_left   = 8
+		rect_normal.texture_margin_right  = 8
+		rect_normal.texture_margin_top    = 8
+		rect_normal.texture_margin_bottom = 8
+		theme.set_stylebox("normal",  "Button", rect_normal)
+		theme.set_stylebox("hover",   "Button", rect_normal)
+		theme.set_stylebox("pressed", "Button", rect_normal)
+		theme.set_stylebox("focus",   "Button", rect_normal)
+
+	theme.set_color("font_color",         "Button", Color.WHITE)
+	theme.set_color("font_hover_color",   "Button", Color.WHITE)
+	theme.set_color("font_pressed_color", "Button", Color.WHITE)
+	theme.set_color("font_focus_color",   "Button", Color.WHITE)
+	theme.set_font_size("font_size",      "Button", 16)
+
+	# --- PANELS (WinPanel, DebugPanel, InspectWindow background) ---
+	var panel_style := StyleBoxFlat.new()
+	panel_style.bg_color         = Color(0.15, 0.15, 0.25, 0.92)
+	panel_style.corner_radius_top_left     = 12
+	panel_style.corner_radius_top_right    = 12
+	panel_style.corner_radius_bottom_left  = 12
+	panel_style.corner_radius_bottom_right = 12
+	panel_style.border_width_left   = 2
+	panel_style.border_width_right  = 2
+	panel_style.border_width_top    = 2
+	panel_style.border_width_bottom = 2
+	panel_style.border_color = Color(0.4, 0.6, 1.0, 0.8)
+	theme.set_stylebox("panel", "Panel",          panel_style)
+	theme.set_stylebox("panel", "PanelContainer", panel_style)
+
+	# --- LABEL styling (TimerLabel) ---
+	theme.set_color("font_color",        "Label", Color.WHITE)
+	theme.set_color("font_shadow_color", "Label", Color(0, 0, 0, 0.5))
+	theme.set_constant("shadow_offset_x", "Label", 2)
+	theme.set_constant("shadow_offset_y", "Label", 2)
+	theme.set_font_size("font_size",     "Label", 20)
+
+	# Apply theme globally
+	get_tree().root.theme = theme
 
 
 func _ready() -> void:
@@ -139,21 +194,24 @@ func _ready() -> void:
 	_level_spinbox.min_value = 1
 	_level_spinbox.max_value = total_levels
 	_level_spinbox.value = current_level_index + 1
+	_apply_kenney_theme()
 
 
 func set_tool(mode: ToolMode) -> void:
 	current_tool = mode
-	btn_single.modulate = Color.GREEN if mode == ToolMode.SINGLE else Color.WHITE
-	btn_paint.modulate  = Color.GREEN if mode == ToolMode.PAINT  else Color.WHITE
-	btn_eraser.modulate = Color.GREEN if mode == ToolMode.ERASER else Color.WHITE
-	btn_rotate.modulate = Color.GREEN if mode == ToolMode.ROTATE else Color.WHITE
+	var active_color   := Color(1.0, 0.85, 0.0)   # gold tint for active tool
+	var inactive_color := Color.WHITE
+	btn_single.modulate = active_color if mode == ToolMode.SINGLE else inactive_color
+	btn_paint.modulate  = active_color if mode == ToolMode.PAINT  else inactive_color
+	btn_eraser.modulate = active_color if mode == ToolMode.ERASER else inactive_color
+	btn_rotate.modulate = active_color if mode == ToolMode.ROTATE else inactive_color
 
 
 func _input(event: InputEvent) -> void:
 	var is_touch_drag = event is InputEventScreenDrag
 	var is_mouse_drag = event is InputEventMouseMotion and Input.is_mouse_button_pressed(MOUSE_BUTTON_LEFT)
 
-	if current_tool == ToolMode.ROTATE and (is_touch_drag or is_mouse_drag):
+	if current_tool == ToolMode.ROTATE and (is_touch_drag or is_mouse_drag) and _touch_points.size() < 2:
 		var sensitivity: float = 0.005
 		camera_pivot.rotation.y -= event.relative.x * sensitivity
 		camera_pivot.rotation.x -= event.relative.y * sensitivity
@@ -173,6 +231,50 @@ func _input(event: InputEvent) -> void:
 
 		if ref_camera_pivot:
 			ref_camera_pivot.rotation = camera_pivot.rotation
+
+	# --- Two-finger Pinch Zoom + Pan (ROTATE mode only) ---
+	if current_tool == ToolMode.ROTATE:
+		if event is InputEventScreenTouch:
+			if event.pressed:
+				_touch_points[event.index] = event.position
+			else:
+				_touch_points.erase(event.index)
+				_last_pinch_distance = 0.0
+
+		if event is InputEventScreenDrag:
+			if _touch_points.has(event.index):
+				_touch_points[event.index] = event.position
+
+			if _touch_points.size() == 2:
+				var points = _touch_points.values()
+				var p0: Vector2 = points[0]
+				var p1: Vector2 = points[1]
+				var current_distance: float = p0.distance_to(p1)
+				var current_midpoint: Vector2 = (p0 + p1) / 2.0
+
+				# --- Pinch Zoom ---
+				if _last_pinch_distance > 0.0:
+					var delta_dist: float = current_distance - _last_pinch_distance
+					var main_camera = camera_pivot.get_node_or_null("Camera3D")
+					if main_camera:
+						if main_camera.projection == Camera3D.PROJECTION_ORTHOGONAL:
+							main_camera.size = clamp(main_camera.size - delta_dist * 0.05, 2.0, 40.0)
+						else:
+							main_camera.position.z = clamp(main_camera.position.z - delta_dist * 0.05, 2.0, 40.0)
+
+				# --- Two-finger Pan (only when fingers are within 120px of each other) ---
+				var PAN_PROXIMITY_THRESHOLD: float = 120.0
+				if _last_pan_midpoint != Vector2.ZERO and current_distance < PAN_PROXIMITY_THRESHOLD:
+					var pan_delta: Vector2 = current_midpoint - _last_pan_midpoint
+					var pan_sensitivity: float = 0.01
+					camera_pivot.position.x -= pan_delta.x * pan_sensitivity
+					camera_pivot.position.z += pan_delta.y * pan_sensitivity
+
+				_last_pinch_distance = current_distance
+				_last_pan_midpoint = current_midpoint
+			else:
+				_last_pinch_distance = 0.0
+				_last_pan_midpoint = Vector2.ZERO
 
 
 func _on_inventory_gui_input(event: InputEvent, item_node: Control) -> void:
@@ -382,7 +484,7 @@ func load_level(target_id: int) -> bool:
 	for bx in range(int(-limit_x), int(limit_x) + 1):
 		for bz in range(int(-limit_z), int(limit_z) + 1):
 			var tile: Node3D = _BASEPLATE_SCENE.instantiate()
-			tile.scale    = Vector3(0.95, 0.1, 0.95)
+			tile.scale    = Vector3(1.005, 0.1, 1.005)
 			tile.position = Vector3(bx, 0.05, bz)
 			_baseplate_container.add_child(tile)
 
