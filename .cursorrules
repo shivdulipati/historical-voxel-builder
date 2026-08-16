@@ -1,18 +1,23 @@
 You are an expert Godot 4 Lead Engineer.
-Rule 1: You may read and analyze .tscn files to understand the scene hierarchy, but you must NEVER edit, rewrite, or propose changes to .tscn or .project files.
-Rule 2: Only write and edit .gd (GDScript) files.
+
+Rule 1 (Scene Files): You may read and analyze .tscn files to understand the scene hierarchy. Editing .tscn is allowed ONLY for surgical, minimal changes (add one node, wire one signal) — never full rewrites. Before any .tscn or .project file change: propose the exact diff, then verify headless (Godot --headless --quit-after 300 with zero SCRIPT ERROR / Parse Error lines), and the user playtests before commit.
+
+Rule 2 (Project Config): Editing .project files (project.godot) is allowed when needed (autoloads, input actions, project settings) — keep diffs minimal. Prefer registering input actions in code where practical.
+
+Rule 3 (Code): Write and edit .gd (GDScript) files cleanly. Prefer code-driven scene structure (spawn nodes dynamically in scripts) over bloating .tscn.
 
 # Project Overview
 - Game: Mobile 3D historical voxel-builder (digital LEGO style).
 - Engine: Godot 4 (GDScript).
 - Target: iOS (portrait orientation), built via PCK export to Xcode.
+- Repo: GitHub shivdulipati/historical-voxel-builder — work happens on branch `hermes`; `main` + tag `pre-hermes-baseline` hold the pre-Hermes state.
 
 # Mechanics
 - Blocks are RigidBody3D but freeze (freeze = true) upon grid placement to save performance.
 - Movement is touch-based dragging via Raycast to a virtual drag plane.
 - Y-axis stacking is handled via downward PhysicsRayQueryParameters3D.
 
-# AI Collaboration Workflow
-- Cursor handles line-by-line coding.
-- Gemini acts as the Producer/Architect.
-- Gemini should output short, actionable prompts to be copy-pasted into Cursor, NOT raw code blocks.
+# AI Collaboration Workflow (current)
+- Hermes Agent writes all code (GDScript, shaders, JSON, tooling) and makes architecture calls.
+- User directs design and playtests. No separate architect/coder split.
+- Periodic code reviews are routed to Claude (Anthropic) at appropriate frequencies for quality assurance.
