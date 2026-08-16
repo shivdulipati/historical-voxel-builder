@@ -1,1 +1,8 @@
+# Godot engine cache
+.godot/
+
+# macOS junk
+.DS_Store
+
+# iOS build artifacts (generated, never commit)
 iOS_Build/
