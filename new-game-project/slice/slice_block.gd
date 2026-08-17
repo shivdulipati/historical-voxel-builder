@@ -40,6 +40,12 @@ var _material: ShaderMaterial
 var _drop_indicator: MeshInstance3D
 var _drag_touch_index := -1
 var _drag_touch_pos := Vector2.ZERO
+## Armed press from the tray: finger that pressed the swatch, waiting to be
+## promoted to a full drag once it moves past DRAG_SLOP (a plain tap keeps
+## the hovering brick instead of dropping it).
+var _armed_touch_index := -1
+var _armed_touch_origin := Vector2.ZERO
+const DRAG_SLOP := 14.0
 var _target_rotation_y := 0.0
 var _touch_start_time := 0.0
 var _is_pressing := false
@@ -51,6 +57,9 @@ var last_hover_cell := Vector3i(999, 999, 999)
 func _ready() -> void:
 	camera = get_viewport().get_camera_3d()
 	add_to_group("slice_blocks")
+	# Everything in the world joins this group so the controller can wipe ALL
+	# blocks (built, atlas, rubble, survivors) in one pass on restart / view.
+	add_to_group("world_blocks")
 	input_ray_pickable = true
 	input_event.connect(_on_input_event)
 
@@ -125,6 +134,18 @@ func place_at(pos: Vector3i, color: Color, color_name: String) -> void:
 func _input(event: InputEvent) -> void:
 	# ROTATE tool: the camera owns all gestures; blocks stand by.
 	if current_tool == 3:
+		return
+
+	# Armed press from the tray: promote to a real drag once the finger moves
+	# past the slop; a plain tap (lift without moving) leaves the hovering
+	# brick in place for the player to grab later.
+	if _armed_touch_index != -1:
+		if event is InputEventScreenDrag and event.index == _armed_touch_index:
+			if event.position.distance_to(_armed_touch_origin) > DRAG_SLOP:
+				_start_drag(_armed_touch_index, event.position)
+				return
+		elif event is InputEventScreenTouch and not event.pressed and event.index == _armed_touch_index:
+			_armed_touch_index = -1
 		return
 
 	# While waiting for a long-press on a placed block, watch only for the
@@ -222,6 +243,7 @@ func _get_stack_height(snap_x: int, snap_z: int) -> float:
 
 
 func _start_drag(touch_index: int, touch_pos: Vector2) -> void:
+	_armed_touch_index = -1
 	_drag_touch_index = touch_index
 	_drag_touch_pos = touch_pos
 	last_hover_cell = Vector3i(999, 999, 999)
@@ -236,6 +258,13 @@ func _start_drag(touch_index: int, touch_pos: Vector2) -> void:
 	# and side views alike.
 	var cam_forward: Vector3 = -camera.global_transform.basis.z
 	drag_plane = Plane(cam_forward.normalized(), drag_plane_center)
+
+
+## Arms the block to a finger that pressed the tray swatch: the finger's drag
+## (past slop) becomes this block's drag — direct drag-from-tray restored.
+func _arm_drag(touch_index: int, touch_pos: Vector2) -> void:
+	_armed_touch_index = touch_index
+	_armed_touch_origin = touch_pos
 
 
 ## Hover pulse: floating brick signals "drag me into position" (tapped from tray).

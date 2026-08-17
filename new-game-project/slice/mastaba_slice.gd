@@ -8,7 +8,7 @@ const SliceBlock = preload("res://slice/slice_block.gd")
 const STRUCTS = preload("res://slice/structures.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 4
+const BUILD_NO := 5
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -948,10 +948,9 @@ func _view_atlas_state(state: String) -> void:
 	_atlas_card.visible = false
 	_is_orchestrating = true
 
-	# Clear ALL world blocks: live build blocks AND any prior atlas state.
-	for block in get_tree().get_nodes_in_group("slice_blocks"):
-		block.queue_free()
-	for block in get_tree().get_nodes_in_group("atlas_blocks"):
+	# Clear ALL world blocks: live build blocks, atlas states, decay rubble,
+	# excavation survivors — everything, so no debris leaks into atlas views.
+	for block in get_tree().get_nodes_in_group("world_blocks"):
 		block.queue_free()
 	for mound in dust_mounds.values():
 		if is_instance_valid(mound):
@@ -989,7 +988,8 @@ func _view_atlas_state(state: String) -> void:
 
 ## Returning from an atlas view restores the last build beat's blocks.
 func _restore_build_view() -> void:
-	for block in get_tree().get_nodes_in_group("atlas_blocks"):
+	# Only atlas blocks exist here (everything else was cleared on entry).
+	for block in get_tree().get_nodes_in_group("world_blocks"):
 		block.queue_free()
 	# If we are mid-arc (not completed), reload the current beat's build state.
 	if not _arc_completed and current_beat in [Beat.RAISING, Beat.RESTORATION]:
@@ -1118,6 +1118,11 @@ func _spawn_block_in_hand(color_name: String, screen_pos: Vector2, touch_index: 
 	else:
 		block.global_position = Vector3(0, 6, 0)
 	block.start_hover_pulse()
+	# Direct drag-from-tray: the pressing finger (if any) is armed to this
+	# block — moving past the slop promotes to a real drag; a plain tap
+	# leaves the hovering brick. Mouse (index -1) keeps hover-only.
+	if touch_index >= 0:
+		block._arm_drag(touch_index, screen_pos)
 
 
 ## Projects a screen point onto the camera-facing drag plane (same plane the
@@ -1290,9 +1295,7 @@ func _restart_arc() -> void:
 	_atlas_card.visible = false
 	_message_card.visible = false
 	_epilogue_card.visible = false
-	for block in get_tree().get_nodes_in_group("slice_blocks"):
-		block.queue_free()
-	for block in get_tree().get_nodes_in_group("atlas_blocks"):
+	for block in get_tree().get_nodes_in_group("world_blocks"):
 		block.queue_free()
 	for mound in dust_mounds.values():
 		if is_instance_valid(mound):
