@@ -8,7 +8,7 @@ const SliceBlock = preload("res://slice/slice_block.gd")
 const DATA = preload("res://slice/mastaba_data.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 2
+const BUILD_NO := 3
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -24,25 +24,15 @@ const BEAT_TITLE := {
 const SITE_NAME := "Mastaba of Ti — Saqqara, Egypt · ~2400 BCE"
 
 const EPILOGUE_LINES := [
-	"The Moving Finger writes; and, having writ,",
-	"Moves on: nor all thy Piety nor Wit",
-	"Shall lure it back to cancel half a Line,",
-	"Nor all thy Tears wash out a Word of it.",
-	"— Omar Khayyam",
-	"",
-	"These are the works of man.",
-	"This is the sum of our ambition.",
-	"— Sting, \"Mad About You\"",
-	"",
-	"The mastaba of Ti stood for 4,500 years",
-	"before the sand took it back.",
+	"Every work of man returns to the earth.",
+	"But the Builder remembers.",
 ]
 
-## iPhone notch safe-area: all top UI starts below this.
-const SAFE_TOP := 64.0
-## Bottom tray sits clear of the home indicator.
-const TRAY_BOTTOM := -28.0
-const TRAY_TOP := -190.0
+## iPhone notch safe-area: all top UI starts below this (design px, portrait 1080x1920).
+const SAFE_TOP := 150.0
+## Bottom tray sits clear of the home indicator / app-switcher gesture zone.
+const TRAY_BOTTOM := -90.0
+const TRAY_TOP := -250.0
 
 var current_beat: Beat = Beat.RAISING
 var scaffold_mode: Scaffold = Scaffold.GHOST
@@ -61,6 +51,8 @@ var _is_orchestrating := false   # beat transition in flight (input locked)
 var _dust_total := 0
 var _dust_cleared := 0
 var _structure_index := 0
+## Atlas entries unlock only after the arc completes (excavation finished).
+var _arc_completed := false
 
 # --- Camera ---
 var _pivot: Node3D
@@ -188,7 +180,7 @@ func _build_baseplate() -> void:
 	for child in _baseplate.get_children():
 		child.queue_free()
 	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color("#BFA26B")
+	mat.albedo_color = Color("#9A7F50")  # darker than ghosts → ghost reads clearly
 	mat.roughness = 1.0
 	for bx in range(-int(DATA.LIMIT_X), int(DATA.LIMIT_X) + 1):
 		for bz in range(-int(DATA.LIMIT_Z), int(DATA.LIMIT_Z) + 1):
@@ -221,7 +213,7 @@ func _build_hud() -> void:
 	top.offset_left = 12
 	top.offset_right = -12
 	top.offset_top = SAFE_TOP
-	top.offset_bottom = SAFE_TOP + 118
+	top.offset_bottom = SAFE_TOP + 150
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_theme_stylebox_override("panel", _panel_style(Color(0.12, 0.12, 0.18, 0.85)))
 	root.add_child(top)
@@ -230,17 +222,17 @@ func _build_hud() -> void:
 	top.add_child(top_box)
 
 	_beat_label = Label.new()
-	_beat_label.add_theme_font_size_override("font_size", 26)
+	_beat_label.add_theme_font_size_override("font_size", 32)
 	_beat_label.add_theme_color_override("font_color", Color("#F0C040"))
 	top_box.add_child(_beat_label)
 
 	_top_label = Label.new()
 	_top_label.text = SITE_NAME
-	_top_label.add_theme_font_size_override("font_size", 30)
+	_top_label.add_theme_font_size_override("font_size", 36)
 	top_box.add_child(_top_label)
 
 	_progress_bar = ProgressBar.new()
-	_progress_bar.custom_minimum_size = Vector2(0, 22)
+	_progress_bar.custom_minimum_size = Vector2(0, 26)
 	_progress_bar.show_percentage = false
 	top_box.add_child(_progress_bar)
 
@@ -248,12 +240,12 @@ func _build_hud() -> void:
 	_build_label = Label.new()
 	_build_label.text = "BUILD %d" % BUILD_NO
 	_build_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	_build_label.offset_left = -160
+	_build_label.offset_left = -220
 	_build_label.offset_right = -14
 	_build_label.offset_top = SAFE_TOP + 4
-	_build_label.offset_bottom = SAFE_TOP + 40
+	_build_label.offset_bottom = SAFE_TOP + 48
 	_build_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
-	_build_label.add_theme_font_size_override("font_size", 20)
+	_build_label.add_theme_font_size_override("font_size", 26)
 	_build_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
 	root.add_child(_build_label)
 
@@ -262,8 +254,8 @@ func _build_hud() -> void:
 	view_row.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	view_row.offset_left = 12
 	view_row.offset_right = -12
-	view_row.offset_top = SAFE_TOP + 130
-	view_row.offset_bottom = SAFE_TOP + 176
+	view_row.offset_top = SAFE_TOP + 162
+	view_row.offset_bottom = SAFE_TOP + 222
 	view_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	view_row.add_theme_constant_override("separation", 8)
 	root.add_child(view_row)
@@ -276,18 +268,26 @@ func _build_hud() -> void:
 	for def in view_defs:
 		var btn := Button.new()
 		btn.text = def[0]
-		btn.custom_minimum_size = Vector2(0, 46)
-		btn.add_theme_font_size_override("font_size", 22)
+		btn.custom_minimum_size = Vector2(0, 56)
+		btn.add_theme_font_size_override("font_size", 26)
 		btn.pressed.connect(_snap_camera.bind(def[1]))
 		view_row.add_child(btn)
+
+	# --- Reset view button (back to the puzzle-start isometric view) ---
+	var reset_btn := Button.new()
+	reset_btn.text = "Reset"
+	reset_btn.custom_minimum_size = Vector2(0, 56)
+	reset_btn.add_theme_font_size_override("font_size", 26)
+	reset_btn.pressed.connect(func(): _snap_camera(_default_cam_rot))
+	view_row.add_child(reset_btn)
 
 	# --- Scaffold toggle row ---
 	var scaffold_row := HBoxContainer.new()
 	scaffold_row.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	scaffold_row.offset_left = 12
 	scaffold_row.offset_right = -12
-	scaffold_row.offset_top = SAFE_TOP + 184
-	scaffold_row.offset_bottom = SAFE_TOP + 234
+	scaffold_row.offset_top = SAFE_TOP + 230
+	scaffold_row.offset_bottom = SAFE_TOP + 290
 	scaffold_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	scaffold_row.add_theme_constant_override("separation", 8)
 	root.add_child(scaffold_row)
@@ -300,8 +300,8 @@ func _build_hud() -> void:
 	for def in scaffold_defs:
 		var btn := Button.new()
 		btn.text = def[0]
-		btn.custom_minimum_size = Vector2(0, 46)
-		btn.add_theme_font_size_override("font_size", 20)
+		btn.custom_minimum_size = Vector2(0, 56)
+		btn.add_theme_font_size_override("font_size", 24)
 		btn.toggle_mode = true
 		btn.pressed.connect(_on_scaffold_pressed.bind(def[1], btn))
 		scaffold_row.add_child(btn)
@@ -310,8 +310,8 @@ func _build_hud() -> void:
 	# --- Memory Atlas button (next to scaffold row) ---
 	_atlas_btn = Button.new()
 	_atlas_btn.text = "📖  Memory Atlas"
-	_atlas_btn.custom_minimum_size = Vector2(0, 46)
-	_atlas_btn.add_theme_font_size_override("font_size", 20)
+	_atlas_btn.custom_minimum_size = Vector2(0, 56)
+	_atlas_btn.add_theme_font_size_override("font_size", 24)
 	_atlas_btn.pressed.connect(_open_atlas)
 	scaffold_row.add_child(_atlas_btn)
 
@@ -320,8 +320,8 @@ func _build_hud() -> void:
 	tool_row.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	tool_row.offset_left = 12
 	tool_row.offset_right = -12
-	tool_row.offset_top = SAFE_TOP + 242
-	tool_row.offset_bottom = SAFE_TOP + 292
+	tool_row.offset_top = SAFE_TOP + 298
+	tool_row.offset_bottom = SAFE_TOP + 358
 	tool_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	tool_row.add_theme_constant_override("separation", 10)
 	root.add_child(tool_row)
@@ -335,8 +335,8 @@ func _build_hud() -> void:
 	for def in tool_defs:
 		var btn := Button.new()
 		btn.text = def[0]
-		btn.custom_minimum_size = Vector2(0, 50)
-		btn.add_theme_font_size_override("font_size", 22)
+		btn.custom_minimum_size = Vector2(0, 60)
+		btn.add_theme_font_size_override("font_size", 26)
 		btn.toggle_mode = true
 		btn.pressed.connect(_on_tool_pressed.bind(def[1], btn))
 		tool_row.add_child(btn)
@@ -346,11 +346,11 @@ func _build_hud() -> void:
 	var plan_btn := Button.new()
 	plan_btn.text = "📜  Excavation File"
 	plan_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	plan_btn.offset_left = -260
+	plan_btn.offset_left = -320
 	plan_btn.offset_right = -12
-	plan_btn.offset_top = SAFE_TOP + 242
-	plan_btn.offset_bottom = SAFE_TOP + 292
-	plan_btn.add_theme_font_size_override("font_size", 20)
+	plan_btn.offset_top = SAFE_TOP + 298
+	plan_btn.offset_bottom = SAFE_TOP + 358
+	plan_btn.add_theme_font_size_override("font_size", 24)
 	plan_btn.pressed.connect(_open_blueprint)
 	root.add_child(plan_btn)
 
@@ -359,9 +359,9 @@ func _build_hud() -> void:
 	restart_btn.text = "↺ Restart"
 	restart_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	restart_btn.offset_left = 12
-	restart_btn.offset_top = SAFE_TOP + 242
-	restart_btn.offset_bottom = SAFE_TOP + 292
-	restart_btn.add_theme_font_size_override("font_size", 20)
+	restart_btn.offset_top = SAFE_TOP + 298
+	restart_btn.offset_bottom = SAFE_TOP + 358
+	restart_btn.add_theme_font_size_override("font_size", 24)
 	restart_btn.pressed.connect(_restart_arc)
 	root.add_child(restart_btn)
 
@@ -396,7 +396,7 @@ func _build_hud() -> void:
 	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_message_label.add_theme_font_size_override("font_size", 36)
+	_message_label.add_theme_font_size_override("font_size", 44)
 	_message_label.add_theme_color_override("font_color", Color("#FFF6E0"))
 	_message_card.add_child(_message_label)
 
@@ -416,7 +416,7 @@ func _build_hud() -> void:
 	_epilogue_label.bbcode_enabled = true
 	_epilogue_label.fit_content = true
 	_epilogue_label.scroll_active = false
-	_epilogue_label.add_theme_font_size_override("normal_font_size", 30)
+	_epilogue_label.add_theme_font_size_override("normal_font_size", 36)
 	_epilogue_card.add_child(_epilogue_label)
 
 	# --- Skip button (decay only) ---
@@ -460,7 +460,7 @@ func _build_hud() -> void:
 	var sheet_title := Label.new()
 	sheet_title.text = "Excavation File — Mastaba of Ti"
 	sheet_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sheet_title.add_theme_font_size_override("font_size", 30)
+	sheet_title.add_theme_font_size_override("font_size", 34)
 	sheet_box.add_child(sheet_title)
 
 	var sheet_grid := GridContainer.new()
@@ -486,8 +486,8 @@ func _build_hud() -> void:
 
 	var close_btn := Button.new()
 	close_btn.text = "Close"
-	close_btn.custom_minimum_size = Vector2(0, 56)
-	close_btn.add_theme_font_size_override("font_size", 24)
+	close_btn.custom_minimum_size = Vector2(0, 64)
+	close_btn.add_theme_font_size_override("font_size", 28)
 	close_btn.pressed.connect(func(): _blueprint_sheet.visible = false)
 	sheet_box.add_child(close_btn)
 
@@ -509,49 +509,58 @@ func _build_hud() -> void:
 	var atlas_title := Label.new()
 	atlas_title.text = "MEMORY ATLAS"
 	atlas_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	atlas_title.add_theme_font_size_override("font_size", 38)
+	atlas_title.add_theme_font_size_override("font_size", 44)
 	atlas_box.add_child(atlas_title)
 
 	var atlas_sub := Label.new()
 	atlas_sub.text = "What the Builder remembers — tap an entry to view it."
 	atlas_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	atlas_sub.add_theme_color_override("font_color", Color("#C8D8F0"))
-	atlas_sub.add_theme_font_size_override("font_size", 20)
+	atlas_sub.add_theme_font_size_override("font_size", 24)
 	atlas_box.add_child(atlas_sub)
 
 	var zenith_btn := Button.new()
 	zenith_btn.text = "◈ The Zenith — at its peak (tap to view)"
-	zenith_btn.custom_minimum_size = Vector2(0, 56)
-	zenith_btn.add_theme_font_size_override("font_size", 22)
+	zenith_btn.custom_minimum_size = Vector2(0, 64)
+	zenith_btn.add_theme_font_size_override("font_size", 26)
 	zenith_btn.pressed.connect(func(): _view_atlas_state("zenith"))
 	atlas_box.add_child(zenith_btn)
 
 	var today_btn := Button.new()
 	today_btn.text = "◈ Today — as the sand gave it back (tap to view)"
-	today_btn.custom_minimum_size = Vector2(0, 56)
-	today_btn.add_theme_font_size_override("font_size", 22)
+	today_btn.custom_minimum_size = Vector2(0, 64)
+	today_btn.add_theme_font_size_override("font_size", 26)
 	today_btn.pressed.connect(func(): _view_atlas_state("today"))
 	atlas_box.add_child(today_btn)
 
 	var orbit_btn := Button.new()
 	orbit_btn.text = "◉ Free Rotate — orbit the structure"
-	orbit_btn.custom_minimum_size = Vector2(0, 56)
-	orbit_btn.add_theme_font_size_override("font_size", 22)
+	orbit_btn.custom_minimum_size = Vector2(0, 64)
+	orbit_btn.add_theme_font_size_override("font_size", 26)
 	orbit_btn.pressed.connect(_enable_free_rotate)
 	atlas_box.add_child(orbit_btn)
 
 	var next_btn := Button.new()
 	next_btn.text = "Next ▸"
-	next_btn.custom_minimum_size = Vector2(0, 56)
-	next_btn.add_theme_font_size_override("font_size", 24)
+	next_btn.custom_minimum_size = Vector2(0, 64)
+	next_btn.add_theme_font_size_override("font_size", 28)
 	next_btn.pressed.connect(_on_next_pressed)
 	atlas_box.add_child(next_btn)
+
+	var close_atlas_btn := Button.new()
+	close_atlas_btn.text = "✕ Close"
+	close_atlas_btn.custom_minimum_size = Vector2(0, 64)
+	close_atlas_btn.add_theme_font_size_override("font_size", 26)
+	close_atlas_btn.pressed.connect(func():
+		_atlas_card.visible = false
+		_restore_build_view())
+	atlas_box.add_child(close_atlas_btn)
 
 	var more_label := Label.new()
 	more_label.text = "More structures coming in the full game."
 	more_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	more_label.add_theme_color_override("font_color", Color("#8A8A9A"))
-	more_label.add_theme_font_size_override("font_size", 18)
+	more_label.add_theme_font_size_override("font_size", 20)
 	atlas_box.add_child(more_label)
 
 
@@ -878,6 +887,7 @@ func _on_dust_tapped(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 	_update_progress()
 
 	if dust_mounds.is_empty():
+		_arc_completed = true
 		await get_tree().create_timer(0.8).timeout
 		_open_atlas()
 
@@ -896,6 +906,9 @@ func dust_mat_alpha(a: float) -> ShaderMaterial:
 # ============================================================================
 
 func _open_atlas() -> void:
+	if not _arc_completed:
+		_show_message("Complete the arc first —\nthe Builder remembers only what it has built.", 2.4)
+		return
 	# Rebuild the saved states from the data.
 	_atlas_states.clear()
 	var zenith := {}
@@ -912,12 +925,15 @@ func _open_atlas() -> void:
 
 
 ## Build a structure state (zenith or today) in the world for inspection.
+## Clears any previously-viewed atlas state first — only the last request shows.
 func _view_atlas_state(state: String) -> void:
 	_atlas_card.visible = false
 	_is_orchestrating = true
 
-	# Clear live blocks.
+	# Clear ALL world blocks: live build blocks AND any prior atlas state.
 	for block in get_tree().get_nodes_in_group("slice_blocks"):
+		block.queue_free()
+	for block in get_tree().get_nodes_in_group("atlas_blocks"):
 		block.queue_free()
 	for mound in dust_mounds.values():
 		if is_instance_valid(mound):
@@ -938,6 +954,7 @@ func _view_atlas_state(state: String) -> void:
 		block.limit_z = DATA.LIMIT_Z
 		block.limit_y = DATA.LIMIT_Y
 		block.place_at(pos, DATA.COLORS[color_name], color_name)
+		block.add_to_group("atlas_blocks")
 		block.remove_from_group("slice_blocks")
 		for child in block.get_children():
 			if child is CollisionShape3D:
@@ -950,6 +967,21 @@ func _view_atlas_state(state: String) -> void:
 	_pivot.rotation = _default_cam_rot
 	_beat_label.text = "MEMORY ATLAS — %s" % ("ZENITH" if state == "zenith" else "TODAY")
 	_orbit_showcase(0.0)
+
+
+## Returning from an atlas view restores the last build beat's blocks.
+func _restore_build_view() -> void:
+	for block in get_tree().get_nodes_in_group("atlas_blocks"):
+		block.queue_free()
+	# If we are mid-arc (not completed), reload the current beat's build state.
+	if not _arc_completed and current_beat in [Beat.RAISING, Beat.RESTORATION]:
+		_start_beat(current_beat)
+	else:
+		# Arc finished: nothing left to restore — show the mound/site state.
+		_pivot.rotation = _default_cam_rot
+		_sun.light_energy = 1.4
+		_sun.light_color = Color("#FFF2D0")
+		_beat_label.text = BEAT_TITLE[current_beat]
 
 
 func _enable_free_rotate() -> void:
@@ -1045,6 +1077,7 @@ func _on_swatch_gui_input(event: InputEvent, color_name: String, btn: Button) ->
 
 
 ## Spawns a block in hand, positioned prominently between tray and baseplate.
+## It HOVERS with a pulse — the player then touches it to drag into position.
 func _spawn_block_in_hand(color_name: String, screen_pos: Vector2, touch_index: int) -> void:
 	var block := SliceBlock.new()
 	add_child(block)
@@ -1067,15 +1100,17 @@ func _spawn_block_in_hand(color_name: String, screen_pos: Vector2, touch_index: 
 		block.global_position = anchor_world + Vector3(0, block.current_y_offset, 0)
 	else:
 		block.global_position = Vector3(0, 6, 0)
-	block._start_drag(touch_index, anchor_screen)
+	block.start_hover_pulse()
 
 
-## Projects a screen point onto the Y=0 drag plane.
+## Projects a screen point onto the camera-facing drag plane (same plane the
+## blocks drag on, so the hovered brick lands exactly where it appears).
 func _project_to_plane(screen_pos: Vector2) -> Variant:
 	var cam := _camera
 	var ray_origin := cam.project_ray_origin(screen_pos)
 	var ray_normal := cam.project_ray_normal(screen_pos)
-	return Plane(Vector3.UP, Vector3.ZERO).intersects_ray(ray_origin, ray_normal)
+	var cam_forward: Vector3 = -cam.global_transform.basis.z
+	return Plane(cam_forward.normalized(), Vector3(0.0, 1.5, 0.0)).intersects_ray(ray_origin, ray_normal)
 
 
 func _on_scaffold_pressed(mode: Scaffold, btn: Button) -> void:
@@ -1111,8 +1146,11 @@ func _refresh_ghosts() -> void:
 		var mat := ShaderMaterial.new()
 		mat.resource_local_to_scene = true
 		mat.shader = load("res://block.gdshader")
-		mat.set_shader_parameter("albedo_color", DATA.COLORS[cells[pos]])
-		mat.set_shader_parameter("alpha", 0.22)
+		# Brightened, high-contrast ghost — reads against the sand baseplate
+		# even in the top-down view.
+		var ghost_color: Color = DATA.COLORS[cells[pos]].lightened(0.45)
+		mat.set_shader_parameter("albedo_color", ghost_color)
+		mat.set_shader_parameter("alpha", 0.5)
 		var box := BoxMesh.new()
 		box.size = Vector3(0.94, 0.94, 0.94)
 		ghost.mesh = box
@@ -1165,11 +1203,23 @@ func _input(event: InputEvent) -> void:
 			_last_pinch_distance = 0.0
 			_last_pan_midpoint = Vector2.ZERO
 
-	# ROTATE tool: one-finger drag orbits the camera (reloc-proto behavior).
+	# ROTATE tool: one-finger drag orbits the camera (reloc-proto behavior),
+	# with magnetic snap into perfect Top / Front / Side views (~5° margin).
 	if current_tool == Tool.ROTATE:
 		if event is InputEventScreenDrag and _touch_points.size() <= 1:
-			_pivot.rotation.y -= (event as InputEventScreenDrag).relative.x * 0.005
-			_pivot.rotation.x = clampf(_pivot.rotation.x - (event as InputEventScreenDrag).relative.y * 0.005, -1.2, -0.1)
+			var drag := event as InputEventScreenDrag
+			_pivot.rotation.y -= drag.relative.x * 0.005
+			_pivot.rotation.x = clampf(_pivot.rotation.x - drag.relative.y * 0.005, -PI / 2.0, 0.02)
+
+			# Magnetic snap to 90° increments.
+			var snap_margin := 0.087  # ~5 degrees
+			var snap_step := PI / 2.0
+			var target_x: float = round(_pivot.rotation.x / snap_step) * snap_step
+			if absf(_pivot.rotation.x - target_x) < snap_margin:
+				_pivot.rotation.x = target_x
+			var target_y: float = round(_pivot.rotation.y / snap_step) * snap_step
+			if absf(_pivot.rotation.y - target_y) < snap_margin:
+				_pivot.rotation.y = target_y
 			return
 
 	if event is InputEventScreenDrag and _touch_points.has(event.index):
@@ -1222,11 +1272,14 @@ func _restart_arc() -> void:
 	_epilogue_card.visible = false
 	for block in get_tree().get_nodes_in_group("slice_blocks"):
 		block.queue_free()
+	for block in get_tree().get_nodes_in_group("atlas_blocks"):
+		block.queue_free()
 	for mound in dust_mounds.values():
 		if is_instance_valid(mound):
 			mound.queue_free()
 	dust_mounds.clear()
 	completed_cells.clear()
+	_arc_completed = false
 	_pivot.rotation = _default_cam_rot
 	_sun.light_energy = 1.4
 	_sun.light_color = Color("#FFF2D0")
@@ -1268,9 +1321,10 @@ class BlueprintView:
 				var cells: Dictionary = plan[y]
 				var shade := 0.85 - (0.25 * float(y))
 				for cell_pos in cells:
+					# NOTE: plan keys are Vector2i(pos.x, pos.z) — cell_pos.y is the z coord.
 					var color: Color = DATA.COLORS[cells[cell_pos]]
 					color = Color(color.r * shade, color.g * shade, color.b * shade)
-					var rect := Rect2(origin + Vector2((cell_pos.x - min_x) * cell, (cell_pos.z - min_z) * cell), Vector2(cell, cell))
+					var rect := Rect2(origin + Vector2((cell_pos.x - min_x) * cell, (cell_pos.y - min_z) * cell), Vector2(cell, cell))
 					draw_rect(rect, color, true)
 					draw_rect(rect, Color(0, 0, 0, 0.35), false, 2.0)
 				origin.x += 12.0  # layer offset for a slight exploded look

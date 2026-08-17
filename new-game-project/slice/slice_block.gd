@@ -21,8 +21,12 @@ var limit_z := 1.0
 var limit_y := 3.0
 
 ## Touch offset so the block floats above/behind the thumb while dragging.
-var touch_offset := Vector3(0.0, 4.5, -1.5)
-var current_y_offset := 4.5
+var touch_offset := Vector3(0.0, 5.5, -2.5)
+var current_y_offset := 5.5
+
+## Center the drag plane passes through. Camera-facing plane = drag works from
+## any view (top/front/side), not just top-down.
+var drag_plane_center := Vector3(0.0, 1.5, 0.0)
 
 var is_dragging := false
 var is_placed := false
@@ -77,9 +81,9 @@ func _ready() -> void:
 	ghost_mat.resource_local_to_scene = true
 	ghost_mat.shader = load("res://block.gdshader")
 	ghost_mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
-	ghost_mat.set_shader_parameter("alpha", 0.35)
+	ghost_mat.set_shader_parameter("alpha", 0.7)
 	var ghost_box := BoxMesh.new()
-	ghost_box.size = Vector3(0.98, 0.02, 0.98)
+	ghost_box.size = Vector3(1.06, 0.02, 1.06)
 	_drop_indicator.mesh = ghost_box
 	_drop_indicator.material_override = ghost_mat
 	_drop_indicator.visible = false
@@ -227,7 +231,36 @@ func _start_drag(touch_index: int, touch_pos: Vector2) -> void:
 	_disable_collision(true)
 	_tween_alpha(0.4)
 	_drop_indicator.visible = true
-	drag_plane = Plane(Vector3.UP, Vector3.ZERO)
+	_stop_hover_pulse()
+	# Camera-facing drag plane through the build center: works from top, front,
+	# and side views alike.
+	var cam_forward: Vector3 = -camera.global_transform.basis.z
+	drag_plane = Plane(cam_forward.normalized(), drag_plane_center)
+
+
+## Hover pulse: floating brick signals "drag me into position" (tapped from tray).
+var _hover_tween: Tween
+
+func start_hover_pulse() -> void:
+	_stop_hover_pulse()
+	var base_scale := scale
+	_hover_tween = create_tween().set_loops()
+	_hover_tween.set_parallel(true)
+	_hover_tween.tween_property(self, "scale", base_scale * 1.12, 0.6)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_hover_tween.tween_property(self, "global_position:y", global_position.y + 0.2, 0.6)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_hover_tween.chain().tween_property(self, "scale", base_scale, 0.6)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	_hover_tween.tween_property(self, "global_position:y", global_position.y, 0.6)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+
+
+func _stop_hover_pulse() -> void:
+	if _hover_tween and _hover_tween.is_valid():
+		_hover_tween.kill()
+	_hover_tween = null
+	scale = Vector3.ONE
 
 
 func _physics_process(delta: float) -> void:
