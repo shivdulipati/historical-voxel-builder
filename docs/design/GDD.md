@@ -40,32 +40,39 @@ The player is a **restorer**, not a copier. The finished building is the *reward
 
 **The Builder** — an anonymous hand that walks the ages. Neither early nor late; arriving precisely when meant to (the Gandalf principle). Not a collector, not a conqueror: the craftsperson every age sends ahead.
 
-**The arc of every structure — three visits, which ARE the difficulty tiers:**
-1. **Visit 1 — The Raising (Tier 1 Guided).** The structure is born. The Builder arrives at first emergence and raises it, guided by plans/ghost. Teaches the structure's logic and the mechanics.
-2. **Visit 2 — The Renewal (Tier 2 Restoration).** An era later: the structure stands but is worn — weather, war, plunder. Restore it to its zenith. This is the core loop.
-3. **Visit 3 — The Remembering (Tier 3 Excavation).** The end of the era: only the footprint remains. Rebuild the whole from blueprint and memory. Then watch it fall again.
+**The arc of every structure — four beats (the biography of a site):**
+1. **Beat 1 — The Raising (Tier 1, gameplay).** Build from the foundation. Core massing with a smaller piece set — the "bones" of the structure. Teaches the structure's logic and the mechanics.
+2. **Beat 2 — The Restoration (Tier 2, gameplay).** An era later: restore to zenith — full detail, colours, decorations; the civilisation flourishes as progress reaches 100%. This is the core loop and the difficulty layer.
+3. **Beat 3 — The Decay (cinematic, non-interactive).** Time passes: days and seasons, the slant of sunrays changes, and the proud apex of a civilisation falls away to a mound — buried, ruined. Time prevails and continues. Khayyam's "The Moving Finger" is the invoking emotion; the Ozymandias loop is the register (Sting: *"These are the works of man. This is the sum of our ambition."*). Accompanied by scrolling text / voiceover — an epilogue telling the story of those people, that civilisation. A completion moment: bittersweet, but pivotal — endings lead to new beginnings lead to endings (the phoenix meta of the world itself).
+4. **Beat 4 — The Excavation (Tier 3, light actions).** Quick, tactile clicks: clear the dust, remove the earth — bring the structure to its state as excavated by archaeologists **today**. Light interaction (brush swipes, dust, block-by-block reveal) gives mild closure so the loss never feels harsh. Aligns the arc with chronology itself: from where it started to where it is today.
+
+**Difficulty lives INSIDE Tiers 1-2** (the gameplay layers), as a per-level scaffolding setting: **ghost → partial ghost + blueprint → blueprint only.** Tiers remain narrative acts; scaffolding carries difficulty — the same level data serves casual and brainy players. Excavation (Beat 4) stays deliberately light — closure, not challenge.
 
 **The Ozymandias loop.** After the zenith, time spins ahead: the wheels of time churn, bricks turn back to earth, an era ends. The structure weathers to ruin in a cinematic time-lapse — the signature moment of the game. Tonal reference (Sting, "Mad About You"): *"They say a city in the desert lies... These are the works of man. This is the sum of our ambition."*
 
-**The Memory Atlas (collection).** The peak of every structure is saved into the player's memory — a museum of what was, fully viewable, orbitable, showcaseable. This is the save/showcase pillar with narrative weight: the only thing that survives the Ozymandias loop is what the Builder remembers. The loop flips from nihilism to dignity: **the sum of ambition is what is remembered.**
+**The Memory Atlas (collection).** The peak (zenith) of every structure is saved into the player's memory — a museum of what was, fully viewable, orbitable, showcaseable. **Two entries per site:** the zenith (what the Builder remembers) and the today (the excavated state as archaeology found it) — a museum of what was, and what remains. This is the save/showcase pillar with narrative weight: the only thing that survives the Ozymandias loop is what the Builder remembers. The loop flips from nihilism to dignity: **the sum of ambition is what is remembered.**
 
-**Metagame: the globe.** A world map/globe across time and space. One location can hold MULTIPLE structures across eras — Troy and its layers: one place, many levels, each era its own visit. Chronological spine: Egypt (hook) → Göbekli Tepe → Sumer → Indus → Persia → China → Greece → Rome.
+**Metagame: the globe.** A world map/globe across time and space. **Spin the globe fast to initiate a change of era — forward or backward — and zoom into a region when the era locks.** One location can hold MULTIPLE structures across eras — Troy and its layers: one place, many levels, each era its own beat. Chronological spine: Egypt (test hook) → Göbekli Tepe → Sumer → Indus → Persia → China → Greece → Rome; strict chronology deferred — the time-travel loop permits any order.
 
 **Why ruins? Resolved.** You don't find ruins — you make them. You are present at creation, you watch the decay; the ruin is the consequence of your own journey. And because you built here before, the weathered world feels familiar — Manufactured Déjà Vu made literal: *"Your hands remember what your eyes have never seen."*
 
-## 5. Difficulty System — 3 Tiers (locked)
+## 5. Difficulty System — narrative acts + scaffolding (locked)
 
-| Tier | In-world | Aid | Audience |
+Per-structure arc = **biography**: Raising (Tier 1) → Restoration to zenith (Tier 2) → cinematic Decay → light Excavation to today (Tier 3).
+
+| Beat | Interaction | Player load | Purpose |
 |---|---|---|---|
-| **1. Guided** | Full ghost (+ ruin where ghosting is off) | Blueprint available | Onboarding / casual |
-| **2. Restoration** (default) | Ruin — foundations + surviving parts | Blueprint available | Core loop / casual-to-mid |
-| **3. Excavation** | Foundation only, no surviving superstructure | Blueprint only | Brainy / archaeologist |
+| **1. Raising** | Build from foundation (core massing, small piece set) | Full build, guided | Learn structure + mechanics |
+| **2. Restoration** | Restore to zenith: full detail, colours, decoration; civ flourishes at 100% | Full build, mastery | Core loop / difficulty layer |
+| **3. Decay** | Cinematic time-lapse, non-interactive; epilogue text/voiceover | None | Emotional peak — Khayyam/Ozymandias |
+| **4. Excavation** | Light tactile actions: clear dust/earth to today's excavated state | Minimal | Closure, chronology alignment |
 
-- **Learning curve:** Tier 1 teaches the system (piece types, snapping, materials); Tier 2 is the main loop; Tier 3 is the mastery mode. Level progression ramps within and across tiers. **Narrative mapping: the three visits of the Builder (see §4 Story v1).**
-- **Difficulty knob per level:** how much of the ruin survives + which aids are allowed + structure complexity.
-- **Long-term target:** casual/meditative broad audience. Near-term: build the tier system properly so difficulty can be tuned per-audience — we experiment now, tune for retention later.
-- **No punitive timer** — progress % only (locked 2026-08-16).
-- Every ruin is **mathematically derivable** from the blueprint (plan/elevation → 3D). No eyeballing, per project rule.
+**Difficulty = per-level scaffolding inside Tiers 1-2** (same level data, different aids):
+- Ghost → partial ghost + blueprint → blueprint only
+- Tiers are narrative acts; scaffolding carries difficulty — casual and brainy players served by one level
+
+**No punitive timer** — progress % only (locked 2026-08-16).
+Every ruin is **mathematically derivable** from the blueprint (plan/elevation → 3D). No eyeballing, per project rule.
 
 ## 6. UI & Mobile Real Estate (OPEN — needs final call)
 
@@ -137,10 +144,10 @@ Public-domain archaeological plans → MagicaVoxel blockout → `.vox` → conve
 
 ## 13. Open Questions & Decision Log
 
-- [ ] Story v1 (synthesis) — final sign-off pending (2026-08-17)
-- [ ] Decay presentation: cinematic time-lapse (recommended) vs. playable erosion
-- [ ] Globe vs. flat map metagame; era-layer UI for multi-epoch locations (Troy)
-- [ ] Blueprint sheet friction — playtest will decide modal vs. alternative (see §6)
+- [ ] Story v1 — final sign-off pending (2026-08-17)
+- [ ] Globe spin speed/era-lock feel — prototype
+- [ ] Excavation (Beat 4) interaction depth — prototype; keep light
+- [ ] Epilogue voiceover vs. scrolling text only — audio scope decision
 - [ ] Save/gallery scope for v1 vs. post-v1
 - [ ] Sound & haptics design (pillar 2) — block art pass timing
 
@@ -149,4 +156,4 @@ Public-domain archaeological plans → MagicaVoxel blockout → `.vox` → conve
 - 2026-08-16: **Manufactured Déjà Vu adopted as pillar 5** (from taste vault — evening General session).
 - 2026-08-16: Palette = tabs per category (locked). No punitive timer, progress % only (locked). Civ order: Egypt pulled up front (locked). Blueprint = modal sheet for now, flagged as playtest risk.
 - 2026-08-17: TASTE.md lost in nightly sync (stale template clobbered newer file) — recovered verbatim from session diffs, `sync_brain.sh` fixed with `--update`.
-- 2026-08-17: **Story v1 locked (synthesis)** — Builder as anonymous hand (Gandalf principle) + time-traveling builder-observer; three visits = three tiers; Ozymandias loop; Memory Atlas collection; globe metagame with multi-era locations (Troy layers).
+- 2026-08-17: **Story v1.1 locked (synthesis + Shiv's beats)** — biography arc: Raising → Restoration to zenith → cinematic Decay (Khayyam/Ozymandias + epilogue) → light Excavation to today. Difficulty = per-level scaffolding inside Tiers 1-2 (ghost → partial ghost + blueprint → blueprint only). Memory Atlas = two entries per site (zenith + today). Globe: spin-to-era-change, zoom-to-lock. Egypt first as test hook; strict chronology deferred.
