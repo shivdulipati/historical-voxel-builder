@@ -36,17 +36,22 @@ The player is a **restorer**, not a copier. The finished building is the *reward
 - **Secondary: the excavation file.** A toggleable, diegetic blueprint sheet (plan view + elevation view, period-styled, with a fact line). Always available, never required.
 - **Ghost (transparent full structure):** demoted to the Guided tier only — teaches mechanics — or a "reveal-then-fade" memory challenge.
 
-### Who the player is — Story v0 (draft)
+### Who the player is — Story v1 (synthesis: v0 + Shiv's builder-observer)
 
-**The Builder** — a nameless craftsperson who walks the ages. Not a god, not a time-traveler: the anonymous hand every civilization's builders sent ahead. Each site greets the player at the moment it most needs a builder's hands — and the damage is **honest, specific to each site's true history** (buried, eroded, burned, stripped), never uniform rubble:
+**The Builder** — an anonymous hand that walks the ages. Neither early nor late; arriving precisely when meant to (the Gandalf principle). Not a collector, not a conqueror: the craftsperson every age sends ahead.
 
-- **Göbekli Tepe** — T-pillars felled before the enclosure's deliberate burial (~8000 BCE)
-- **Great Bath** — brick-lined pool beneath the mound, rebuilt as originally laid
-- **Pyramid** — not rubble: casing stones stripped by time/plunder → re-case the core
-- **Ur Ziggurat** — mudbrick core eroded by millennia → rebuild the stepped mass
-- **Persepolis** — Gate of All Nations columns toppled by fire → re-erect
+**The arc of every structure — three visits, which ARE the difficulty tiers:**
+1. **Visit 1 — The Raising (Tier 1 Guided).** The structure is born. The Builder arrives at first emergence and raises it, guided by plans/ghost. Teaches the structure's logic and the mechanics.
+2. **Visit 2 — The Renewal (Tier 2 Restoration).** An era later: the structure stands but is worn — weather, war, plunder. Restore it to its zenith. This is the core loop.
+3. **Visit 3 — The Remembering (Tier 3 Excavation).** The end of the era: only the footprint remains. Rebuild the whole from blueprint and memory. Then watch it fall again.
 
-Emotional spine: **"Your hands remember what your eyes have never seen."** The building mechanic IS the memory — Manufactured Déjà Vu made literal: the player's hands recognize what their eyes have never seen. This resolves the "why is everything a ruin" problem: sites aren't uniformly ruined — each is damaged exactly the way history damaged it, and the player arrives as the hands that restore it.
+**The Ozymandias loop.** After the zenith, time spins ahead: the wheels of time churn, bricks turn back to earth, an era ends. The structure weathers to ruin in a cinematic time-lapse — the signature moment of the game. Tonal reference (Sting, "Mad About You"): *"They say a city in the desert lies... These are the works of man. This is the sum of our ambition."*
+
+**The Memory Atlas (collection).** The peak of every structure is saved into the player's memory — a museum of what was, fully viewable, orbitable, showcaseable. This is the save/showcase pillar with narrative weight: the only thing that survives the Ozymandias loop is what the Builder remembers. The loop flips from nihilism to dignity: **the sum of ambition is what is remembered.**
+
+**Metagame: the globe.** A world map/globe across time and space. One location can hold MULTIPLE structures across eras — Troy and its layers: one place, many levels, each era its own visit. Chronological spine: Egypt (hook) → Göbekli Tepe → Sumer → Indus → Persia → China → Greece → Rome.
+
+**Why ruins? Resolved.** You don't find ruins — you make them. You are present at creation, you watch the decay; the ruin is the consequence of your own journey. And because you built here before, the weathered world feels familiar — Manufactured Déjà Vu made literal: *"Your hands remember what your eyes have never seen."*
 
 ## 5. Difficulty System — 3 Tiers (locked)
 
@@ -56,7 +61,7 @@ Emotional spine: **"Your hands remember what your eyes have never seen."** The b
 | **2. Restoration** (default) | Ruin — foundations + surviving parts | Blueprint available | Core loop / casual-to-mid |
 | **3. Excavation** | Foundation only, no surviving superstructure | Blueprint only | Brainy / archaeologist |
 
-- **Learning curve:** Tier 1 teaches the system (piece types, snapping, materials); Tier 2 is the main loop; Tier 3 is the mastery mode. Level progression ramps within and across tiers.
+- **Learning curve:** Tier 1 teaches the system (piece types, snapping, materials); Tier 2 is the main loop; Tier 3 is the mastery mode. Level progression ramps within and across tiers. **Narrative mapping: the three visits of the Builder (see §4 Story v1).**
 - **Difficulty knob per level:** how much of the ruin survives + which aids are allowed + structure complexity.
 - **Long-term target:** casual/meditative broad audience. Near-term: build the tier system properly so difficulty can be tuned per-audience — we experiment now, tune for retention later.
 - **No punitive timer** — progress % only (locked 2026-08-16).
@@ -132,7 +137,9 @@ Public-domain archaeological plans → MagicaVoxel blockout → `.vox` → conve
 
 ## 13. Open Questions & Decision Log
 
-- [ ] Story v0 (The Builder) — awaiting Shiv's alternative idea (2026-08-17)
+- [ ] Story v1 (synthesis) — final sign-off pending (2026-08-17)
+- [ ] Decay presentation: cinematic time-lapse (recommended) vs. playable erosion
+- [ ] Globe vs. flat map metagame; era-layer UI for multi-epoch locations (Troy)
 - [ ] Blueprint sheet friction — playtest will decide modal vs. alternative (see §6)
 - [ ] Save/gallery scope for v1 vs. post-v1
 - [ ] Sound & haptics design (pillar 2) — block art pass timing
@@ -142,3 +149,4 @@ Public-domain archaeological plans → MagicaVoxel blockout → `.vox` → conve
 - 2026-08-16: **Manufactured Déjà Vu adopted as pillar 5** (from taste vault — evening General session).
 - 2026-08-16: Palette = tabs per category (locked). No punitive timer, progress % only (locked). Civ order: Egypt pulled up front (locked). Blueprint = modal sheet for now, flagged as playtest risk.
 - 2026-08-17: TASTE.md lost in nightly sync (stale template clobbered newer file) — recovered verbatim from session diffs, `sync_brain.sh` fixed with `--update`.
+- 2026-08-17: **Story v1 locked (synthesis)** — Builder as anonymous hand (Gandalf principle) + time-traveling builder-observer; three visits = three tiers; Ozymandias loop; Memory Atlas collection; globe metagame with multi-era locations (Troy layers).
