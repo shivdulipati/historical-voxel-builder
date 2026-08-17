@@ -18,6 +18,7 @@ A meditative mobile builder where the player **restores the great structures of 
 2. **Tactile completion.** Blocks *click* into place — satisfying sound + haptic feedback on snap, pickup, and completion. Feel is as important as sight.
 3. **Inspection & ownership.** The player can rotate, orbit, and examine the structure at any time. Completed work is **savable and showcaseable** (gallery + share).
 4. **History as content.** Every structure is a real building with real plans and a real story. The game teaches by making the player *build the evidence*.
+5. **Manufactured Déjà Vu** (adopted from taste vault, 2026-08-16). The player should feel "I've stood here before" for worlds they never stood in — engineered sensory signature (light temperature, haze, wind audio, seasonal air color) rather than fidelity. Atmosphere > accuracy. Audio analog: pentatonic familiarity + elevated harmony = nostalgia you can't place.
 
 ## 3. Core Loop
 
@@ -35,6 +36,18 @@ The player is a **restorer**, not a copier. The finished building is the *reward
 - **Secondary: the excavation file.** A toggleable, diegetic blueprint sheet (plan view + elevation view, period-styled, with a fact line). Always available, never required.
 - **Ghost (transparent full structure):** demoted to the Guided tier only — teaches mechanics — or a "reveal-then-fade" memory challenge.
 
+### Who the player is — Story v0 (draft)
+
+**The Builder** — a nameless craftsperson who walks the ages. Not a god, not a time-traveler: the anonymous hand every civilization's builders sent ahead. Each site greets the player at the moment it most needs a builder's hands — and the damage is **honest, specific to each site's true history** (buried, eroded, burned, stripped), never uniform rubble:
+
+- **Göbekli Tepe** — T-pillars felled before the enclosure's deliberate burial (~8000 BCE)
+- **Great Bath** — brick-lined pool beneath the mound, rebuilt as originally laid
+- **Pyramid** — not rubble: casing stones stripped by time/plunder → re-case the core
+- **Ur Ziggurat** — mudbrick core eroded by millennia → rebuild the stepped mass
+- **Persepolis** — Gate of All Nations columns toppled by fire → re-erect
+
+Emotional spine: **"Your hands remember what your eyes have never seen."** The building mechanic IS the memory — Manufactured Déjà Vu made literal: the player's hands recognize what their eyes have never seen. This resolves the "why is everything a ruin" problem: sites aren't uniformly ruined — each is damaged exactly the way history damaged it, and the player arrives as the hands that restore it.
+
 ## 5. Difficulty System — 3 Tiers (locked)
 
 | Tier | In-world | Aid | Audience |
@@ -46,6 +59,7 @@ The player is a **restorer**, not a copier. The finished building is the *reward
 - **Learning curve:** Tier 1 teaches the system (piece types, snapping, materials); Tier 2 is the main loop; Tier 3 is the mastery mode. Level progression ramps within and across tiers.
 - **Difficulty knob per level:** how much of the ruin survives + which aids are allowed + structure complexity.
 - **Long-term target:** casual/meditative broad audience. Near-term: build the tier system properly so difficulty can be tuned per-audience — we experiment now, tune for retention later.
+- **No punitive timer** — progress % only (locked 2026-08-16).
 - Every ruin is **mathematically derivable** from the blueprint (plan/elevation → 3D). No eyeballing, per project rule.
 
 ## 6. UI & Mobile Real Estate (OPEN — needs final call)
@@ -53,8 +67,8 @@ The player is a **restorer**, not a copier. The finished building is the *reward
 Portrait mobile: the build viewport must dominate (~75-80% of screen). Principle: **only one secondary surface on screen at a time.**
 
 - **Build view:** main viewport, full-bleed. Orbit camera (drag) + pinch zoom. **Locked pillar.**
-- **Block palette:** bottom tray, thumb-reach, scrollable per category (blocks / columns / wedges / arches / specials), material-tinted.
-- **Blueprint (excavation file):** **pull-up modal sheet** over the lower ~60% — plan and elevation side by side; build input pauses while open; tap-outside or close button dismisses. *Recommended: never a persistent side-by-side widget — real estate is too precious; treat the blueprint as a manual you consult.*
+- **Block palette:** bottom tray, thumb-reach, **tabs per category** (locked 2026-08-16 — blocks / columns / wedges / arches / specials), material-tinted.
+- **Blueprint (excavation file):** **pull-up modal sheet** over the lower ~60% — plan and elevation side by side; build input pauses while open; tap-outside or close button dismisses. *Recommended: never a persistent side-by-side widget — real estate is too precious; treat the blueprint as a manual you consult.* **Flagged playtest risk:** open/close friction while building — alternatives (peek chip, auto-hide after N seconds) to be explored during playtesting.
 - **Top bar:** civilization + structure name, progress %, story line, pause.
 - **Win state:** reconstruction stands alone in viewport → orbit showcase → save/share → next.
 
@@ -72,7 +86,7 @@ Portrait mobile: the build viewport must dominate (~75-80% of screen). Principle
 
 ## 8. Civilizations & v1 Content
 
-Chronological arc: **Göbekli Tepe → Sumer → Indus → Persia → China → Egypt → Greece → Rome** (order tunable; Egypt may move earlier for recognition).
+Chronological arc: **Egypt → Göbekli Tepe → Sumer → Indus → Persia → China → Greece → Rome** (Egypt pulled up front for recognition — locked 2026-08-16).
 
 **v1 — 4 structures (locked):**
 1. **Göbekli Enclosure A** (Turkey, ~9500 BCE) — T-pillars; teaches tapered pieces
@@ -118,11 +132,13 @@ Public-domain archaeological plans → MagicaVoxel blockout → `.vox` → conve
 
 ## 13. Open Questions & Decision Log
 
-- [ ] Blueprint presentation final call (see §6)
-- [ ] Palette tray structure final call (see §6)
-- [ ] Civilization order for v1.1 (Egypt placement)
-- [ ] Timer/score vs. meditative no-score (casual target suggests no punitive timer)
+- [ ] Story v0 (The Builder) — awaiting Shiv's alternative idea (2026-08-17)
+- [ ] Blueprint sheet friction — playtest will decide modal vs. alternative (see §6)
 - [ ] Save/gallery scope for v1 vs. post-v1
+- [ ] Sound & haptics design (pillar 2) — block art pass timing
 
 **Decision log**
 - 2026-08-16: Restorer fantasy + 3-tier difficulty locked. V1 = Göbekli Enclosure A, Ur Ziggurat, Pyramid, Persepolis Gate. Pipeline = PD plans → MagicaVoxel → converter. Pillars = building, tactile completion, inspection/ownership, history-as-content.
+- 2026-08-16: **Manufactured Déjà Vu adopted as pillar 5** (from taste vault — evening General session).
+- 2026-08-16: Palette = tabs per category (locked). No punitive timer, progress % only (locked). Civ order: Egypt pulled up front (locked). Blueprint = modal sheet for now, flagged as playtest risk.
+- 2026-08-17: TASTE.md lost in nightly sync (stale template clobbered newer file) — recovered verbatim from session diffs, `sync_brain.sh` fixed with `--update`.
