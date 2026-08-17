@@ -1,12 +1,17 @@
 extends Node
-## test_bp.gd — windowed render test for the BlueprintView: captures the plan
-## and elevation views to /tmp/bp_test.png so we can verify what actually draws.
+## test_bp.gd — windowed render test for BlueprintView across structures.
+## Captures plan+elevation for structure index passed via cmdline, default 0.
 
 func _ready() -> void:
+	var idx := 0
+	if OS.get_cmdline_user_args().size() > 0:
+		idx = int(OS.get_cmdline_user_args()[0])
 	var vp := get_viewport()
 	vp.size = Vector2i(1080, 1920)
 
-	# Replicate the sheet layout: two views side by side.
+	var STRUCTS = preload("res://slice/structures.gd")
+	var st: Dictionary = STRUCTS.structures()[idx]
+
 	var ctl := Control.new()
 	ctl.set_anchors_preset(Control.PRESET_FULL_RECT)
 	add_child(ctl)
@@ -25,18 +30,18 @@ func _ready() -> void:
 	elev_view.position = Vector2(510, 40)
 	ctl.add_child(elev_view)
 
-	var DATA = preload("res://slice/mastaba_data.gd")
-	plan_view.set_data(DATA.plan_layers(), DATA.elevation_cells())
-	elev_view.set_data(DATA.plan_layers(), DATA.elevation_cells())
+	plan_view.set_data(STRUCTS.plan_layers(st), STRUCTS.elevation_cells(st), st["colors"])
+	elev_view.set_data(STRUCTS.plan_layers(st), STRUCTS.elevation_cells(st), st["colors"])
 
-	print("PLAN_LAYERS: ", DATA.plan_layers())
-	print("ELEV_KEYS: ", DATA.elevation_cells().size())
+	print("STRUCT[%d]: %s core=%d zenith=%d survivor=%d" % [
+		idx, st["id"], st["core"].size(), st["zenith"].size(), st["survivor"].size()])
+	print("PLAN_LAYERS: ", STRUCTS.plan_layers(st))
 
 	await get_tree().process_frame
 	await get_tree().process_frame
 	await get_tree().process_frame
 
 	var img := vp.get_texture().get_image()
-	img.save_png("/tmp/bp_test.png")
-	print("SAVED /tmp/bp_test.png ", img.get_size())
+	img.save_png("/tmp/bp_test_%d.png" % idx)
+	print("SAVED /tmp/bp_test_%d.png" % idx)
 	get_tree().quit()

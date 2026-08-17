@@ -1,14 +1,14 @@
 extends Node3D
 ## mastaba_slice.gd — Core-loop playtest slice: the four-beat biography arc
-## (Raising → Restoration → Decay → Excavation) on the Mastaba of Ti.
-## BUILD 2 — playtest feedback round 1: view buttons, tools, larger UI, safe
-## areas, drag-from-tray, base-level drop indicator, interactive Memory Atlas.
+## (Raising → Restoration → Decay → Excavation) across 9 historical structures.
+## Structure-agnostic: loads from structures.gd by index. Next ▸ advances the
+## chronological arc. BUILD 4.
 
 const SliceBlock = preload("res://slice/slice_block.gd")
-const DATA = preload("res://slice/mastaba_data.gd")
+const STRUCTS = preload("res://slice/structures.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 3
+const BUILD_NO := 4
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -21,13 +21,6 @@ const BEAT_TITLE := {
 	Beat.EXCAVATION: "4 · THE EXCAVATION",
 }
 
-const SITE_NAME := "Mastaba of Ti — Saqqara, Egypt · ~2400 BCE"
-
-const EPILOGUE_LINES := [
-	"Every work of man returns to the earth.",
-	"But the Builder remembers.",
-]
-
 ## iPhone notch safe-area: all top UI starts below this (design px, portrait 1080x1920).
 const SAFE_TOP := 150.0
 ## Bottom tray sits clear of the home indicator / app-switcher gesture zone.
@@ -37,6 +30,12 @@ const TRAY_TOP := -250.0
 var current_beat: Beat = Beat.RAISING
 var scaffold_mode: Scaffold = Scaffold.GHOST
 var current_tool: Tool = Tool.SINGLE
+
+## Current structure data (from STRUCTS.structures()).
+var _st: Dictionary = {}
+var _structure_index := 0
+## Atlas entries unlock only after the arc completes (excavation finished).
+var _arc_completed := false
 
 ## Target for the current build beat: {Vector3i: color_name}
 var build_target: Dictionary = {}
@@ -50,9 +49,7 @@ var _current_swatch := ""
 var _is_orchestrating := false   # beat transition in flight (input locked)
 var _dust_total := 0
 var _dust_cleared := 0
-var _structure_index := 0
-## Atlas entries unlock only after the arc completes (excavation finished).
-var _arc_completed := false
+var _base_cam_size := 14.0
 
 # --- Camera ---
 var _pivot: Node3D
@@ -92,7 +89,24 @@ var _atlas_states: Dictionary = {}
 func _ready() -> void:
 	_build_world()
 	_build_hud()
-	_start_beat(Beat.RAISING)
+	_load_structure(0)
+
+
+# ============================================================================
+# STRUCTURE LOADING
+# ============================================================================
+
+func _load_structure(index: int) -> void:
+	var all := STRUCTS.structures()
+	_structure_index = posmod(index, all.size())
+	_st = all[_structure_index]
+
+	# Camera framing per structure footprint.
+	_base_cam_size = maxf(_st["limits"].x, _st["limits"].z) * 2.6 + 6.0
+	_camera.size = _base_cam_size
+
+	_top_label.text = _st["site_era"]
+	_restart_arc()
 
 
 # ============================================================================
@@ -109,7 +123,7 @@ func _build_world() -> void:
 	_camera = Camera3D.new()
 	_camera.name = "Camera3D"
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	_camera.size = 14.0
+	_camera.size = _base_cam_size
 	_camera.position = Vector3(0, 0, 14)
 	_pivot.add_child(_camera)
 
@@ -173,7 +187,6 @@ func _build_world() -> void:
 	_baseplate = Node3D.new()
 	_baseplate.name = "Baseplate"
 	add_child(_baseplate)
-	_build_baseplate()
 
 
 func _build_baseplate() -> void:
@@ -182,8 +195,9 @@ func _build_baseplate() -> void:
 	var mat := StandardMaterial3D.new()
 	mat.albedo_color = Color("#9A7F50")  # darker than ghosts → ghost reads clearly
 	mat.roughness = 1.0
-	for bx in range(-int(DATA.LIMIT_X), int(DATA.LIMIT_X) + 1):
-		for bz in range(-int(DATA.LIMIT_Z), int(DATA.LIMIT_Z) + 1):
+	var lim: Vector3 = _st["limits"]
+	for bx in range(-int(lim.x), int(lim.x) + 1):
+		for bz in range(-int(lim.z), int(lim.z) + 1):
 			var tile := MeshInstance3D.new()
 			var tile_mesh := BoxMesh.new()
 			tile_mesh.size = Vector3(0.98, 0.05, 0.98)
@@ -227,7 +241,7 @@ func _build_hud() -> void:
 	top_box.add_child(_beat_label)
 
 	_top_label = Label.new()
-	_top_label.text = SITE_NAME
+	_top_label.text = ""
 	_top_label.add_theme_font_size_override("font_size", 36)
 	top_box.add_child(_top_label)
 
@@ -458,7 +472,7 @@ func _build_hud() -> void:
 	sheet.add_child(sheet_box)
 
 	var sheet_title := Label.new()
-	sheet_title.text = "Excavation File — Mastaba of Ti"
+	sheet_title.text = "Excavation File"
 	sheet_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sheet_title.add_theme_font_size_override("font_size", 34)
 	sheet_box.add_child(sheet_title)
@@ -471,18 +485,15 @@ func _build_hud() -> void:
 	sheet_grid.add_child(_make_view_label("TOP DOWN (plan)"))
 	sheet_grid.add_child(_make_view_label("EAST FACE (elevation)"))
 
-	var plan_view := BlueprintView.new()
-	plan_view.custom_minimum_size = Vector2(470, 340)
-	plan_view.mode = BlueprintView.MODE_PLAN
-	sheet_grid.add_child(plan_view)
+	_plan_view = BlueprintView.new()
+	_plan_view.custom_minimum_size = Vector2(470, 340)
+	_plan_view.mode = BlueprintView.MODE_PLAN
+	sheet_grid.add_child(_plan_view)
 
-	var elev_view := BlueprintView.new()
-	elev_view.custom_minimum_size = Vector2(470, 340)
-	elev_view.mode = BlueprintView.MODE_ELEVATION
-	sheet_grid.add_child(elev_view)
-
-	plan_view.set_data(DATA.plan_layers(), DATA.elevation_cells())
-	elev_view.set_data(DATA.plan_layers(), DATA.elevation_cells())
+	_elev_view = BlueprintView.new()
+	_elev_view.custom_minimum_size = Vector2(470, 340)
+	_elev_view.mode = BlueprintView.MODE_ELEVATION
+	sheet_grid.add_child(_elev_view)
 
 	var close_btn := Button.new()
 	close_btn.text = "Close"
@@ -557,7 +568,7 @@ func _build_hud() -> void:
 	atlas_box.add_child(close_atlas_btn)
 
 	var more_label := Label.new()
-	more_label.text = "More structures coming in the full game."
+	more_label.text = "%d structures in the arc — more coming." % STRUCTS.structures().size()
 	more_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	more_label.add_theme_color_override("font_color", Color("#8A8A9A"))
 	more_label.add_theme_font_size_override("font_size", 20)
@@ -601,13 +612,13 @@ func _start_beat(beat: Beat) -> void:
 
 	match beat:
 		Beat.RAISING:
-			build_target = DATA.CORE_CELLS.duplicate()
-			_palette = ["mudbrick"]
-			_show_message("Raise the mastaba.\nThe tomb must rise from the sand.", 2.2)
+			build_target = _st["core"].duplicate()
+			_palette = _unique_materials(build_target)
+			_show_message(_st["beat1_msg"], 2.2)
 		Beat.RESTORATION:
-			build_target = DATA.ZENITH_CELLS.duplicate()
-			_palette = ["mudbrick", "limestone", "redband"]
-			_show_message("The tomb stands. Now restore it to its zenith —\nlimestone, cornice, offering table.", 2.6)
+			build_target = _st["zenith"].duplicate()
+			_palette = _unique_materials(build_target)
+			_show_message(_st["beat2_msg"], 2.6)
 		Beat.DECAY:
 			_run_decay()
 			return
@@ -620,6 +631,16 @@ func _start_beat(beat: Beat) -> void:
 	_rebuild_palette()
 	_refresh_ghosts()
 	_update_progress()
+
+
+## Unique material names used by a cell dict, in first-appearance order.
+func _unique_materials(cells: Dictionary) -> Array[String]:
+	var out: Array[String] = []
+	for pos in cells:
+		var mat: String = cells[pos]
+		if not out.has(mat):
+			out.append(mat)
+	return out
 
 
 func _on_block_placed(pos: Vector3i, color_name: String) -> void:
@@ -650,11 +671,11 @@ func _on_paint_requested(pos: Vector3i, color_name: String) -> void:
 	# Spawn a parked block at the painted cell.
 	var block := SliceBlock.new()
 	add_child(block)
-	block.limit_x = DATA.LIMIT_X
-	block.limit_z = DATA.LIMIT_Z
-	block.limit_y = DATA.LIMIT_Y
+	block.limit_x = _st["limits"].x
+	block.limit_z = _st["limits"].z
+	block.limit_y = _st["limits"].y
 	block.current_tool = current_tool
-	block.place_at(pos, DATA.COLORS[color_name], color_name)
+	block.place_at(pos, _st["colors"][color_name], color_name)
 	block.remove_from_group("slice_blocks")
 	for child in block.get_children():
 		if child is CollisionShape3D:
@@ -694,11 +715,11 @@ func _check_beat_complete() -> void:
 	_flourish()
 	match current_beat:
 		Beat.RAISING:
-			_show_message("The mastaba is raised.\nThe house of eternity stands.", 2.4)
+			_show_message("The %s is raised." % _st["id"].replace("_", " "), 2.4)
 			await get_tree().create_timer(2.6).timeout
 			_start_beat(Beat.RESTORATION)
 		Beat.RESTORATION:
-			_show_message("The tomb shines at its zenith.\nTime now does its work.", 2.6)
+			_show_message("It shines at its zenith.\nTime now does its work.", 2.6)
 			await get_tree().create_timer(2.8).timeout
 			_start_beat(Beat.DECAY)
 
@@ -710,7 +731,7 @@ func _flourish() -> void:
 	tween.tween_property(_sun, "light_energy", 1.9, 1.0)
 	tween.tween_property(_camera, "size", _camera.size + 1.5, 1.2)\
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.chain().tween_property(_camera, "size", 14.0, 1.0)
+	tween.chain().tween_property(_camera, "size", _base_cam_size, 1.0)
 
 
 # ============================================================================
@@ -726,7 +747,8 @@ func _run_decay() -> void:
 	_beat_label.text = BEAT_TITLE[Beat.DECAY]
 	_epilogue_card.visible = true
 	_skip_btn.visible = true
-	_epilogue_label.text = "[center]" + "\n".join(EPILOGUE_LINES) + "[/center]"
+	var lines := _st["epilogue"] as Array
+	_epilogue_label.text = "[center]" + "\n".join(lines) + "[/center]"
 
 	var fade := create_tween()
 	_epilogue_card.modulate.a = 0.0
@@ -773,20 +795,21 @@ func _skip_decay() -> void:
 
 
 func _spawn_mound() -> void:
+	var lim: Vector3 = _st["limits"]
 	var rubble_positions := [
 		Vector3i(-1, 0, -1), Vector3i(1, 0, 1), Vector3i(0, 0, 0),
-		Vector3i(2, 0, 0), Vector3i(-2, 0, 1),
+		Vector3i(int(lim.x - 1), 0, 0), Vector3i(-int(lim.x) + 1, 0, 1),
 	]
 	for pos in rubble_positions:
 		var block := SliceBlock.new()
 		block.name = "Rubble"
 		add_child(block)
-		block.limit_x = DATA.LIMIT_X
-		block.limit_z = DATA.LIMIT_Z
-		block.limit_y = DATA.LIMIT_Y
+		block.limit_x = lim.x
+		block.limit_z = lim.z
+		block.limit_y = lim.y
 		block.freeze = true
 		block.gravity_scale = 0.0
-		block.set_block_color(Color("#8A7A5E"), "rubble")
+		block.set_block_color(_st["colors"]["rubble"], "rubble")
 		block.position = Vector3(pos.x, 0.25, pos.z)
 		block.scale = Vector3(0.7, 0.4, 0.7)
 		block.rotation = Vector3(0, (pos.x * 0.7) + pos.z, 0)
@@ -807,12 +830,12 @@ func _spawn_mound() -> void:
 func _spawn_dust() -> void:
 	dust_mounds.clear()
 	_dust_cleared = 0
-	var dust_cells := DATA.dust_cells()
+	var dust_cells := STRUCTS.dust_cells(_st)
 	_dust_total = dust_cells.size()
 	var dust_mat := ShaderMaterial.new()
 	dust_mat.resource_local_to_scene = true
 	dust_mat.shader = load("res://block.gdshader")
-	dust_mat.set_shader_parameter("albedo_color", DATA.COLORS["dust"])
+	dust_mat.set_shader_parameter("albedo_color", _st["colors"]["dust"])
 	dust_mat.set_shader_parameter("alpha", 0.55)
 
 	for pos in dust_cells:
@@ -855,14 +878,14 @@ func _on_dust_tapped(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 	dust_mounds.erase(pos)
 	_dust_cleared += 1
 
-	var color_name: String = DATA.SURVIVOR_CELLS[pos]
+	var color_name: String = _st["survivor"][pos]
 	var reveal := SliceBlock.new()
 	reveal.name = "Survivor"
 	add_child(reveal)
-	reveal.limit_x = DATA.LIMIT_X
-	reveal.limit_z = DATA.LIMIT_Z
-	reveal.limit_y = DATA.LIMIT_Y
-	reveal.place_at(pos, DATA.COLORS[color_name], color_name)
+	reveal.limit_x = _st["limits"].x
+	reveal.limit_z = _st["limits"].z
+	reveal.limit_y = _st["limits"].y
+	reveal.place_at(pos, _st["colors"][color_name], color_name)
 	reveal.remove_from_group("slice_blocks")
 	for child in reveal.get_children():
 		if child is CollisionShape3D:
@@ -896,7 +919,7 @@ func dust_mat_alpha(a: float) -> ShaderMaterial:
 	var m := ShaderMaterial.new()
 	m.resource_local_to_scene = true
 	m.shader = load("res://block.gdshader")
-	m.set_shader_parameter("albedo_color", DATA.COLORS["dust"])
+	m.set_shader_parameter("albedo_color", _st["colors"]["dust"])
 	m.set_shader_parameter("alpha", a)
 	return m
 
@@ -911,13 +934,8 @@ func _open_atlas() -> void:
 		return
 	# Rebuild the saved states from the data.
 	_atlas_states.clear()
-	var zenith := {}
-	for pos in DATA.CORE_CELLS:
-		zenith[pos] = DATA.CORE_CELLS[pos]
-	for pos in DATA.ZENITH_CELLS:
-		zenith[pos] = DATA.ZENITH_CELLS[pos]
-	_atlas_states["zenith"] = zenith
-	_atlas_states["today"] = DATA.SURVIVOR_CELLS.duplicate()
+	_atlas_states["zenith"] = STRUCTS.combined_cells(_st)
+	_atlas_states["today"] = _st["survivor"].duplicate()
 	_atlas_card.visible = true
 	_atlas_card.modulate.a = 0.0
 	var tween := create_tween()
@@ -950,10 +968,10 @@ func _view_atlas_state(state: String) -> void:
 		var block := SliceBlock.new()
 		block.name = "AtlasBlock"
 		add_child(block)
-		block.limit_x = DATA.LIMIT_X
-		block.limit_z = DATA.LIMIT_Z
-		block.limit_y = DATA.LIMIT_Y
-		block.place_at(pos, DATA.COLORS[color_name], color_name)
+		block.limit_x = _st["limits"].x
+		block.limit_z = _st["limits"].z
+		block.limit_y = _st["limits"].y
+		block.place_at(pos, _st["colors"][color_name], color_name)
 		block.add_to_group("atlas_blocks")
 		block.remove_from_group("slice_blocks")
 		for child in block.get_children():
@@ -1000,9 +1018,8 @@ func _orbit_showcase(duration: float = 10.0) -> void:
 
 
 func _on_next_pressed() -> void:
-	# Chronological next: only one structure in the slice, so wrap around.
-	_structure_index = (_structure_index + 1) % 1
-	_restart_arc()
+	# Chronological next structure in the arc; wraps around at the end.
+	_load_structure(_structure_index + 1)
 
 
 # ============================================================================
@@ -1042,7 +1059,7 @@ func _rebuild_palette() -> void:
 		btn.text = color_name.replace("_", " ")
 		btn.add_theme_font_size_override("font_size", 20)
 		var sb := StyleBoxFlat.new()
-		sb.bg_color = DATA.COLORS[color_name]
+		sb.bg_color = _st["colors"][color_name]
 		sb.corner_radius_top_left = 12
 		sb.corner_radius_top_right = 12
 		sb.corner_radius_bottom_left = 12
@@ -1081,11 +1098,11 @@ func _on_swatch_gui_input(event: InputEvent, color_name: String, btn: Button) ->
 func _spawn_block_in_hand(color_name: String, screen_pos: Vector2, touch_index: int) -> void:
 	var block := SliceBlock.new()
 	add_child(block)
-	block.limit_x = DATA.LIMIT_X
-	block.limit_z = DATA.LIMIT_Z
-	block.limit_y = DATA.LIMIT_Y
+	block.limit_x = _st["limits"].x
+	block.limit_z = _st["limits"].z
+	block.limit_y = _st["limits"].y
 	block.current_tool = current_tool
-	block.set_block_color(DATA.COLORS[color_name], color_name)
+	block.set_block_color(_st["colors"][color_name], color_name)
 	block.placed.connect(_on_block_placed)
 	block.removed.connect(_on_block_removed)
 	block.paint_requested.connect(_on_paint_requested)
@@ -1148,7 +1165,7 @@ func _refresh_ghosts() -> void:
 		mat.shader = load("res://block.gdshader")
 		# Brightened, high-contrast ghost — reads against the sand baseplate
 		# even in the top-down view.
-		var ghost_color: Color = DATA.COLORS[cells[pos]].lightened(0.45)
+		var ghost_color: Color = _st["colors"][cells[pos]].lightened(0.45)
 		mat.set_shader_parameter("albedo_color", ghost_color)
 		mat.set_shader_parameter("alpha", 0.5)
 		var box := BoxMesh.new()
@@ -1263,6 +1280,9 @@ func _show_message(text: String, duration: float) -> void:
 
 
 func _open_blueprint() -> void:
+	# Rebuild the views from the current structure's data.
+	_plan_view.set_data(STRUCTS.plan_layers(_st), STRUCTS.elevation_cells(_st), _st["colors"])
+	_elev_view.set_data(STRUCTS.plan_layers(_st), STRUCTS.elevation_cells(_st), _st["colors"])
 	_blueprint_sheet.visible = true
 
 
@@ -1283,7 +1303,7 @@ func _restart_arc() -> void:
 	_pivot.rotation = _default_cam_rot
 	_sun.light_energy = 1.4
 	_sun.light_color = Color("#FFF2D0")
-	_camera.size = 14.0
+	_camera.size = _base_cam_size
 	set_tool(Tool.SINGLE)
 	_build_baseplate()
 	_start_beat(Beat.RAISING)
@@ -1292,6 +1312,9 @@ func _restart_arc() -> void:
 # ============================================================================
 # BLUEPRINT VIEW (pure data → drawing, no eyeballing)
 # ============================================================================
+
+var _plan_view: BlueprintView
+var _elev_view: BlueprintView
 
 class BlueprintView:
 	extends Control
@@ -1302,40 +1325,63 @@ class BlueprintView:
 	var mode := MODE_PLAN
 	var plan: Dictionary = {}   # {y: {Vector2i: color_name}}
 	var elevation: Dictionary = {}  # {Vector2i(z,y): color_name}
+	var colors: Dictionary = {}
 
-	func set_data(p: Dictionary, e: Dictionary) -> void:
+	func set_data(p: Dictionary, e: Dictionary, c: Dictionary) -> void:
 		plan = p
 		elevation = e
+		colors = c
 		queue_redraw()
 
 	func _draw() -> void:
 		var cell := 40.0
+		# Determine footprint extents from the plan layers for centering.
+		var min_x := 0
+		var max_x := 0
+		var min_z := 0
+		var max_z := 0
+		var first := true
+		for y in plan:
+			for cp in plan[y]:
+				if first:
+					min_x = cp.x; max_x = cp.x; min_z = cp.y; max_z = cp.y
+					first = false
+				else:
+					min_x = mini(min_x, cp.x); max_x = maxi(max_x, cp.x)
+					min_z = mini(min_z, cp.y); max_z = maxi(max_z, cp.y)
+		var span_x := maxi(max_x - min_x + 1, 1)
+		var span_z := maxi(max_z - min_z + 1, 1)
+
 		if mode == MODE_PLAN:
 			# Stack layers top-down; center the footprint in the view.
 			var layers := plan.keys()
 			layers.sort()
-			var origin := Vector2(30, 30)
-			var min_x := -2  # DATA limits
-			var min_z := -1
+			var origin := Vector2(
+				(size.x - span_x * cell) / 2.0,
+				(size.y - span_z * cell) / 2.0 - 20.0
+			)
 			for y in layers:
 				var cells: Dictionary = plan[y]
 				var shade := 0.85 - (0.25 * float(y))
 				for cell_pos in cells:
 					# NOTE: plan keys are Vector2i(pos.x, pos.z) — cell_pos.y is the z coord.
-					var color: Color = DATA.COLORS[cells[cell_pos]]
+					var color: Color = colors[cells[cell_pos]]
 					color = Color(color.r * shade, color.g * shade, color.b * shade)
 					var rect := Rect2(origin + Vector2((cell_pos.x - min_x) * cell, (cell_pos.y - min_z) * cell), Vector2(cell, cell))
 					draw_rect(rect, color, true)
 					draw_rect(rect, Color(0, 0, 0, 0.35), false, 2.0)
-				origin.x += 12.0  # layer offset for a slight exploded look
-				origin.y += 12.0
+				origin.x += 10.0  # layer offset for a slight exploded look
+				origin.y += 10.0
 		else:
 			# Elevation: (z, y) cells → column grid, east face.
-			var origin := Vector2(80, 300)
+			var origin := Vector2(
+				(size.x - span_z * cell) / 2.0,
+				size.y - 40.0
+			)
 			for cell_pos in elevation:
-				var color: Color = DATA.COLORS[elevation[cell_pos]]
-				var rect := Rect2(origin + Vector2((cell_pos.x + 1) * cell, -cell_pos.y * cell), Vector2(cell, cell))
+				var color: Color = colors[elevation[cell_pos]]
+				var rect := Rect2(origin + Vector2((cell_pos.x - min_z) * cell, -cell_pos.y * cell), Vector2(cell, cell))
 				draw_rect(rect, color, true)
 				draw_rect(rect, Color(0, 0, 0, 0.35), false, 2.0)
 			# Ground line
-			draw_line(origin + Vector2(-30, 0), origin + Vector2(5 * cell + 30, 0), Color(0.7, 0.6, 0.4, 0.9), 4.0)
+			draw_line(origin + Vector2(-30, 0), origin + Vector2(span_z * cell + 30, 0), Color(0.7, 0.6, 0.4, 0.9), 4.0)
