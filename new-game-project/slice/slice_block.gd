@@ -6,6 +6,10 @@ extends RigidBody3D
 
 signal placed(pos: Vector3i, color_name: String)
 signal removed(pos: Vector3i)
+signal paint_requested(pos: Vector3i, color_name: String)
+
+## Tool modes mirror the reloc-proto tools: 0 SINGLE, 1 PAINT, 2 ERASER, 3 ROTATE.
+var current_tool := 0
 
 ## Block size half-extent (unit voxel).
 const SIZE := 1.0
@@ -37,11 +41,14 @@ var _touch_start_time := 0.0
 var _is_pressing := false
 var current_grid_position := Vector3i.ZERO
 var _audio: AudioStreamPlayer
+var last_hover_cell := Vector3i(999, 999, 999)
 
 
 func _ready() -> void:
 	camera = get_viewport().get_camera_3d()
 	add_to_group("slice_blocks")
+	input_ray_pickable = true
+	input_event.connect(_on_input_event)
 
 	# --- Build the visual: unit box with the project block shader ---
 	var box := BoxMesh.new()
@@ -112,6 +119,10 @@ func place_at(pos: Vector3i, color: Color, color_name: String) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# ROTATE tool: the camera owns all gestures; blocks stand by.
+	if current_tool == 3:
+		return
+
 	# While waiting for a long-press on a placed block, watch only for the
 	# matching finger lifting early — that cancels the pick-up attempt.
 	if is_placed and _is_pressing:
@@ -209,6 +220,7 @@ func _get_stack_height(snap_x: int, snap_z: int) -> float:
 func _start_drag(touch_index: int, touch_pos: Vector2) -> void:
 	_drag_touch_index = touch_index
 	_drag_touch_pos = touch_pos
+	last_hover_cell = Vector3i(999, 999, 999)
 	is_dragging = true
 	gravity_scale = 0.0
 	freeze = false
@@ -253,7 +265,17 @@ func _physics_process(delta: float) -> void:
 			var hover_snap_z := roundi(target_pos.z + effective_offset.z)
 			var hover_y := _get_stack_height(hover_snap_x, hover_snap_z)
 			var target_ghost_pos := Vector3(hover_snap_x, hover_y, hover_snap_z)
-			_drop_indicator.global_position = _drop_indicator.global_position.lerp(target_ghost_pos, delta * 15.0)
+			# Drop indicator sits at the BASE of the landing cell (ground of that
+			# cell), not its center — reads as "this block will rest here".
+			var indicator_y := hover_y - 0.5 + 0.02
+			var target_indicator_pos := Vector3(hover_snap_x, indicator_y, hover_snap_z)
+			_drop_indicator.global_position = _drop_indicator.global_position.lerp(target_indicator_pos, delta * 15.0)
+
+			# PAINT tool: emit a request for every newly-hovered cell.
+			var hover_cell := Vector3i(hover_snap_x, roundi(hover_y - FLOOR_Y), hover_snap_z)
+			if current_tool == 1 and hover_cell != last_hover_cell:
+				last_hover_cell = hover_cell
+				paint_requested.emit(hover_cell, block_color_name)
 
 			var push_vector: Vector3 = (target_pos + effective_offset - global_position) / delta
 			linear_velocity = push_vector
@@ -261,6 +283,17 @@ func _physics_process(delta: float) -> void:
 
 
 func _on_input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _normal: Vector3, _shape_idx: int) -> void:
+	if current_tool == 3: # ROTATE — camera owns gestures
+		return
+
+	# ERASER tool: a press on a placed block removes it immediately.
+	var is_press: bool = (event is InputEventScreenTouch and event.pressed) \
+		or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed)
+	if is_placed and is_press and current_tool == 2:
+		removed.emit(current_grid_position)
+		queue_free()
+		return
+
 	if event is InputEventScreenTouch and event.pressed:
 		if is_placed:
 			# Arm the long-press timer instead of dragging immediately.

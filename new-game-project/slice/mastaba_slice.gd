@@ -1,19 +1,24 @@
 extends Node3D
 ## mastaba_slice.gd — Core-loop playtest slice: the four-beat biography arc
 ## (Raising → Restoration → Decay → Excavation) on the Mastaba of Ti.
-## Validates the GDD v0.4 loop + scaffolding + blueprint presentation.
+## BUILD 2 — playtest feedback round 1: view buttons, tools, larger UI, safe
+## areas, drag-from-tray, base-level drop indicator, interactive Memory Atlas.
 
 const SliceBlock = preload("res://slice/slice_block.gd")
 const DATA = preload("res://slice/mastaba_data.gd")
 
+## Build number shown in HUD + reflected in the export preset version.
+const BUILD_NO := 2
+
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
+enum Tool { SINGLE, PAINT, ERASER, ROTATE }
 
 const BEAT_TITLE := {
-	Beat.RAISING: "BEAT 1 · THE RAISING",
-	Beat.RESTORATION: "BEAT 2 · THE RESTORATION",
-	Beat.DECAY: "THE FALL",
-	Beat.EXCAVATION: "BEAT 4 · THE EXCAVATION",
+	Beat.RAISING: "1 · THE RAISING",
+	Beat.RESTORATION: "2 · THE RESTORATION",
+	Beat.DECAY: "3 · THE FALL",
+	Beat.EXCAVATION: "4 · THE EXCAVATION",
 }
 
 const SITE_NAME := "Mastaba of Ti — Saqqara, Egypt · ~2400 BCE"
@@ -33,15 +38,20 @@ const EPILOGUE_LINES := [
 	"before the sand took it back.",
 ]
 
+## iPhone notch safe-area: all top UI starts below this.
+const SAFE_TOP := 64.0
+## Bottom tray sits clear of the home indicator.
+const TRAY_BOTTOM := -28.0
+const TRAY_TOP := -190.0
+
 var current_beat: Beat = Beat.RAISING
 var scaffold_mode: Scaffold = Scaffold.GHOST
+var current_tool: Tool = Tool.SINGLE
 
 ## Target for the current build beat: {Vector3i: color_name}
 var build_target: Dictionary = {}
 ## Correctly completed cells: {Vector3i: color_name}
 var completed_cells: Dictionary = {}
-## Live block nodes: cell -> SliceBlock
-var live_blocks: Dictionary = {}
 ## Dust mounds waiting to be cleared (excavation beat).
 var dust_mounds: Dictionary = {}
 
@@ -50,21 +60,27 @@ var _current_swatch := ""
 var _is_orchestrating := false   # beat transition in flight (input locked)
 var _dust_total := 0
 var _dust_cleared := 0
+var _structure_index := 0
 
 # --- Camera ---
 var _pivot: Node3D
 var _camera: Camera3D
 var _sun: DirectionalLight3D
+var _fill: DirectionalLight3D
 var _touch_points := {}
 var _last_pinch_distance := 0.0
 var _last_pan_midpoint := Vector2.ZERO
+var _default_cam_rot := Vector3(-0.45, 0.8, 0.0)
+var _is_orbiting := false
 
 # --- HUD ---
 var _hud: CanvasLayer
 var _top_label: Label
 var _beat_label: Label
+var _build_label: Label
 var _progress_bar: ProgressBar
 var _swatch_box: HBoxContainer
+var _tool_buttons: Array[Button] = []
 var _scaffold_buttons: Array[Button] = []
 var _message_card: PanelContainer
 var _message_label: Label
@@ -73,9 +89,12 @@ var _epilogue_label: RichTextLabel
 var _blueprint_sheet: Control
 var _atlas_card: PanelContainer
 var _skip_btn: Button
+var _atlas_btn: Button
 
 var _baseplate: Node3D
-var _floor_body: StaticBody3D
+
+## Saved atlas states for clickable entries: {label: {Vector3i: color_name}}
+var _atlas_states: Dictionary = {}
 
 
 func _ready() -> void:
@@ -93,7 +112,7 @@ func _build_world() -> void:
 	_pivot = Node3D.new()
 	_pivot.name = "CameraPivot"
 	add_child(_pivot)
-	_pivot.rotation = Vector3(-0.45, 0.8, 0.0)
+	_pivot.rotation = _default_cam_rot
 
 	_camera = Camera3D.new()
 	_camera.name = "Camera3D"
@@ -112,13 +131,13 @@ func _build_world() -> void:
 	_sun.light_energy = 1.4
 
 	# --- Soft ambient fill ---
-	var fill := DirectionalLight3D.new()
-	fill.name = "Fill"
-	fill.position = Vector3(-4, 6, -6)
-	add_child(fill)
-	fill.look_at(Vector3.ZERO)
-	fill.light_color = Color("#C8D8F0")
-	fill.light_energy = 0.5
+	_fill = DirectionalLight3D.new()
+	_fill.name = "Fill"
+	_fill.position = Vector3(-4, 6, -6)
+	add_child(_fill)
+	_fill.look_at(Vector3.ZERO)
+	_fill.light_color = Color("#C8D8F0")
+	_fill.light_energy = 0.5
 
 	# --- Environment (warm sky) ---
 	var env := WorldEnvironment.new()
@@ -137,15 +156,15 @@ func _build_world() -> void:
 	add_child(env)
 
 	# --- Floor (raycast target + sand) ---
-	_floor_body = StaticBody3D.new()
-	_floor_body.name = "Floor"
+	var floor_body := StaticBody3D.new()
+	floor_body.name = "Floor"
 	var floor_shape := CollisionShape3D.new()
 	var floor_box := BoxShape3D.new()
 	floor_box.size = Vector3(60, 1, 60)
 	floor_shape.shape = floor_box
 	floor_shape.position = Vector3(0, -0.5, 0)
-	_floor_body.add_child(floor_shape)
-	add_child(_floor_body)
+	floor_body.add_child(floor_shape)
+	add_child(floor_body)
 
 	var floor_mesh := MeshInstance3D.new()
 	var floor_mat := StandardMaterial3D.new()
@@ -196,13 +215,13 @@ func _build_hud() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(root)
 
-	# --- Top bar ---
+	# --- Top bar (below notch) ---
 	var top := PanelContainer.new()
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	top.offset_left = 12
 	top.offset_right = -12
-	top.offset_top = 12
-	top.offset_bottom = 96
+	top.offset_top = SAFE_TOP
+	top.offset_bottom = SAFE_TOP + 118
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	top.add_theme_stylebox_override("panel", _panel_style(Color(0.12, 0.12, 0.18, 0.85)))
 	root.add_child(top)
@@ -211,27 +230,64 @@ func _build_hud() -> void:
 	top.add_child(top_box)
 
 	_beat_label = Label.new()
-	_beat_label.add_theme_font_size_override("font_size", 16)
+	_beat_label.add_theme_font_size_override("font_size", 26)
 	_beat_label.add_theme_color_override("font_color", Color("#F0C040"))
 	top_box.add_child(_beat_label)
 
 	_top_label = Label.new()
 	_top_label.text = SITE_NAME
-	_top_label.add_theme_font_size_override("font_size", 18)
+	_top_label.add_theme_font_size_override("font_size", 30)
 	top_box.add_child(_top_label)
 
 	_progress_bar = ProgressBar.new()
-	_progress_bar.custom_minimum_size = Vector2(0, 14)
+	_progress_bar.custom_minimum_size = Vector2(0, 22)
 	_progress_bar.show_percentage = false
 	top_box.add_child(_progress_bar)
 
-	# --- Scaffold toggle row (top-right, under top bar) ---
+	# --- Build badge (top-right, below notch) ---
+	_build_label = Label.new()
+	_build_label.text = "BUILD %d" % BUILD_NO
+	_build_label.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	_build_label.offset_left = -160
+	_build_label.offset_right = -14
+	_build_label.offset_top = SAFE_TOP + 4
+	_build_label.offset_bottom = SAFE_TOP + 40
+	_build_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	_build_label.add_theme_font_size_override("font_size", 20)
+	_build_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
+	root.add_child(_build_label)
+
+	# --- View buttons (CubeUI: Top / Front / Side) ---
+	var view_row := HBoxContainer.new()
+	view_row.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	view_row.offset_left = 12
+	view_row.offset_right = -12
+	view_row.offset_top = SAFE_TOP + 130
+	view_row.offset_bottom = SAFE_TOP + 176
+	view_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	view_row.add_theme_constant_override("separation", 8)
+	root.add_child(view_row)
+
+	var view_defs := [
+		["Top", Vector3(-PI / 2.0, 0.0, 0.0)],
+		["Front", Vector3(0.0, 0.0, 0.0)],
+		["Side", Vector3(0.0, -PI / 2.0, 0.0)],
+	]
+	for def in view_defs:
+		var btn := Button.new()
+		btn.text = def[0]
+		btn.custom_minimum_size = Vector2(0, 46)
+		btn.add_theme_font_size_override("font_size", 22)
+		btn.pressed.connect(_snap_camera.bind(def[1]))
+		view_row.add_child(btn)
+
+	# --- Scaffold toggle row ---
 	var scaffold_row := HBoxContainer.new()
 	scaffold_row.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	scaffold_row.offset_left = 12
 	scaffold_row.offset_right = -12
-	scaffold_row.offset_top = 104
-	scaffold_row.offset_bottom = 140
+	scaffold_row.offset_top = SAFE_TOP + 184
+	scaffold_row.offset_bottom = SAFE_TOP + 234
 	scaffold_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	scaffold_row.add_theme_constant_override("separation", 8)
 	root.add_child(scaffold_row)
@@ -244,20 +300,57 @@ func _build_hud() -> void:
 	for def in scaffold_defs:
 		var btn := Button.new()
 		btn.text = def[0]
-		btn.custom_minimum_size = Vector2(0, 40)
+		btn.custom_minimum_size = Vector2(0, 46)
+		btn.add_theme_font_size_override("font_size", 20)
 		btn.toggle_mode = true
 		btn.pressed.connect(_on_scaffold_pressed.bind(def[1], btn))
 		scaffold_row.add_child(btn)
 		_scaffold_buttons.append(btn)
 
+	# --- Memory Atlas button (next to scaffold row) ---
+	_atlas_btn = Button.new()
+	_atlas_btn.text = "📖  Memory Atlas"
+	_atlas_btn.custom_minimum_size = Vector2(0, 46)
+	_atlas_btn.add_theme_font_size_override("font_size", 20)
+	_atlas_btn.pressed.connect(_open_atlas)
+	scaffold_row.add_child(_atlas_btn)
+
+	# --- Tool row (Single / Paint / Erase / Rotate) ---
+	var tool_row := HBoxContainer.new()
+	tool_row.set_anchors_preset(Control.PRESET_TOP_WIDE)
+	tool_row.offset_left = 12
+	tool_row.offset_right = -12
+	tool_row.offset_top = SAFE_TOP + 242
+	tool_row.offset_bottom = SAFE_TOP + 292
+	tool_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	tool_row.add_theme_constant_override("separation", 10)
+	root.add_child(tool_row)
+
+	var tool_defs := [
+		["Single", Tool.SINGLE],
+		["Paint", Tool.PAINT],
+		["Erase", Tool.ERASER],
+		["Rotate", Tool.ROTATE],
+	]
+	for def in tool_defs:
+		var btn := Button.new()
+		btn.text = def[0]
+		btn.custom_minimum_size = Vector2(0, 50)
+		btn.add_theme_font_size_override("font_size", 22)
+		btn.toggle_mode = true
+		btn.pressed.connect(_on_tool_pressed.bind(def[1], btn))
+		tool_row.add_child(btn)
+		_tool_buttons.append(btn)
+
 	# --- Blueprint button ---
 	var plan_btn := Button.new()
 	plan_btn.text = "📜  Excavation File"
 	plan_btn.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	plan_btn.offset_left = -190
+	plan_btn.offset_left = -260
 	plan_btn.offset_right = -12
-	plan_btn.offset_top = 150
-	plan_btn.offset_bottom = 192
+	plan_btn.offset_top = SAFE_TOP + 242
+	plan_btn.offset_bottom = SAFE_TOP + 292
+	plan_btn.add_theme_font_size_override("font_size", 20)
 	plan_btn.pressed.connect(_open_blueprint)
 	root.add_child(plan_btn)
 
@@ -266,53 +359,55 @@ func _build_hud() -> void:
 	restart_btn.text = "↺ Restart"
 	restart_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
 	restart_btn.offset_left = 12
-	restart_btn.offset_top = 150
-	restart_btn.offset_bottom = 192
+	restart_btn.offset_top = SAFE_TOP + 242
+	restart_btn.offset_bottom = SAFE_TOP + 292
+	restart_btn.add_theme_font_size_override("font_size", 20)
 	restart_btn.pressed.connect(_restart_arc)
 	root.add_child(restart_btn)
 
-	# --- Palette tray (bottom) ---
+	# --- Palette tray (bottom, raised above home indicator) ---
 	var tray := PanelContainer.new()
 	tray.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
 	tray.offset_left = 12
 	tray.offset_right = -12
-	tray.offset_top = -104
-	tray.offset_bottom = -12
-	tray.add_theme_stylebox_override("panel", _panel_style(Color(0.12, 0.12, 0.18, 0.9)))
+	tray.offset_top = TRAY_TOP
+	tray.offset_bottom = TRAY_BOTTOM
+	tray.add_theme_stylebox_override("panel", _panel_style(Color(0.12, 0.12, 0.18, 0.92)))
 	root.add_child(tray)
 
 	_swatch_box = HBoxContainer.new()
 	_swatch_box.alignment = BoxContainer.ALIGNMENT_CENTER
-	_swatch_box.add_theme_constant_override("separation", 14)
+	_swatch_box.add_theme_constant_override("separation", 16)
 	tray.add_child(_swatch_box)
 
-	# --- Message card (beat banners, flourishes) ---
+	# --- Message card (beat banners; bottom-anchored, clear of baseplate) ---
 	_message_card = PanelContainer.new()
-	_message_card.set_anchors_preset(Control.PRESET_CENTER)
-	_message_card.offset_left = -320
-	_message_card.offset_right = 320
-	_message_card.offset_top = -180
-	_message_card.offset_bottom = 180
-	_message_card.add_theme_stylebox_override("panel", _panel_style(Color(0.08, 0.08, 0.14, 0.88)))
+	_message_card.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_message_card.offset_left = 60
+	_message_card.offset_right = -60
+	_message_card.offset_top = TRAY_TOP - 300
+	_message_card.offset_bottom = TRAY_TOP - 60
+	_message_card.add_theme_stylebox_override("panel", _panel_style(Color(0.08, 0.08, 0.14, 0.9)))
 	_message_card.visible = false
 	_message_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_message_card)
 
 	_message_label = Label.new()
 	_message_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	_message_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	_message_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	_message_label.add_theme_font_size_override("font_size", 26)
-	_message_label.custom_minimum_size = Vector2(560, 0)
+	_message_label.add_theme_font_size_override("font_size", 36)
+	_message_label.add_theme_color_override("font_color", Color("#FFF6E0"))
 	_message_card.add_child(_message_label)
 
-	# --- Epilogue card (decay beat) ---
+	# --- Epilogue card (decay beat; bottom-anchored so decay is visible) ---
 	_epilogue_card = PanelContainer.new()
-	_epilogue_card.set_anchors_preset(Control.PRESET_CENTER)
-	_epilogue_card.offset_left = -340
-	_epilogue_card.offset_right = 340
-	_epilogue_card.offset_top = -260
-	_epilogue_card.offset_bottom = 260
-	_epilogue_card.add_theme_stylebox_override("panel", _panel_style(Color(0.06, 0.06, 0.1, 0.92)))
+	_epilogue_card.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_epilogue_card.offset_left = 60
+	_epilogue_card.offset_right = -60
+	_epilogue_card.offset_top = TRAY_TOP - 380
+	_epilogue_card.offset_bottom = TRAY_TOP - 40
+	_epilogue_card.add_theme_stylebox_override("panel", _panel_style(Color(0.06, 0.06, 0.1, 0.94)))
 	_epilogue_card.visible = false
 	_epilogue_card.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(_epilogue_card)
@@ -321,23 +416,23 @@ func _build_hud() -> void:
 	_epilogue_label.bbcode_enabled = true
 	_epilogue_label.fit_content = true
 	_epilogue_label.scroll_active = false
-	_epilogue_label.add_theme_font_size_override("normal_font_size", 22)
-	_epilogue_label.custom_minimum_size = Vector2(600, 0)
+	_epilogue_label.add_theme_font_size_override("normal_font_size", 30)
 	_epilogue_card.add_child(_epilogue_label)
 
 	# --- Skip button (decay only) ---
 	_skip_btn = Button.new()
 	_skip_btn.text = "Skip ▸"
 	_skip_btn.set_anchors_preset(Control.PRESET_CENTER_BOTTOM)
-	_skip_btn.offset_left = -80
-	_skip_btn.offset_right = 80
-	_skip_btn.offset_top = -110
-	_skip_btn.offset_bottom = -60
+	_skip_btn.offset_left = -100
+	_skip_btn.offset_right = 100
+	_skip_btn.offset_top = TRAY_TOP - 90
+	_skip_btn.offset_bottom = TRAY_TOP - 30
 	_skip_btn.visible = false
+	_skip_btn.add_theme_font_size_override("font_size", 24)
 	_skip_btn.pressed.connect(_skip_decay)
 	root.add_child(_skip_btn)
 
-	# --- Blueprint sheet (modal) ---
+	# --- Blueprint sheet (modal; bottom-anchored, no baseplate overlap) ---
 	_blueprint_sheet = Control.new()
 	_blueprint_sheet.set_anchors_preset(Control.PRESET_FULL_RECT)
 	_blueprint_sheet.visible = false
@@ -350,12 +445,12 @@ func _build_hud() -> void:
 	_blueprint_sheet.add_child(dim)
 
 	var sheet := PanelContainer.new()
-	sheet.set_anchors_preset(Control.PRESET_CENTER)
-	sheet.offset_left = -420
-	sheet.offset_right = 420
-	sheet.offset_top = -420
-	sheet.offset_bottom = 420
-	sheet.add_theme_stylebox_override("panel", _panel_style(Color(0.13, 0.13, 0.2, 0.96)))
+	sheet.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	sheet.offset_left = 30
+	sheet.offset_right = -30
+	sheet.offset_top = TRAY_TOP - 560
+	sheet.offset_bottom = TRAY_TOP - 20
+	sheet.add_theme_stylebox_override("panel", _panel_style(Color(0.13, 0.13, 0.2, 0.97)))
 	_blueprint_sheet.add_child(sheet)
 
 	var sheet_box := VBoxContainer.new()
@@ -365,7 +460,7 @@ func _build_hud() -> void:
 	var sheet_title := Label.new()
 	sheet_title.text = "Excavation File — Mastaba of Ti"
 	sheet_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	sheet_title.add_theme_font_size_override("font_size", 22)
+	sheet_title.add_theme_font_size_override("font_size", 30)
 	sheet_box.add_child(sheet_title)
 
 	var sheet_grid := GridContainer.new()
@@ -373,16 +468,16 @@ func _build_hud() -> void:
 	sheet_grid.add_theme_constant_override("h_separation", 24)
 	sheet_box.add_child(sheet_grid)
 
-	sheet_grid.add_child(_make_view_label("PLAN (top-down)"))
-	sheet_grid.add_child(_make_view_label("ELEVATION (east face)"))
+	sheet_grid.add_child(_make_view_label("TOP DOWN (plan)"))
+	sheet_grid.add_child(_make_view_label("EAST FACE (elevation)"))
 
 	var plan_view := BlueprintView.new()
-	plan_view.custom_minimum_size = Vector2(360, 300)
+	plan_view.custom_minimum_size = Vector2(470, 340)
 	plan_view.mode = BlueprintView.MODE_PLAN
 	sheet_grid.add_child(plan_view)
 
 	var elev_view := BlueprintView.new()
-	elev_view.custom_minimum_size = Vector2(360, 300)
+	elev_view.custom_minimum_size = Vector2(470, 340)
 	elev_view.mode = BlueprintView.MODE_ELEVATION
 	sheet_grid.add_child(elev_view)
 
@@ -391,65 +486,72 @@ func _build_hud() -> void:
 
 	var close_btn := Button.new()
 	close_btn.text = "Close"
-	close_btn.custom_minimum_size = Vector2(0, 44)
+	close_btn.custom_minimum_size = Vector2(0, 56)
+	close_btn.add_theme_font_size_override("font_size", 24)
 	close_btn.pressed.connect(func(): _blueprint_sheet.visible = false)
 	sheet_box.add_child(close_btn)
 
-	# --- Memory Atlas card (end of arc) ---
+	# --- Memory Atlas card (bottom-anchored, interactive entries) ---
 	_atlas_card = PanelContainer.new()
-	_atlas_card.set_anchors_preset(Control.PRESET_CENTER)
-	_atlas_card.offset_left = -340
-	_atlas_card.offset_right = 340
-	_atlas_card.offset_top = -260
-	_atlas_card.offset_bottom = 260
-	_atlas_card.add_theme_stylebox_override("panel", _panel_style(Color(0.1, 0.12, 0.16, 0.95)))
+	_atlas_card.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	_atlas_card.offset_left = 60
+	_atlas_card.offset_right = -60
+	_atlas_card.offset_top = TRAY_TOP - 420
+	_atlas_card.offset_bottom = TRAY_TOP - 20
+	_atlas_card.add_theme_stylebox_override("panel", _panel_style(Color(0.1, 0.12, 0.16, 0.96)))
 	_atlas_card.visible = false
 	root.add_child(_atlas_card)
 
 	var atlas_box := VBoxContainer.new()
-	atlas_box.add_theme_constant_override("separation", 14)
+	atlas_box.add_theme_constant_override("separation", 12)
 	_atlas_card.add_child(atlas_box)
 
 	var atlas_title := Label.new()
 	atlas_title.text = "MEMORY ATLAS"
 	atlas_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	atlas_title.add_theme_font_size_override("font_size", 30)
+	atlas_title.add_theme_font_size_override("font_size", 38)
 	atlas_box.add_child(atlas_title)
 
 	var atlas_sub := Label.new()
-	atlas_sub.text = "What the Builder remembers — saved."
+	atlas_sub.text = "What the Builder remembers — tap an entry to view it."
 	atlas_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	atlas_sub.add_theme_color_override("font_color", Color("#C8D8F0"))
-	atlas_sub.add_theme_font_size_override("font_size", 16)
+	atlas_sub.add_theme_font_size_override("font_size", 20)
 	atlas_box.add_child(atlas_sub)
 
-	var entry1 := Label.new()
-	entry1.text = "◈ The Zenith — Mastaba of Ti, at its peak (limestone, cornice, offering table)"
-	entry1.add_theme_font_size_override("font_size", 18)
-	atlas_box.add_child(entry1)
+	var zenith_btn := Button.new()
+	zenith_btn.text = "◈ The Zenith — at its peak (tap to view)"
+	zenith_btn.custom_minimum_size = Vector2(0, 56)
+	zenith_btn.add_theme_font_size_override("font_size", 22)
+	zenith_btn.pressed.connect(func(): _view_atlas_state("zenith"))
+	atlas_box.add_child(zenith_btn)
 
-	var entry2 := Label.new()
-	entry2.text = "◈ Today — the excavated foundation, as the sand gave it back"
-	entry2.add_theme_font_size_override("font_size", 18)
-	atlas_box.add_child(entry2)
+	var today_btn := Button.new()
+	today_btn.text = "◈ Today — as the sand gave it back (tap to view)"
+	today_btn.custom_minimum_size = Vector2(0, 56)
+	today_btn.add_theme_font_size_override("font_size", 22)
+	today_btn.pressed.connect(func(): _view_atlas_state("today"))
+	atlas_box.add_child(today_btn)
 
-	var showcase_btn := Button.new()
-	showcase_btn.text = "◉ Orbit Showcase"
-	showcase_btn.custom_minimum_size = Vector2(0, 44)
-	showcase_btn.pressed.connect(_orbit_showcase)
-	atlas_box.add_child(showcase_btn)
+	var orbit_btn := Button.new()
+	orbit_btn.text = "◉ Free Rotate — orbit the structure"
+	orbit_btn.custom_minimum_size = Vector2(0, 56)
+	orbit_btn.add_theme_font_size_override("font_size", 22)
+	orbit_btn.pressed.connect(_enable_free_rotate)
+	atlas_box.add_child(orbit_btn)
 
-	var replay_btn := Button.new()
-	replay_btn.text = "↺ Replay the Arc"
-	replay_btn.custom_minimum_size = Vector2(0, 44)
-	replay_btn.pressed.connect(_restart_arc)
-	atlas_box.add_child(replay_btn)
+	var next_btn := Button.new()
+	next_btn.text = "Next ▸"
+	next_btn.custom_minimum_size = Vector2(0, 56)
+	next_btn.add_theme_font_size_override("font_size", 24)
+	next_btn.pressed.connect(_on_next_pressed)
+	atlas_box.add_child(next_btn)
 
 	var more_label := Label.new()
 	more_label.text = "More structures coming in the full game."
 	more_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	more_label.add_theme_color_override("font_color", Color("#8A8A9A"))
-	more_label.add_theme_font_size_override("font_size", 14)
+	more_label.add_theme_font_size_override("font_size", 18)
 	atlas_box.add_child(more_label)
 
 
@@ -457,17 +559,17 @@ func _make_view_label(text: String) -> Label:
 	var l := Label.new()
 	l.text = text
 	l.add_theme_color_override("font_color", Color("#F0C040"))
-	l.add_theme_font_size_override("font_size", 15)
+	l.add_theme_font_size_override("font_size", 22)
 	return l
 
 
 func _panel_style(bg: Color) -> StyleBoxFlat:
 	var sb := StyleBoxFlat.new()
 	sb.bg_color = bg
-	sb.corner_radius_top_left = 14
-	sb.corner_radius_top_right = 14
-	sb.corner_radius_bottom_left = 14
-	sb.corner_radius_bottom_right = 14
+	sb.corner_radius_top_left = 16
+	sb.corner_radius_top_right = 16
+	sb.corner_radius_bottom_left = 16
+	sb.corner_radius_bottom_right = 16
 	sb.border_width_left = 1
 	sb.border_width_right = 1
 	sb.border_width_top = 1
@@ -488,7 +590,6 @@ func _start_beat(beat: Beat) -> void:
 	_epilogue_card.visible = false
 	_epilogue_label.text = ""
 
-	# Determine build target + palette.
 	match beat:
 		Beat.RAISING:
 			build_target = DATA.CORE_CELLS.duplicate()
@@ -532,6 +633,30 @@ func _on_block_placed(pos: Vector3i, color_name: String) -> void:
 			tween.tween_callback(block.queue_free)
 
 
+func _on_paint_requested(pos: Vector3i, color_name: String) -> void:
+	if _is_orchestrating:
+		return
+	if not build_target.has(pos) or build_target[pos] != color_name or completed_cells.has(pos):
+		return
+	# Spawn a parked block at the painted cell.
+	var block := SliceBlock.new()
+	add_child(block)
+	block.limit_x = DATA.LIMIT_X
+	block.limit_z = DATA.LIMIT_Z
+	block.limit_y = DATA.LIMIT_Y
+	block.current_tool = current_tool
+	block.place_at(pos, DATA.COLORS[color_name], color_name)
+	block.remove_from_group("slice_blocks")
+	for child in block.get_children():
+		if child is CollisionShape3D:
+			child.disabled = true
+	completed_cells[pos] = color_name
+	Input.vibrate_handheld(20)
+	_refresh_ghosts()
+	_update_progress()
+	_check_beat_complete()
+
+
 func _find_block_at(pos: Vector3i) -> SliceBlock:
 	for block in get_tree().get_nodes_in_group("slice_blocks"):
 		var b := block as SliceBlock
@@ -542,7 +667,6 @@ func _find_block_at(pos: Vector3i) -> SliceBlock:
 
 func _on_block_removed(pos: Vector3i) -> void:
 	completed_cells.erase(pos)
-	live_blocks.erase(pos)
 	_refresh_ghosts()
 	_update_progress()
 
@@ -595,19 +719,16 @@ func _run_decay() -> void:
 	_skip_btn.visible = true
 	_epilogue_label.text = "[center]" + "\n".join(EPILOGUE_LINES) + "[/center]"
 
-	# Epilogue fades in.
 	var fade := create_tween()
 	_epilogue_card.modulate.a = 0.0
 	fade.tween_property(_epilogue_card, "modulate:a", 1.0, 1.5)
 
-	# Sun sets: rotate + cool toward dusk over the whole decay.
 	var sun_tween := create_tween()
 	sun_tween.set_parallel(true)
 	sun_tween.tween_property(_sun, "rotation_degrees", Vector3(-70, 210, 0), 9.0)\
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	sun_tween.tween_property(_sun, "light_color", Color("#E8A06A"), 9.0)
 
-	# Blocks crumble tier by tier: zenith first, then upper core, then base.
 	var blocks := get_tree().get_nodes_in_group("slice_blocks") as Array
 	for block in blocks:
 		var b := block as SliceBlock
@@ -620,13 +741,11 @@ func _run_decay() -> void:
 			tier_delay = 4.5
 		else:
 			tier_delay = 7.0
-		# Deterministic jitter so the fall feels organic, not simultaneous.
 		var jitter := float(abs(b.current_grid_position.x + b.current_grid_position.z) % 3) * 0.4
 		b.decay_sink(tier_delay + jitter, 1.4)
 
 	await get_tree().create_timer(10.0).timeout
 
-	# Mound: a few low weathered rubble blocks where the structure stood.
 	_spawn_mound()
 
 	await get_tree().create_timer(2.0).timeout
@@ -636,7 +755,6 @@ func _run_decay() -> void:
 func _skip_decay() -> void:
 	_epilogue_card.visible = false
 	_skip_btn.visible = false
-	# Kill remaining blocks fast (tween to ground + fade).
 	for block in get_tree().get_nodes_in_group("slice_blocks"):
 		if is_instance_valid(block):
 			block.decay_sink(0.0, 0.4)
@@ -666,7 +784,7 @@ func _spawn_mound() -> void:
 		for child in block.get_children():
 			if child is CollisionShape3D:
 				child.disabled = true
-		block.remove_from_group("slice_blocks")  # never draggable
+		block.remove_from_group("slice_blocks")
 		var tween := create_tween()
 		tween.tween_interval(0.2)
 		tween.tween_property(block, "scale", Vector3.ONE, 0.8)\
@@ -728,7 +846,6 @@ func _on_dust_tapped(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 	dust_mounds.erase(pos)
 	_dust_cleared += 1
 
-	# Reveal the survivor beneath.
 	var color_name: String = DATA.SURVIVOR_CELLS[pos]
 	var reveal := SliceBlock.new()
 	reveal.name = "Survivor"
@@ -742,7 +859,6 @@ func _on_dust_tapped(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 		if child is CollisionShape3D:
 			child.disabled = true
 
-	# Dust mound fades and shrinks away.
 	var tween := create_tween()
 	tween.set_parallel(true)
 	tween.tween_method(
@@ -753,7 +869,6 @@ func _on_dust_tapped(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 	tween.tween_property(mound, "scale", Vector3(0.05, 0.05, 0.05), 0.35)
 	tween.tween_callback(mound.queue_free)
 
-	# Reveal pop.
 	var pop := create_tween()
 	reveal.scale = Vector3(0.2, 0.2, 0.2)
 	pop.tween_property(reveal, "scale", Vector3.ONE, 0.3)\
@@ -764,7 +879,7 @@ func _on_dust_tapped(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 
 	if dust_mounds.is_empty():
 		await get_tree().create_timer(0.8).timeout
-		_show_atlas_card()
+		_open_atlas()
 
 
 func dust_mat_alpha(a: float) -> ShaderMaterial:
@@ -776,39 +891,106 @@ func dust_mat_alpha(a: float) -> ShaderMaterial:
 	return m
 
 
-func _show_atlas_card() -> void:
-	_is_orchestrating = true
-	_beat_label.text = "SAVED TO MEMORY"
+# ============================================================================
+# MEMORY ATLAS (interactive)
+# ============================================================================
+
+func _open_atlas() -> void:
+	# Rebuild the saved states from the data.
+	_atlas_states.clear()
+	var zenith := {}
+	for pos in DATA.CORE_CELLS:
+		zenith[pos] = DATA.CORE_CELLS[pos]
+	for pos in DATA.ZENITH_CELLS:
+		zenith[pos] = DATA.ZENITH_CELLS[pos]
+	_atlas_states["zenith"] = zenith
+	_atlas_states["today"] = DATA.SURVIVOR_CELLS.duplicate()
 	_atlas_card.visible = true
 	_atlas_card.modulate.a = 0.0
 	var tween := create_tween()
-	tween.tween_property(_atlas_card, "modulate:a", 1.0, 0.6)
+	tween.tween_property(_atlas_card, "modulate:a", 1.0, 0.4)
 
 
-func _orbit_showcase() -> void:
-	var tween := create_tween()
-	tween.tween_property(_pivot, "rotation:y", _pivot.rotation.y + TAU, 8.0)\
-		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
-
-
-func _restart_arc() -> void:
+## Build a structure state (zenith or today) in the world for inspection.
+func _view_atlas_state(state: String) -> void:
 	_atlas_card.visible = false
-	_message_card.visible = false
-	_epilogue_card.visible = false
+	_is_orchestrating = true
+
+	# Clear live blocks.
 	for block in get_tree().get_nodes_in_group("slice_blocks"):
 		block.queue_free()
 	for mound in dust_mounds.values():
 		if is_instance_valid(mound):
 			mound.queue_free()
 	dust_mounds.clear()
+	_clear_ghosts()
+	_palette = []
+	_rebuild_palette()
+
 	completed_cells.clear()
-	live_blocks.clear()
-	_pivot.rotation = Vector3(-0.45, 0.8, 0.0)
-	_sun.light_energy = 1.4
+	var cells: Dictionary = _atlas_states[state]
+	for pos in cells:
+		var color_name: String = cells[pos]
+		var block := SliceBlock.new()
+		block.name = "AtlasBlock"
+		add_child(block)
+		block.limit_x = DATA.LIMIT_X
+		block.limit_z = DATA.LIMIT_Z
+		block.limit_y = DATA.LIMIT_Y
+		block.place_at(pos, DATA.COLORS[color_name], color_name)
+		block.remove_from_group("slice_blocks")
+		for child in block.get_children():
+			if child is CollisionShape3D:
+				child.disabled = true
+		completed_cells[pos] = color_name
+
+	# Restore light + camera, then auto-orbit.
+	_sun.light_energy = 1.6
 	_sun.light_color = Color("#FFF2D0")
-	_camera.size = 14.0
-	_build_baseplate()
-	_start_beat(Beat.RAISING)
+	_pivot.rotation = _default_cam_rot
+	_beat_label.text = "MEMORY ATLAS — %s" % ("ZENITH" if state == "zenith" else "TODAY")
+	_orbit_showcase(0.0)
+
+
+func _enable_free_rotate() -> void:
+	_atlas_card.visible = false
+	set_tool(Tool.ROTATE)
+
+
+func _orbit_showcase(duration: float = 10.0) -> void:
+	if _is_orbiting:
+		return
+	_is_orbiting = true
+	var tween := create_tween()
+	tween.tween_property(_pivot, "rotation:y", _pivot.rotation.y + TAU, duration)\
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	tween.tween_callback(func(): _is_orbiting = false)
+
+
+func _on_next_pressed() -> void:
+	# Chronological next: only one structure in the slice, so wrap around.
+	_structure_index = (_structure_index + 1) % 1
+	_restart_arc()
+
+
+# ============================================================================
+# TOOLS
+# ============================================================================
+
+func set_tool(tool: Tool) -> void:
+	current_tool = tool
+	var active_color := Color(1.0, 0.85, 0.0)
+	for i in range(_tool_buttons.size()):
+		var btn := _tool_buttons[i]
+		btn.button_pressed = (i == int(tool))
+		btn.modulate = active_color if i == int(tool) else Color.WHITE
+	# Propagate to live blocks so gestures are gated correctly.
+	for block in get_tree().get_nodes_in_group("slice_blocks"):
+		(block as SliceBlock).current_tool = current_tool
+
+
+func _on_tool_pressed(tool: Tool, _btn: Button) -> void:
+	set_tool(tool)
 
 
 # ============================================================================
@@ -824,53 +1006,76 @@ func _rebuild_palette() -> void:
 	_current_swatch = _palette[0]
 	for color_name in _palette:
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(96, 64)
+		btn.custom_minimum_size = Vector2(150, 96)
 		btn.text = color_name.replace("_", " ")
-		btn.add_theme_font_size_override("font_size", 13)
+		btn.add_theme_font_size_override("font_size", 20)
 		var sb := StyleBoxFlat.new()
 		sb.bg_color = DATA.COLORS[color_name]
-		sb.corner_radius_top_left = 10
-		sb.corner_radius_top_right = 10
-		sb.corner_radius_bottom_left = 10
-		sb.corner_radius_bottom_right = 10
-		sb.border_width_left = 3
-		sb.border_width_right = 3
-		sb.border_width_top = 3
-		sb.border_width_bottom = 3
+		sb.corner_radius_top_left = 12
+		sb.corner_radius_top_right = 12
+		sb.corner_radius_bottom_left = 12
+		sb.corner_radius_bottom_right = 12
+		sb.border_width_left = 4
+		sb.border_width_right = 4
+		sb.border_width_top = 4
+		sb.border_width_bottom = 4
 		sb.border_color = Color(1, 0.85, 0.2) if color_name == _current_swatch else Color(0, 0, 0, 0.4)
 		btn.add_theme_stylebox_override("normal", sb)
 		btn.add_theme_stylebox_override("hover", sb)
 		btn.add_theme_stylebox_override("pressed", sb)
-		btn.pressed.connect(_on_swatch_pressed.bind(color_name, btn))
+		# Drag-from-tray: press on the swatch spawns a block in hand at that point.
+		btn.gui_input.connect(_on_swatch_gui_input.bind(color_name, btn))
 		_swatch_box.add_child(btn)
 
 
-func _on_swatch_pressed(color_name: String, btn: Button) -> void:
-	_current_swatch = color_name
-	for child in _swatch_box.get_children():
-		var style := (child as Button).get_theme_stylebox("normal")
-		if style is StyleBoxFlat:
-			style.border_color = Color(1, 0.85, 0.2) if child.name == btn.name else Color(0, 0, 0, 0.4)
-	# Spawn a fresh block in hand from the palette.
-	_spawn_block_in_hand(color_name)
-
-
-## Tap the palette → a block appears at the tap point, held for dragging.
-func _spawn_block_in_hand(color_name: String) -> void:
+func _on_swatch_gui_input(event: InputEvent, color_name: String, btn: Button) -> void:
+	var is_touch: bool = event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed
+	var is_click: bool = event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT and (event as InputEventMouseButton).pressed
+	if not (is_touch or is_click):
+		return
 	if _is_orchestrating or _palette.is_empty():
 		return
+	# ROTATE tool: picking a block switches back to SINGLE (reloc-proto behavior).
+	if current_tool == Tool.ROTATE:
+		set_tool(Tool.SINGLE)
+	_current_swatch = color_name
+	btn.accept_event()
+	var screen_pos: Vector2 = (event as InputEventScreenTouch).position if is_touch else (event as InputEventMouseButton).position
+	_spawn_block_in_hand(color_name, screen_pos, -1 if is_click else (event as InputEventScreenTouch).index)
+
+
+## Spawns a block in hand, positioned prominently between tray and baseplate.
+func _spawn_block_in_hand(color_name: String, screen_pos: Vector2, touch_index: int) -> void:
 	var block := SliceBlock.new()
 	add_child(block)
 	block.limit_x = DATA.LIMIT_X
 	block.limit_z = DATA.LIMIT_Z
 	block.limit_y = DATA.LIMIT_Y
+	block.current_tool = current_tool
 	block.set_block_color(DATA.COLORS[color_name], color_name)
-	block.global_position = Vector3(0, 3, 0)
 	block.placed.connect(_on_block_placed)
 	block.removed.connect(_on_block_removed)
+	block.paint_requested.connect(_on_paint_requested)
+
+	# Park it visually above the tray, between tray and baseplate, in screen space:
+	# project a point ~55% up the screen onto the drag plane, then lift by offset.
 	var viewport := get_viewport()
-	var center := viewport.get_visible_rect().size / 2.0
-	block._start_drag(-1, center)
+	var vp_size := viewport.get_visible_rect().size
+	var anchor_screen := Vector2(vp_size.x * 0.5, vp_size.y * 0.55)
+	var anchor_world: Variant = _project_to_plane(anchor_screen)
+	if anchor_world != null:
+		block.global_position = anchor_world + Vector3(0, block.current_y_offset, 0)
+	else:
+		block.global_position = Vector3(0, 6, 0)
+	block._start_drag(touch_index, anchor_screen)
+
+
+## Projects a screen point onto the Y=0 drag plane.
+func _project_to_plane(screen_pos: Vector2) -> Variant:
+	var cam := _camera
+	var ray_origin := cam.project_ray_origin(screen_pos)
+	var ray_normal := cam.project_ray_normal(screen_pos)
+	return Plane(Vector3.UP, Vector3.ZERO).intersects_ray(ray_origin, ray_normal)
 
 
 func _on_scaffold_pressed(mode: Scaffold, btn: Button) -> void:
@@ -891,7 +1096,6 @@ func _refresh_ghosts() -> void:
 		Scaffold.GHOST:
 			cells = build_target.duplicate()
 		Scaffold.GHOST_PARTIAL:
-			# Partial: ghost only the bottom two layers.
 			for pos in build_target:
 				if pos.y <= 1:
 					cells[pos] = build_target[pos]
@@ -940,26 +1144,19 @@ func _update_progress() -> void:
 
 
 # ============================================================================
-# MESSAGE CARDS + INPUT (orbit/pinch)
+# CAMERA
 # ============================================================================
 
-func _show_message(text: String, duration: float) -> void:
-	_message_label.text = text
-	_message_card.visible = true
-	_message_card.modulate.a = 0.0
+func _snap_camera(target_rot: Vector3) -> void:
+	if _is_orbiting:
+		return
 	var tween := create_tween()
-	tween.tween_property(_message_card, "modulate:a", 1.0, 0.3)
-	tween.tween_interval(duration)
-	tween.tween_property(_message_card, "modulate:a", 0.0, 0.4)
-	tween.tween_callback(func(): _message_card.visible = false)
-
-
-func _open_blueprint() -> void:
-	_blueprint_sheet.visible = true
+	tween.tween_property(_pivot, "rotation", target_rot, 0.35)\
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
 func _input(event: InputEvent) -> void:
-	# Two-finger orbit + pinch zoom (always available, like the old ROTATE tool).
+	# Two-finger orbit + pinch zoom (always available).
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			_touch_points[event.index] = event.position
@@ -967,6 +1164,13 @@ func _input(event: InputEvent) -> void:
 			_touch_points.erase(event.index)
 			_last_pinch_distance = 0.0
 			_last_pan_midpoint = Vector2.ZERO
+
+	# ROTATE tool: one-finger drag orbits the camera (reloc-proto behavior).
+	if current_tool == Tool.ROTATE:
+		if event is InputEventScreenDrag and _touch_points.size() <= 1:
+			_pivot.rotation.y -= (event as InputEventScreenDrag).relative.x * 0.005
+			_pivot.rotation.x = clampf(_pivot.rotation.x - (event as InputEventScreenDrag).relative.y * 0.005, -1.2, -0.1)
+			return
 
 	if event is InputEventScreenDrag and _touch_points.has(event.index):
 		_touch_points[event.index] = event.position
@@ -994,6 +1198,45 @@ func _input(event: InputEvent) -> void:
 
 
 # ============================================================================
+# MESSAGE CARDS + RESTART
+# ============================================================================
+
+func _show_message(text: String, duration: float) -> void:
+	_message_label.text = text
+	_message_card.visible = true
+	_message_card.modulate.a = 0.0
+	var tween := create_tween()
+	tween.tween_property(_message_card, "modulate:a", 1.0, 0.3)
+	tween.tween_interval(duration)
+	tween.tween_property(_message_card, "modulate:a", 0.0, 0.4)
+	tween.tween_callback(func(): _message_card.visible = false)
+
+
+func _open_blueprint() -> void:
+	_blueprint_sheet.visible = true
+
+
+func _restart_arc() -> void:
+	_atlas_card.visible = false
+	_message_card.visible = false
+	_epilogue_card.visible = false
+	for block in get_tree().get_nodes_in_group("slice_blocks"):
+		block.queue_free()
+	for mound in dust_mounds.values():
+		if is_instance_valid(mound):
+			mound.queue_free()
+	dust_mounds.clear()
+	completed_cells.clear()
+	_pivot.rotation = _default_cam_rot
+	_sun.light_energy = 1.4
+	_sun.light_color = Color("#FFF2D0")
+	_camera.size = 14.0
+	set_tool(Tool.SINGLE)
+	_build_baseplate()
+	_start_beat(Beat.RAISING)
+
+
+# ============================================================================
 # BLUEPRINT VIEW (pure data → drawing, no eyeballing)
 # ============================================================================
 
@@ -1013,30 +1256,32 @@ class BlueprintView:
 		queue_redraw()
 
 	func _draw() -> void:
-		var cell := 28.0
+		var cell := 40.0
 		if mode == MODE_PLAN:
-			# Stack layers top-down: draw each y layer as a shaded grid.
+			# Stack layers top-down; center the footprint in the view.
 			var layers := plan.keys()
 			layers.sort()
 			var origin := Vector2(30, 30)
+			var min_x := -2  # DATA limits
+			var min_z := -1
 			for y in layers:
 				var cells: Dictionary = plan[y]
 				var shade := 0.85 - (0.25 * float(y))
 				for cell_pos in cells:
 					var color: Color = DATA.COLORS[cells[cell_pos]]
 					color = Color(color.r * shade, color.g * shade, color.b * shade)
-					var rect := Rect2(origin + Vector2(cell_pos.x * cell, cell_pos.z * cell), Vector2(cell, cell))
+					var rect := Rect2(origin + Vector2((cell_pos.x - min_x) * cell, (cell_pos.z - min_z) * cell), Vector2(cell, cell))
 					draw_rect(rect, color, true)
-					draw_rect(rect, Color(0, 0, 0, 0.35), false, 1.5)
-				origin.x += 10.0  # layer offset for a slight exploded look
-				origin.y += 10.0
+					draw_rect(rect, Color(0, 0, 0, 0.35), false, 2.0)
+				origin.x += 12.0  # layer offset for a slight exploded look
+				origin.y += 12.0
 		else:
-			# Elevation: (z, y) cells → column grid.
-			var origin := Vector2(40, 260)
+			# Elevation: (z, y) cells → column grid, east face.
+			var origin := Vector2(80, 300)
 			for cell_pos in elevation:
 				var color: Color = DATA.COLORS[elevation[cell_pos]]
-				var rect := Rect2(origin + Vector2(cell_pos.x * cell, -cell_pos.y * cell), Vector2(cell, cell))
+				var rect := Rect2(origin + Vector2((cell_pos.x + 1) * cell, -cell_pos.y * cell), Vector2(cell, cell))
 				draw_rect(rect, color, true)
-				draw_rect(rect, Color(0, 0, 0, 0.35), false, 1.5)
+				draw_rect(rect, Color(0, 0, 0, 0.35), false, 2.0)
 			# Ground line
-			draw_line(origin + Vector2(-20, 0), origin + Vector2(5 * cell + 20, 0), Color(0.7, 0.6, 0.4, 0.9), 3.0)
+			draw_line(origin + Vector2(-30, 0), origin + Vector2(5 * cell + 30, 0), Color(0.7, 0.6, 0.4, 0.9), 4.0)
