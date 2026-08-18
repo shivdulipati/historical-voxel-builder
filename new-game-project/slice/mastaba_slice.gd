@@ -1297,32 +1297,18 @@ func _refresh_ghosts() -> void:
 		ghost.add_to_group("slice_ghosts")
 		var mat := ShaderMaterial.new()
 		mat.resource_local_to_scene = true
-		mat.shader = load("res://block.gdshader")
-		# Brightened, high-contrast ghost — reads against the sand baseplate
-		# even in the top-down view.
-		var ghost_color: Color = _st["colors"][cells[pos]].lightened(0.45)
-		mat.set_shader_parameter("albedo_color", ghost_color)
-		mat.set_shader_parameter("alpha", 0.5)
+		mat.shader = load("res://ghost.gdshader")
+		# Slightly brightened fill at moderate alpha + dark UV outline band —
+		# one mesh per cell, so placed cells vanish cleanly (no rim meshes to
+		# leak) and the fill stays visibly translucent (not sun-blown white).
+		var ghost_color: Color = _st["colors"][cells[pos]].lightened(0.2)
+		mat.set_shader_parameter("fill_color", ghost_color)
+		mat.set_shader_parameter("alpha", 0.45)
 		var box := BoxMesh.new()
-		box.size = Vector3(0.94, 0.94, 0.94)
+		box.size = Vector3(1.0, 1.0, 1.0)
 		ghost.mesh = box
 		ghost.material_override = mat
 		ghost.position = Vector3(pos.x, pos.y + 0.5, pos.z)
-		# Dark rim behind the fill: ghost cells stay visible even when the
-		# block colour matches the baseplate or the block below (white-on-white).
-		var rim_mat := ShaderMaterial.new()
-		rim_mat.resource_local_to_scene = true
-		rim_mat.shader = load("res://block.gdshader")
-		rim_mat.set_shader_parameter("albedo_color", Color(0.1, 0.08, 0.05))
-		rim_mat.set_shader_parameter("alpha", 0.9)
-		var rim_box := BoxMesh.new()
-		rim_box.size = Vector3(1.08, 1.08, 1.08)
-		var rim := MeshInstance3D.new()
-		rim.name = "GhostRim"
-		rim.mesh = rim_box
-		rim.material_override = rim_mat
-		rim.position = ghost.position
-		add_child(rim)
 		add_child(ghost)
 
 

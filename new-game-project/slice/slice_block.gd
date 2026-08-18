@@ -113,10 +113,12 @@ func _ready() -> void:
 	var ghost_mat := ShaderMaterial.new()
 	ghost_mat.resource_local_to_scene = true
 	ghost_mat.shader = load("res://block.gdshader")
-	ghost_mat.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
-	ghost_mat.set_shader_parameter("alpha", 0.7)
+	# DARK indicator — the light plate and white blocks swallow white; dark
+	# reads against both.
+	ghost_mat.set_shader_parameter("albedo_color", Color(0.12, 0.09, 0.05, 1.0))
+	ghost_mat.set_shader_parameter("alpha", 0.9)
 	var ghost_box := BoxMesh.new()
-	ghost_box.size = Vector3(1.06, 0.02, 1.06)
+	ghost_box.size = Vector3(1.12, 0.02, 1.12)
 	_drop_indicator.mesh = ghost_box
 	_drop_indicator.material_override = ghost_mat
 	_drop_indicator.visible = false
@@ -128,10 +130,10 @@ func _ready() -> void:
 		var gm := ShaderMaterial.new()
 		gm.resource_local_to_scene = true
 		gm.shader = load("res://block.gdshader")
-		gm.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
-		gm.set_shader_parameter("alpha", 0.7)
+		gm.set_shader_parameter("albedo_color", Color(0.12, 0.09, 0.05, 1.0))
+		gm.set_shader_parameter("alpha", 0.9)
 		var gb := BoxMesh.new()
-		gb.size = Vector3(1.06, 0.02, 1.06)
+		gb.size = Vector3(1.12, 0.02, 1.12)
 		ind.mesh = gb
 		ind.material_override = gm
 		ind.visible = false
