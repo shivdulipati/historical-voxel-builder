@@ -2,13 +2,14 @@ extends Node3D
 ## mastaba_slice.gd — Core-loop playtest slice: the four-beat biography arc
 ## (Raising → Restoration → Decay → Excavation) across 9 historical structures.
 ## Structure-agnostic: loads from structures.gd by index. Next ▸ advances the
-## chronological arc. BUILD 4.
+## chronological arc. Multi-cell pieces from pieces.gd. BUILD 6.
 
 const SliceBlock = preload("res://slice/slice_block.gd")
 const STRUCTS = preload("res://slice/structures.gd")
+const PIECES = preload("res://slice/pieces.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 5
+const BUILD_NO := 6
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -101,6 +102,10 @@ func _load_structure(index: int) -> void:
 	_structure_index = posmod(index, all.size())
 	_st = all[_structure_index]
 
+	# Build limits + baseplate derive from the FULL structure footprint with a
+	# one-cell margin (playtest rule) — placement bounds always cover the build.
+	_st["limits"] = STRUCTS.build_limits(_st)
+
 	# Camera framing per structure footprint.
 	_base_cam_size = maxf(_st["limits"].x, _st["limits"].z) * 2.6 + 6.0
 	_camera.size = _base_cam_size
@@ -192,15 +197,15 @@ func _build_world() -> void:
 func _build_baseplate() -> void:
 	for child in _baseplate.get_children():
 		child.queue_free()
-	var mat := StandardMaterial3D.new()
-	mat.albedo_color = Color("#9A7F50")  # darker than ghosts → ghost reads clearly
-	mat.roughness = 1.0
+	var mat := ShaderMaterial.new()
+	mat.resource_local_to_scene = true
+	mat.shader = load("res://baseplate.gdshader")
 	var lim: Vector3 = _st["limits"]
 	for bx in range(-int(lim.x), int(lim.x) + 1):
 		for bz in range(-int(lim.z), int(lim.z) + 1):
 			var tile := MeshInstance3D.new()
 			var tile_mesh := BoxMesh.new()
-			tile_mesh.size = Vector3(0.98, 0.05, 0.98)
+			tile_mesh.size = Vector3(1.0, 0.05, 1.0)
 			tile.mesh = tile_mesh
 			tile.material_override = mat
 			tile.position = Vector3(bx, 0.025, bz)
@@ -524,7 +529,7 @@ func _build_hud() -> void:
 	atlas_box.add_child(atlas_title)
 
 	var atlas_sub := Label.new()
-	atlas_sub.text = "What the Builder remembers — tap an entry to view it."
+	atlas_sub.text = "Tap an entry to view a structure at its height —\nor as the earth gave it back."
 	atlas_sub.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	atlas_sub.add_theme_color_override("font_color", Color("#C8D8F0"))
 	atlas_sub.add_theme_font_size_override("font_size", 24)
@@ -625,7 +630,7 @@ func _start_beat(beat: Beat) -> void:
 		Beat.EXCAVATION:
 			build_target = {}
 			_palette = []
-			_show_message("The sand has done its work.\nNow the earth gives it back.", 2.4)
+			_show_message(_st["excavation_msg"], 2.6)
 			_spawn_dust()
 
 	_rebuild_palette()
@@ -690,7 +695,7 @@ func _on_paint_requested(pos: Vector3i, color_name: String) -> void:
 func _find_block_at(pos: Vector3i) -> SliceBlock:
 	for block in get_tree().get_nodes_in_group("slice_blocks"):
 		var b := block as SliceBlock
-		if is_instance_valid(b) and b.current_grid_position == pos and b.is_placed:
+		if is_instance_valid(b) and b.is_placed and b.occupies(pos):
 			return b
 	return null
 
@@ -713,6 +718,10 @@ func _check_beat_complete() -> void:
 	_is_orchestrating = true
 	Input.vibrate_handheld(120)
 	_flourish()
+	# Reset to the isometric view FIRST, then speak — the player always sees
+	# the next phase open from the canonical angle, never from a dead end.
+	_snap_camera(_default_cam_rot)
+	await get_tree().create_timer(0.45).timeout
 	match current_beat:
 		Beat.RAISING:
 			_show_message("The %s is raised." % _st["id"].replace("_", " "), 2.4)
@@ -930,7 +939,7 @@ func dust_mat_alpha(a: float) -> ShaderMaterial:
 
 func _open_atlas() -> void:
 	if not _arc_completed:
-		_show_message("Complete the arc first —\nthe Builder remembers only what it has built.", 2.4)
+		_show_message("The atlas opens to a structure once it has been built —\nand once the earth has given it back.", 2.6)
 		return
 	# Rebuild the saved states from the data.
 	_atlas_states.clear()
@@ -1076,11 +1085,39 @@ func _rebuild_palette() -> void:
 		btn.gui_input.connect(_on_swatch_gui_input.bind(color_name, btn))
 		_swatch_box.add_child(btn)
 
+	# Multi-cell pieces for this beat (e.g. T-Cap, Roof Slab) — first in the tray.
+	var beat_no := current_beat + 1
+	for pd in _st.get("beat_pieces", {}).get(beat_no, []):
+		var pbtn := Button.new()
+		pbtn.custom_minimum_size = Vector2(170, 96)
+		pbtn.text = PIECES.pieces()[pd["id"]]["name"]
+		pbtn.add_theme_font_size_override("font_size", 20)
+		var sb := StyleBoxFlat.new()
+		sb.bg_color = _st["colors"][pd["color"]]
+		sb.corner_radius_top_left = 12
+		sb.corner_radius_top_right = 12
+		sb.corner_radius_bottom_left = 12
+		sb.corner_radius_bottom_right = 12
+		sb.border_width_left = 4
+		sb.border_width_right = 4
+		sb.border_width_top = 4
+		sb.border_width_bottom = 4
+		sb.border_color = Color(1, 0.85, 0.2)
+		pbtn.add_theme_stylebox_override("normal", sb)
+		pbtn.add_theme_stylebox_override("hover", sb)
+		pbtn.add_theme_stylebox_override("pressed", sb)
+		pbtn.gui_input.connect(_on_piece_gui_input.bind(pd["id"], pbtn))
+		_swatch_box.add_child(pbtn)
+
 
 func _on_swatch_gui_input(event: InputEvent, color_name: String, btn: Button) -> void:
 	var is_touch: bool = event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed
 	var is_click: bool = event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT and (event as InputEventMouseButton).pressed
 	if not (is_touch or is_click):
+		return
+	# iOS/Android: ignore the emulated mouse event for the same finger —
+	# otherwise one tap spawns TWO blocks.
+	if is_click and OS.get_name() in ["iOS", "Android"]:
 		return
 	if _is_orchestrating or _palette.is_empty():
 		return
@@ -1117,12 +1154,105 @@ func _spawn_block_in_hand(color_name: String, screen_pos: Vector2, touch_index: 
 		block.global_position = anchor_world + Vector3(0, block.current_y_offset, 0)
 	else:
 		block.global_position = Vector3(0, 6, 0)
+	# Float in place (no auto-drop) until grabbed — the hover-brick contract.
+	block.gravity_scale = 0.0
 	block.start_hover_pulse()
 	# Direct drag-from-tray: the pressing finger (if any) is armed to this
 	# block — moving past the slop promotes to a real drag; a plain tap
 	# leaves the hovering brick. Mouse (index -1) keeps hover-only.
 	if touch_index >= 0:
 		block._arm_drag(touch_index, screen_pos)
+
+
+## Multi-cell piece tray button: same gesture contract as a swatch, but spawns
+## a compound piece (e.g. T-Cap, Roof Slab) from the pieces registry.
+func _on_piece_gui_input(event: InputEvent, piece_id: String, btn: Button) -> void:
+	var is_touch: bool = event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed
+	var is_click: bool = event is InputEventMouseButton and (event as InputEventMouseButton).button_index == MOUSE_BUTTON_LEFT and (event as InputEventMouseButton).pressed
+	if not (is_touch or is_click):
+		return
+	if is_click and OS.get_name() in ["iOS", "Android"]:
+		return
+	if _is_orchestrating or _palette.is_empty():
+		return
+	if current_tool == Tool.ROTATE:
+		set_tool(Tool.SINGLE)
+	btn.accept_event()
+	var screen_pos: Vector2 = (event as InputEventScreenTouch).position if is_touch else (event as InputEventMouseButton).position
+	_spawn_piece_in_hand(piece_id, screen_pos, -1 if is_click else (event as InputEventScreenTouch).index)
+
+
+func _spawn_piece_in_hand(piece_id: String, screen_pos: Vector2, touch_index: int) -> void:
+	var pd: Dictionary = PIECES.pieces()[piece_id]
+	var color_name := ""
+	for entry in _st.get("beat_pieces", {}).get(current_beat + 1, []):
+		if entry["id"] == piece_id:
+			color_name = entry["color"]
+			break
+	if color_name.is_empty():
+		color_name = _palette[0]
+
+	var block := SliceBlock.new()
+	# Piece data must be set BEFORE add_child — _ready() builds the compound
+	# body from piece_cells (one mesh + one collision per cell).
+	block.limit_x = _st["limits"].x
+	block.limit_z = _st["limits"].z
+	block.limit_y = _st["limits"].y
+	block.current_tool = current_tool
+	block.piece_cells = pd["cells"]
+	block.piece_anchors = pd["anchors"]
+	block.piece_min_anchors = int(pd.get("min_anchors", 1))
+	block.set_block_color(_st["colors"][color_name], color_name)
+	block.piece_placed.connect(_on_piece_placed)
+	block.piece_removed.connect(_on_piece_removed)
+	add_child(block)
+
+	var viewport := get_viewport()
+	var vp_size := viewport.get_visible_rect().size
+	var anchor_screen := Vector2(vp_size.x * 0.5, vp_size.y * 0.55)
+	var anchor_world: Variant = _project_to_plane(anchor_screen)
+	if anchor_world != null:
+		block.global_position = anchor_world + Vector3(0, block.current_y_offset, 0)
+	else:
+		block.global_position = Vector3(0, 6, 0)
+	block.gravity_scale = 0.0
+	block.start_hover_pulse()
+	if touch_index >= 0:
+		block._arm_drag(touch_index, screen_pos)
+
+
+## Piece landed: all its cells must be correct target cells — atomic.
+func _on_piece_placed(origin: Vector3i, cells: Array, color_name: String) -> void:
+	if _is_orchestrating:
+		return
+	var all_ok := true
+	for pos in cells:
+		if not (build_target.has(pos) and build_target[pos] == color_name):
+			all_ok = false
+			break
+	if all_ok:
+		for pos in cells:
+			completed_cells[pos] = color_name
+		Input.vibrate_handheld(60)
+		_refresh_ghosts()
+		_update_progress()
+		_check_beat_complete()
+	else:
+		var block := _find_block_at(origin)
+		if block:
+			var tween := create_tween()
+			tween.tween_method(
+				func(a: float): block.set_block_color(Color(0.9, 0.25, 0.2).lerp(block.block_color, a), color_name),
+				0.0, 1.0, 0.35)
+			tween.tween_callback(block.queue_free)
+
+
+## Piece removed (eraser / long-press pickup): every cell leaves the target.
+func _on_piece_removed(cells: Array) -> void:
+	for pos in cells:
+		completed_cells.erase(pos)
+	_refresh_ghosts()
+	_update_progress()
 
 
 ## Projects a screen point onto the camera-facing drag plane (same plane the
@@ -1178,6 +1308,21 @@ func _refresh_ghosts() -> void:
 		ghost.mesh = box
 		ghost.material_override = mat
 		ghost.position = Vector3(pos.x, pos.y + 0.5, pos.z)
+		# Dark rim behind the fill: ghost cells stay visible even when the
+		# block colour matches the baseplate or the block below (white-on-white).
+		var rim_mat := ShaderMaterial.new()
+		rim_mat.resource_local_to_scene = true
+		rim_mat.shader = load("res://block.gdshader")
+		rim_mat.set_shader_parameter("albedo_color", Color(0.1, 0.08, 0.05))
+		rim_mat.set_shader_parameter("alpha", 0.9)
+		var rim_box := BoxMesh.new()
+		rim_box.size = Vector3(1.08, 1.08, 1.08)
+		var rim := MeshInstance3D.new()
+		rim.name = "GhostRim"
+		rim.mesh = rim_box
+		rim.material_override = rim_mat
+		rim.position = ghost.position
+		add_child(rim)
 		add_child(ghost)
 
 

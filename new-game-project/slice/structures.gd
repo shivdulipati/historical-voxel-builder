@@ -83,12 +83,14 @@ static func _gobekli() -> Dictionary:
 			_col(0, -1, 0, 1, "weathered"),
 		]),
 		"limits": Vector3(2.0, 3.0, 2.0),
-		"beat1_msg": "Raise the first temple —\nthe oldest stones raised by human hands.",
+		"beat1_msg": "Set the first stones of the oldest temple on earth.",
 		"beat2_msg": "The pillars stand.\nSet their T-caps — the heads of the forgotten gods.",
 		"epilogue": [
 			"Ten thousand years before the pyramids, hands like yours raised stone.",
-			"The builders are dust — but the Builder remembers.",
+			"They buried their own temple — the earth kept it whole.",
 		],
+		"excavation_msg": "The hollows filled with dust and time. Clear the first stones of the temple.",
+		"beat_pieces": {2: [{"id": "t_cap", "color": "limestone"}]},
 		"fact": "Göbekli Tepe (~9500 BCE) was deliberately buried by its own builders — the world's first temple, hidden for nine millennia.",
 	}
 
@@ -129,12 +131,13 @@ static func _mastaba() -> Dictionary:
 		"zenith": zenith,
 		"survivor": survivor,
 		"limits": Vector3(3.0, 3.0, 1.0),
-		"beat1_msg": "Raise the mastaba —\nthe house of eternity.",
+		"beat1_msg": "The house of eternity — lay its mudbrick walls.",
 		"beat2_msg": "The tomb stands.\nRestore its zenith — limestone, cornice, offering table.",
 		"epilogue": [
 			"Every work of man returns to the earth.",
-			"But the Builder remembers.",
+			"Yet the house of eternity stood four thousand years.",
 		],
+		"excavation_msg": "The desert filled the tomb. Clear the sand from the house of eternity.",
 		"fact": "Mastaba of Ti, Saqqara (~2400 BCE): a tomb whose painted walls once told the whole life of an Egyptian official.",
 	}
 
@@ -172,12 +175,13 @@ static func _pyramid() -> Dictionary:
 		"zenith": zenith,
 		"survivor": survivor,
 		"limits": Vector3(2.0, 4.0, 2.0),
-		"beat1_msg": "Raise the pyramid —\nthe mountain of the king.",
-		"beat2_msg": "The mass stands.\nCase it in white — set the golden capstone.",
+		"beat1_msg": "A mountain of stone for the king — lay its first course.",
+		"beat2_msg": "The mountain holds.\nCase it in white — set the golden capstone.",
 		"epilogue": [
 			"A king built a mountain so his name would never die.",
-			"The mountain kept the stone and gave the name to the wind — but the Builder remembers.",
+			"The mountain kept the stone and gave the name to the wind.",
 		],
+		"excavation_msg": "The white casing fell, the gold capstone lost. Clear the dust of millennia.",
 		"fact": "Giza (~2560 BCE): 2.3 million blocks, each heavier than the one in your hand — the only ancient wonder still standing.",
 	}
 
@@ -215,12 +219,13 @@ static func _ur_ziggurat() -> Dictionary:
 			_fill(-1, 1, 0, 0, 1, "weathered"),
 		]),
 		"limits": Vector3(2.0, 4.0, 1.0),
-		"beat1_msg": "Raise the ziggurat —\nthe stair between earth and sky.",
-		"beat2_msg": "The mass stands.\nFace it in baked brick — the road the gods walk down.",
+		"beat1_msg": "The stair between earth and sky — build it course by course.",
+		"beat2_msg": "The stair is whole.\nFace it in baked brick — the road the gods walk down.",
 		"epilogue": [
 			"The moon-god's stair rose above the plain for four thousand years.",
-			"The rains unbuilt it course by course — but the Builder remembers.",
+			"The rains unbuilt it course by course.",
 		],
+		"excavation_msg": "The rains washed the facing away. Clear the mound where the stair stood.",
 		"fact": "The Ziggurat of Ur (~2100 BCE) was dedicated to the moon god Nanna — its mudbrick core was once faced with gleaming baked brick.",
 	}
 
@@ -253,12 +258,13 @@ static func _great_bath() -> Dictionary:
 			_ring(-2, 2, -1, 1, 0, "weathered"),
 		]),
 		"limits": Vector3(2.0, 2.0, 1.0),
-		"beat1_msg": "Lay the brick walls of the Great Bath —\nthe oldest pool in the world.",
+		"beat1_msg": "The oldest pool in the world — ring it with brick.",
 		"beat2_msg": "The walls hold.\nBring the water — the sacred pool fills.",
 		"epilogue": [
 			"The city of Mohenjo-daro is gone; its drains still carry water.",
-			"The brick outlived its makers — but the Builder remembers.",
+			"The brick outlived its makers.",
 		],
+		"excavation_msg": "Silt filled the sacred pool. Clear it down to the brick.",
 		"fact": "The Great Bath (~2500 BCE) is the oldest public water tank in the world — proof the Indus people mastered plumbing 4,500 years ago.",
 	}
 
@@ -280,7 +286,7 @@ static func _persepolis_gate() -> Dictionary:
 		_col(-1, 1, 0, 2, "limestone"), _col(1, 1, 0, 2, "limestone"),
 	])
 	var zenith := _merge([
-		_fill(-1, 1, 0, 0, 2, "limestone"),   # roof slab
+		_fill(-1, 1, -1, 1, 2, "limestone"),  # roof slab on the four column tops
 		_col(-1, 0, 3, 1, "glazed"), _col(1, 0, 3, 1, "glazed"),
 		_col(0, -1, 3, 1, "glazed"), _col(0, 1, 3, 1, "glazed"),  # glazed trim
 	])
@@ -295,12 +301,14 @@ static func _persepolis_gate() -> Dictionary:
 			_col(-1, 1, 0, 1, "weathered"),
 		]),
 		"limits": Vector3(1.0, 4.0, 1.0),
-		"beat1_msg": "Raise the Gate of All Nations —\nthe doorway of an empire.",
-		"beat2_msg": "The columns stand.\nSet the roof and the glazed trim of the king's gate.",
+		"beat1_msg": "An empire's doorway — set its four columns.",
+		"beat2_msg": "The four columns stand ready.\nSet the roof and the glazed trim of the king's gate.",
 		"epilogue": [
 			"Alexander burned the gate; two centuries of kings had passed beneath it.",
-			"The fire is ash, the columns stand — but the Builder remembers.",
+			"The fire is ash, the columns stand.",
 		],
+		"excavation_msg": "Alexander's fire fell to ash. Clear it from the king's gate.",
+		"beat_pieces": {2: [{"id": "plate_3x3", "color": "limestone"}]},
 		"fact": "Persepolis (~470 BCE): every emissary of the Persian empire passed through this gate — the bull reliefs watched them all.",
 	}
 
@@ -338,12 +346,13 @@ static func _great_wall() -> Dictionary:
 			_col(2, 0, 0, 1, "weathered"),
 		]),
 		"limits": Vector3(2.0, 3.0, 1.0),
-		"beat1_msg": "Raise the watchtower —\none brick of the longest wall on earth.",
+		"beat1_msg": "One brick of the dragon — begin the watchtower.",
 		"beat2_msg": "The tower stands.\nSet its crenellations, its walls, its banner.",
 		"epilogue": [
 			"Ten thousand li of brick and earth, watched by ten thousand ghosts.",
-			"The sentinels are gone; the wall keeps watch — but the Builder remembers.",
+			"The sentinels are gone; the wall keeps watch.",
 		],
+		"excavation_msg": "The sentinels are gone. Clear the dust from the watchtower.",
 		"fact": "The Great Wall (~200 BCE): built by millions over centuries — a dragon of brick and rammed earth curling across the mountains.",
 	}
 
@@ -381,12 +390,13 @@ static func _parthenon() -> Dictionary:
 			_fill(-1, 0, 0, 0, 0, "weathered"),
 		]),
 		"limits": Vector3(1.0, 5.0, 1.0),
-		"beat1_msg": "Raise the temple —\nmarble columns for the goddess.",
-		"beat2_msg": "The columns stand.\nSet the roof, the gable, the crowning bronze.",
+		"beat1_msg": "Marble for the goddess — set the columns of her temple.",
+		"beat2_msg": "The columns are ready.\nSet the roof, the gable, the crowning bronze.",
 		"epilogue": [
 			"The temple has been shrine, church, mosque, and ruin — yet it stands.",
-			"The gods left; the marble stayed — but the Builder remembers.",
+			"The gods left; the marble stayed.",
 		],
+		"excavation_msg": "War broke the marble. Clear the stones of the temple.",
 		"fact": "The Parthenon (~432 BCE): its columns lean slightly inward — an optical illusion that makes the temple look perfectly straight.",
 	}
 
@@ -421,17 +431,34 @@ static func _colosseum() -> Dictionary:
 			_ring(-1, 1, 0, 0, 1, "weathered"),
 		]),
 		"limits": Vector3(2.0, 3.0, 1.0),
-		"beat1_msg": "Raise the great ring —\nthe arena of an empire.",
+		"beat1_msg": "The arena of an empire — begin the great ring.",
 		"beat2_msg": "The ring rises.\nComplete the upper seating — fifty thousand voices.",
 		"epilogue": [
 			"Fifty thousand voices cheered and died inside this ring.",
-			"The crowd is silence; the stone still stands — but the Builder remembers.",
+			"The crowd is silence; the stone still stands.",
 		],
+		"excavation_msg": "The city quarried the ring for its houses. Clear what the ages left.",
 		"fact": "The Colosseum (~80 CE): could be flooded for mock sea battles and drained in minutes — Rome's greatest stage.",
 	}
 
 
 ## ---- Derived views (shared by the blueprint sheet) ----
+
+## Buildable limits derived from the FULL structure footprint (core + zenith +
+## survivor) plus a one-cell margin — baseplate and placement bounds are always
+## larger than anything the structure occupies (playtest rule: no floating
+## blocks past the plate edge, and ghosts always readable against the grid).
+static func build_limits(st: Dictionary) -> Vector3:
+	var all := combined_cells(st)
+	var mx := 0
+	var mz := 0
+	var my := 0
+	for pos in all:
+		mx = maxi(mx, absi(pos.x))
+		mz = maxi(mz, absi(pos.z))
+		my = maxi(my, pos.y)
+	return Vector3(mx + 1, my + 1, mz + 1)
+
 
 ## Combined occupancy for the blueprint: core + zenith of a structure dict.
 static func combined_cells(st: Dictionary) -> Dictionary:

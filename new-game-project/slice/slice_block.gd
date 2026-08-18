@@ -3,10 +3,17 @@ extends RigidBody3D
 ## Port of draggable_object.gd mechanics (drag-plane raycast, stack-height ray,
 ## freeze-on-place, long-press pickup, second-finger rotate) but SIGNAL-BASED:
 ## no coupling to a main-scene API. The slice controller owns all game state.
+## Also the base class for MULTI-CELL PIECES (T-cap, roof slab): same body,
+## N unit cells, atomic place/remove, support-rule validation on drop.
+
+const PIECES = preload("res://slice/pieces.gd")
 
 signal placed(pos: Vector3i, color_name: String)
 signal removed(pos: Vector3i)
 signal paint_requested(pos: Vector3i, color_name: String)
+## Multi-cell pieces emit these instead of placed/removed — one body, N cells.
+signal piece_placed(origin: Vector3i, cells: Array, color_name: String)
+signal piece_removed(cells: Array)
 
 ## Tool modes mirror the reloc-proto tools: 0 SINGLE, 1 PAINT, 2 ERASER, 3 ROTATE.
 var current_tool := 0
@@ -46,6 +53,17 @@ var _drag_touch_pos := Vector2.ZERO
 var _armed_touch_index := -1
 var _armed_touch_origin := Vector2.ZERO
 const DRAG_SLOP := 14.0
+
+## Multi-cell piece data (empty = single cube).
+var piece_cells: Array = []          # local cell offsets from the origin cell
+var piece_anchors: Array = []        # local cells that must have support beneath
+var piece_min_anchors := 1
+## Y-rotation steps (90° each) applied while held; the cells rotate with the body.
+var _rotation_steps := 0
+## World cells this block occupies after placement (piece path).
+var _placed_cells: Array = []
+var _cell_meshes: Array = []
+var _extra_indicators: Array = []
 var _target_rotation_y := 0.0
 var _touch_start_time := 0.0
 var _is_pressing := false
@@ -63,26 +81,32 @@ func _ready() -> void:
 	input_ray_pickable = true
 	input_event.connect(_on_input_event)
 
-	# --- Build the visual: unit box with the project block shader ---
-	var box := BoxMesh.new()
-	box.size = Vector3(SIZE, SIZE, SIZE)
+	# --- Build the visual: one unit box per cell (piece = compound body) ---
+	var cell_list: Array = piece_cells if not piece_cells.is_empty() else [Vector3i.ZERO]
+	for local_pos in cell_list:
+		var box := BoxMesh.new()
+		box.size = Vector3(SIZE, SIZE, SIZE)
+		var mesh := MeshInstance3D.new()
+		mesh.mesh = box
+		mesh.position = Vector3(local_pos)
+		add_child(mesh)
+		_cell_meshes.append(mesh)
 
-	_mesh = MeshInstance3D.new()
-	_mesh.mesh = box
-	add_child(_mesh)
+		var shape := CollisionShape3D.new()
+		var box_shape := BoxShape3D.new()
+		box_shape.size = Vector3(SIZE, SIZE, SIZE)
+		shape.shape = box_shape
+		shape.position = Vector3(local_pos)
+		add_child(shape)
+
+	_mesh = _cell_meshes[0]
 
 	_material = ShaderMaterial.new()
 	_material.resource_local_to_scene = true
 	_material.shader = load("res://block.gdshader")
-	_mesh.set_surface_override_material(0, _material)
+	for mesh in _cell_meshes:
+		mesh.set_surface_override_material(0, _material)
 	set_block_color(block_color, block_color_name)
-
-	# --- Collision ---
-	var shape := CollisionShape3D.new()
-	var box_shape := BoxShape3D.new()
-	box_shape.size = Vector3(SIZE, SIZE, SIZE)
-	shape.shape = box_shape
-	add_child(shape)
 
 	# --- Drop indicator ghost (flat translucent square on the landing cell) ---
 	_drop_indicator = MeshInstance3D.new()
@@ -97,6 +121,22 @@ func _ready() -> void:
 	_drop_indicator.material_override = ghost_mat
 	_drop_indicator.visible = false
 	add_child(_drop_indicator)
+
+	# One extra landing indicator per cell for multi-cell pieces.
+	for i in range(cell_list.size() - 1):
+		var ind := MeshInstance3D.new()
+		var gm := ShaderMaterial.new()
+		gm.resource_local_to_scene = true
+		gm.shader = load("res://block.gdshader")
+		gm.set_shader_parameter("albedo_color", Color(1.0, 1.0, 1.0, 1.0))
+		gm.set_shader_parameter("alpha", 0.7)
+		var gb := BoxMesh.new()
+		gb.size = Vector3(1.06, 0.02, 1.06)
+		ind.mesh = gb
+		ind.material_override = gm
+		ind.visible = false
+		add_child(ind)
+		_extra_indicators.append(ind)
 
 	# --- Placement click sound (reuse project's click3.ogg) ---
 	_audio = AudioStreamPlayer.new()
@@ -120,6 +160,7 @@ func place_at(pos: Vector3i, color: Color, color_name: String) -> void:
 	global_position = Vector3(pos.x, pos.y + FLOOR_Y, pos.z)
 	is_placed = true
 	current_grid_position = pos
+	_placed_cells = [pos]
 	freeze = true
 	gravity_scale = 0.0
 	linear_velocity = Vector3.ZERO
@@ -188,6 +229,7 @@ func _input(event: InputEvent) -> void:
 		and event.button_index == MOUSE_BUTTON_RIGHT
 	)
 	if is_second_finger or is_right_click:
+		_rotation_steps = (_rotation_steps + 1) % 4
 		_target_rotation_y += PI / 2.0
 		var tween := create_tween()
 		tween.tween_property(self, "rotation:y", _target_rotation_y, 0.08)\
@@ -203,7 +245,13 @@ func _drop_to_grid() -> void:
 	linear_velocity = Vector3.ZERO
 	angular_velocity = Vector3.ZERO
 	_drop_indicator.visible = false
+	for ind in _extra_indicators:
+		ind.visible = false
 	_tween_alpha(1.0)
+
+	if not piece_cells.is_empty():
+		_drop_piece_to_grid()
+		return
 
 	var snap_x := roundi(global_position.x)
 	var snap_z := roundi(global_position.z)
@@ -242,6 +290,124 @@ func _get_stack_height(snap_x: int, snap_z: int) -> float:
 	return FLOOR_Y
 
 
+## Where this block would land right now: origin cell + all world cells,
+## honouring the held rotation. Single cubes keep their old stack rule.
+func _snapped_cells() -> Dictionary:
+	var origin_x := roundi(global_position.x)
+	var origin_z := roundi(global_position.z)
+	var origin_y := 0
+	if piece_cells.is_empty():
+		origin_y = roundi(_get_stack_height(origin_x, origin_z) - FLOOR_Y)
+	else:
+		var best_y := -100000.0
+		for a in piece_anchors:
+			var local := _rotate_cell(a)
+			best_y = maxf(best_y, _get_stack_height(origin_x + local.x, origin_z + local.z) - FLOOR_Y - float(local.y))
+		if piece_anchors.is_empty():
+			best_y = _get_stack_height(origin_x, origin_z) - FLOOR_Y
+		origin_y = roundi(best_y)
+	var cells: Array = []
+	for c in (piece_cells if not piece_cells.is_empty() else [Vector3i.ZERO]):
+		var local := _rotate_cell(c)
+		cells.append(Vector3i(origin_x + local.x, origin_y + local.y, origin_z + local.z))
+	return {"origin": Vector3i(origin_x, origin_y, origin_z), "cells": cells}
+
+
+func _rotate_cell(cell: Vector3i) -> Vector3i:
+	return PIECES.rotate_cell(cell, _rotation_steps % 4)
+
+
+## Position the landing indicators (one per piece cell) at each cell's base.
+func _update_piece_indicators(cells: Array) -> void:
+	for i in range(cells.size()):
+		var ind: MeshInstance3D = _drop_indicator if i == 0 else _extra_indicators[i - 1]
+		var cell: Vector3i = cells[i]
+		ind.global_position = Vector3(cell.x, cell.y - 0.5 + 0.02, cell.z)
+
+
+## True if any placed block (single or piece) occupies the world cell.
+## Point query at the cell CENTER — a vertical ray would graze the support
+## block below (its top face IS the cell's bottom) and falsely reject.
+func _world_occupied(cell: Vector3i) -> bool:
+	var space := get_world_3d().direct_space_state
+	var params := PhysicsPointQueryParameters3D.new()
+	params.position = Vector3(cell.x, cell.y + FLOOR_Y, cell.z)
+	params.exclude = [get_rid()]
+	for hit in space.intersect_point(params, 8):
+		var collider = hit.collider
+		if collider is Node and collider.is_in_group("slice_blocks"):
+			return true
+	return false
+
+
+## Atomic piece placement: validate limits, occupancy and the support rule for
+## the WHOLE piece; only then freeze and emit piece_placed once.
+func _drop_piece_to_grid() -> void:
+	var snapped := _snapped_cells()
+	var origin: Vector3i = snapped["origin"]
+	var cells: Array = snapped["cells"]
+
+	var ok := true
+	var supported := 0
+	for a in piece_anchors:
+		var local := _rotate_cell(a)
+		var cell := Vector3i(origin.x + local.x, origin.y + local.y, origin.z + local.z)
+		var stack_top := _get_stack_height(cell.x, cell.z) - FLOOR_Y
+		if absf(stack_top - float(cell.y)) < 0.01:
+			supported += 1
+		elif stack_top > float(cell.y) + 0.4:
+			ok = false  # a block pokes up into the anchor cell
+			break
+	if supported < piece_min_anchors:
+		ok = false
+
+	if ok:
+		for cell in cells:
+			if absf(cell.x) > limit_x + 0.1 or absf(cell.z) > limit_z + 0.1 or cell.y > limit_y or cell.y < 0:
+				ok = false
+				break
+			if _world_occupied(cell):
+				ok = false
+				break
+
+	if not ok:
+		var tween := create_tween()
+		tween.tween_method(
+			func(a: float): set_block_color(Color(0.9, 0.25, 0.2).lerp(block_color, a), block_color_name),
+			0.0, 1.0, 0.35)
+		tween.tween_callback(queue_free)
+		return
+
+	gravity_scale = 0.0
+	freeze = true
+	_disable_collision(false)
+	_tween_to(Vector3(origin.x, origin.y + FLOOR_Y, origin.z))
+	_squish_on_land()
+	_audio.play()
+	Input.vibrate_handheld(50)
+	is_placed = true
+	current_grid_position = origin
+	_placed_cells = cells.duplicate()
+	piece_placed.emit(origin, cells, block_color_name)
+
+
+## True if this block (single or piece) occupies the given world cell.
+func occupies(cell: Vector3i) -> bool:
+	if not is_placed:
+		return false
+	if piece_cells.is_empty():
+		return cell == current_grid_position
+	return _placed_cells.has(cell)
+
+
+## Emit the correct removal signal for this block's shape.
+func _emit_removed() -> void:
+	if not piece_cells.is_empty() and not _placed_cells.is_empty():
+		piece_removed.emit(_placed_cells)
+	else:
+		removed.emit(current_grid_position)
+
+
 func _start_drag(touch_index: int, touch_pos: Vector2) -> void:
 	_armed_touch_index = -1
 	_drag_touch_index = touch_index
@@ -253,6 +419,8 @@ func _start_drag(touch_index: int, touch_pos: Vector2) -> void:
 	_disable_collision(true)
 	_tween_alpha(0.4)
 	_drop_indicator.visible = true
+	for ind in _extra_indicators:
+		ind.visible = true
 	_stop_hover_pulse()
 	# Camera-facing drag plane through the build center: works from top, front,
 	# and side views alike.
@@ -297,7 +465,7 @@ func _physics_process(delta: float) -> void:
 	if is_placed and _is_pressing:
 		var elapsed := (Time.get_ticks_msec() / 1000.0) - _touch_start_time
 		if elapsed > 0.3:
-			removed.emit(current_grid_position)
+			_emit_removed()
 			is_placed = false
 			_is_pressing = false
 			_start_drag(_drag_touch_index, _drag_touch_pos)
@@ -314,6 +482,8 @@ func _physics_process(delta: float) -> void:
 		_target_rotation_y = 0.0
 		_drag_touch_index = -1
 		_drop_indicator.visible = false
+		for ind in _extra_indicators:
+			ind.visible = false
 		_tween_alpha(1.0)
 
 	if is_dragging and camera:
@@ -323,6 +493,14 @@ func _physics_process(delta: float) -> void:
 		var target_pos: Variant = drag_plane.intersects_ray(ray_origin, ray_normal)
 		if target_pos != null:
 			var effective_offset := Vector3(touch_offset.x, current_y_offset, touch_offset.z)
+			if not piece_cells.is_empty():
+				# Multi-cell piece: one landing indicator per cell, no paint.
+				var snapped := _snapped_cells()
+				_update_piece_indicators(snapped["cells"])
+				var push_vector: Vector3 = (target_pos + effective_offset - global_position) / delta
+				linear_velocity = push_vector
+				angular_velocity = Vector3.ZERO
+				return
 			var hover_snap_x := roundi(target_pos.x + effective_offset.x)
 			var hover_snap_z := roundi(target_pos.z + effective_offset.z)
 			var hover_y := _get_stack_height(hover_snap_x, hover_snap_z)
@@ -352,7 +530,7 @@ func _on_input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 	var is_press: bool = (event is InputEventScreenTouch and event.pressed) \
 		or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed)
 	if is_placed and is_press and current_tool == 2:
-		removed.emit(current_grid_position)
+		_emit_removed()
 		queue_free()
 		return
 
@@ -368,7 +546,7 @@ func _on_input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and OS.get_name() not in ["iOS", "Android"]:
 		# Mouse always picks up immediately (desktop testing convenience).
 		if is_placed:
-			removed.emit(current_grid_position)
+			_emit_removed()
 			is_placed = false
 		_start_drag(-1, event.position)
 
@@ -386,16 +564,17 @@ func _tween_to(target: Vector3) -> void:
 
 
 func _squish_on_land() -> void:
-	if _mesh == null:
+	if _cell_meshes.is_empty():
 		return
-	var tween := create_tween()
-	tween.tween_interval(0.1)
-	tween.tween_property(_mesh, "scale", Vector3(1.3, 0.5, 1.3), 0.05)\
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(_mesh, "scale", Vector3(0.8, 1.25, 0.8), 0.1)\
-		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
-	tween.tween_property(_mesh, "scale", Vector3.ONE, 0.15)\
-		.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	for mesh in _cell_meshes:
+		var tween := create_tween()
+		tween.tween_interval(0.1)
+		tween.tween_property(mesh, "scale", Vector3(1.3, 0.5, 1.3), 0.05)\
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(mesh, "scale", Vector3(0.8, 1.25, 0.8), 0.1)\
+			.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN_OUT)
+		tween.tween_property(mesh, "scale", Vector3.ONE, 0.15)\
+			.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 
 
 func _tween_alpha(target_alpha: float) -> void:
