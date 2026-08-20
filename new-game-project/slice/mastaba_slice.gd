@@ -9,7 +9,7 @@ const STRUCTS = preload("res://slice/structures.gd")
 const PIECES = preload("res://slice/pieces.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 8
+const BUILD_NO := 9
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -80,6 +80,8 @@ var _blueprint_sheet: Control
 var _atlas_card: PanelContainer
 var _skip_btn: Button
 var _atlas_btn: Button
+var _debug_panel: Control
+var _level_input: LineEdit
 
 var _baseplate: Node3D
 
@@ -385,18 +387,91 @@ func _build_hud() -> void:
 	plan_btn.pressed.connect(_open_blueprint)
 	root.add_child(plan_btn)
 
-	# --- Restart button (fresh arc + wipe the save file) ---
-	var restart_btn := Button.new()
-	restart_btn.text = "↺ Restart"
-	restart_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
-	restart_btn.offset_left = 12
-	restart_btn.offset_top = SAFE_TOP + 298
-	restart_btn.offset_bottom = SAFE_TOP + 358
-	restart_btn.add_theme_font_size_override("font_size", 24)
-	restart_btn.pressed.connect(func():
+	# --- Debug button (level jump; sits where Restart was, Restart moved into
+	#     the debug panel). Big button + big panel controls for easy tapping. ---
+	var debug_btn := Button.new()
+	debug_btn.text = "🔧 Debug"
+	debug_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	debug_btn.offset_left = 12
+	debug_btn.offset_top = SAFE_TOP + 298
+	debug_btn.offset_bottom = SAFE_TOP + 358
+	debug_btn.add_theme_font_size_override("font_size", 26)
+	root.add_child(debug_btn)
+
+	_debug_panel = Control.new()
+	_debug_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
+	_debug_panel.visible = false
+	_debug_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	root.add_child(_debug_panel)
+
+	var debug_dim := ColorRect.new()
+	debug_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	debug_dim.color = Color(0, 0, 0, 0.72)
+	_debug_panel.add_child(debug_dim)
+
+	var debug_card := PanelContainer.new()
+	debug_card.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
+	debug_card.offset_left = 40
+	debug_card.offset_right = -40
+	debug_card.offset_top = TRAY_TOP - 660
+	debug_card.offset_bottom = TRAY_TOP - 40
+	debug_card.add_theme_stylebox_override("panel", _panel_style(Color(0.13, 0.13, 0.2, 0.97)))
+	_debug_panel.add_child(debug_card)
+
+	var debug_box := VBoxContainer.new()
+	debug_box.add_theme_constant_override("separation", 16)
+	debug_card.add_child(debug_box)
+
+	var debug_title := Label.new()
+	debug_title.text = "DEBUG"
+	debug_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	debug_title.add_theme_font_size_override("font_size", 44)
+	debug_box.add_child(debug_title)
+
+	var debug_hint := Label.new()
+	debug_hint.text = "Jump to any structure (1–%d):" % STRUCTS.structures().size()
+	debug_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	debug_hint.add_theme_font_size_override("font_size", 28)
+	debug_box.add_child(debug_hint)
+
+	_level_input = LineEdit.new()
+	_level_input.text = str(_structure_index + 1)
+	_level_input.virtual_keyboard_type = LineEdit.KEYBOARD_TYPE_NUMBER
+	_level_input.custom_minimum_size = Vector2(0, 96)
+	_level_input.add_theme_font_size_override("font_size", 42)
+	_level_input.alignment = HORIZONTAL_ALIGNMENT_CENTER
+	debug_box.add_child(_level_input)
+
+	var jump_btn := Button.new()
+	jump_btn.text = "Go ▸"
+	jump_btn.custom_minimum_size = Vector2(0, 88)
+	jump_btn.add_theme_font_size_override("font_size", 32)
+	jump_btn.pressed.connect(_on_debug_jump)
+	debug_box.add_child(jump_btn)
+
+	var debug_restart := Button.new()
+	debug_restart.text = "↺ Restart current structure"
+	debug_restart.custom_minimum_size = Vector2(0, 88)
+	debug_restart.add_theme_font_size_override("font_size", 32)
+	debug_restart.pressed.connect(func():
 		_clear_save()
 		_restart_arc())
-	root.add_child(restart_btn)
+	debug_box.add_child(debug_restart)
+
+	var debug_close := Button.new()
+	debug_close.text = "✕ Close"
+	debug_close.custom_minimum_size = Vector2(0, 88)
+	debug_close.add_theme_font_size_override("font_size", 32)
+	debug_close.pressed.connect(func(): _debug_panel.visible = false)
+	debug_box.add_child(debug_close)
+
+	debug_btn.pressed.connect(func():
+		_level_input.text = str(_structure_index + 1)
+		# Transient beat UI (banners, decay epilogue, skip) must not bleed through.
+		_message_card.visible = false
+		_epilogue_card.visible = false
+		_skip_btn.visible = false
+		_debug_panel.visible = true)
 
 	# --- Palette tray (bottom, raised above home indicator) ---
 	var tray := PanelContainer.new()
@@ -593,6 +668,10 @@ func _build_hud() -> void:
 	more_label.add_theme_font_size_override("font_size", 20)
 	atlas_box.add_child(more_label)
 
+	# The debug panel must draw above every later sibling (beat banners,
+	# epilogue, blueprint sheet, atlas) no matter how it is opened.
+	_debug_panel.move_to_front()
+
 
 func _make_view_label(text: String) -> Label:
 	var l := Label.new()
@@ -690,7 +769,9 @@ func _on_paint_requested(pos: Vector3i, color_name: String) -> void:
 		return
 	if not build_target.has(pos) or build_target[pos] != color_name or completed_cells.has(pos):
 		return
-	# Spawn a parked block at the painted cell.
+	# Spawn a parked block at the painted cell. It must STAY physics-solid so
+	# later layers stack on top of it (the stack-height ray depends on it) —
+	# only input is disabled, so it can't be grabbed or dragged.
 	var block := SliceBlock.new()
 	add_child(block)
 	block.limit_x = _st["limits"].x
@@ -699,9 +780,7 @@ func _on_paint_requested(pos: Vector3i, color_name: String) -> void:
 	block.current_tool = current_tool
 	block.place_at(pos, _st["colors"][color_name], color_name)
 	block.remove_from_group("slice_blocks")
-	for child in block.get_children():
-		if child is CollisionShape3D:
-			child.disabled = true
+	block.input_ray_pickable = false
 	completed_cells[pos] = color_name
 	Input.vibrate_handheld(20)
 	_refresh_ghosts()
@@ -930,7 +1009,7 @@ func _run_decay() -> void:
 		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
 	sun_tween.tween_property(_sun, "light_color", Color("#E8A06A"), 9.0)
 
-	var blocks := get_tree().get_nodes_in_group("slice_blocks") as Array
+	var blocks := get_tree().get_nodes_in_group("world_blocks") as Array
 	for block in blocks:
 		var b := block as SliceBlock
 		if not is_instance_valid(b):
@@ -956,7 +1035,7 @@ func _run_decay() -> void:
 func _skip_decay() -> void:
 	_epilogue_card.visible = false
 	_skip_btn.visible = false
-	for block in get_tree().get_nodes_in_group("slice_blocks"):
+	for block in get_tree().get_nodes_in_group("world_blocks"):
 		if is_instance_valid(block):
 			block.decay_sink(0.0, 0.4)
 	_spawn_mound()
@@ -1188,6 +1267,16 @@ func _orbit_showcase(duration: float = 10.0) -> void:
 func _on_next_pressed() -> void:
 	# Chronological next structure in the arc; wraps around at the end.
 	_load_structure(_structure_index + 1)
+
+
+func _on_debug_jump() -> void:
+	var target := int(_level_input.text)
+	var count := STRUCTS.structures().size()
+	if target < 1 or target > count:
+		_level_input.text = str(_structure_index + 1)
+		return
+	_debug_panel.visible = false
+	_load_structure(target - 1)
 
 
 # ============================================================================
