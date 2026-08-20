@@ -145,8 +145,13 @@ func _ready() -> void:
 	_audio.stream = load("res://click3.ogg")
 	add_child(_audio)
 
-	# Give the shader a subtle snap-to-grid look.
-	_mesh.position = Vector3.ZERO
+	# Single blocks: keep the single cell mesh centered on the body origin.
+	# Multi-cell pieces must NOT be recentered — each cell mesh keeps its own
+	# local offset or the compound body collapses (a 1x3 T-cap rendered as
+	# 1x2 with two cells overlapping at the handle; the third cell's shadow
+	# still fell 1x3, exposing the mismatch).
+	if piece_cells.is_empty():
+		_mesh.position = Vector3.ZERO
 
 
 func set_block_color(color: Color, color_name: String = "") -> void:
@@ -460,6 +465,12 @@ func _stop_hover_pulse() -> void:
 		_hover_tween.kill()
 	_hover_tween = null
 	scale = Vector3.ONE
+
+
+## True while this block owns a finger: dragging, long-press pending, or
+## armed from a tray press. The camera's free-orbit yields while true.
+func is_grabbing() -> bool:
+	return is_dragging or _is_pressing or _armed_touch_index != -1
 
 
 func _physics_process(delta: float) -> void:

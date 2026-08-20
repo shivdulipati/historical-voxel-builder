@@ -9,7 +9,7 @@ const STRUCTS = preload("res://slice/structures.gd")
 const PIECES = preload("res://slice/pieces.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 6
+const BUILD_NO := 8
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -83,6 +83,13 @@ var _atlas_btn: Button
 
 var _baseplate: Node3D
 
+## JSON save path: structure index, beat, completed cells, dust state, camera.
+const SAVE_PATH := "user://slice_save.json"
+var _saved_data: Dictionary = {}
+## True once _ready has finished; beat-start saves are gated on this so the
+## boot path (which loads the file first) can never overwrite it early.
+var _booted := false
+
 ## Saved atlas states for clickable entries: {label: {Vector3i: color_name}}
 var _atlas_states: Dictionary = {}
 
@@ -90,7 +97,13 @@ var _atlas_states: Dictionary = {}
 func _ready() -> void:
 	_build_world()
 	_build_hud()
-	_load_structure(0)
+	_load_save()
+	_load_structure(int(_saved_data.get("structure_index", 0)))
+	if not _saved_data.is_empty():
+		_apply_saved_state()
+	else:
+		_save_game()
+	_booted = true
 
 
 # ============================================================================
@@ -349,7 +362,6 @@ func _build_hud() -> void:
 		["Single", Tool.SINGLE],
 		["Paint", Tool.PAINT],
 		["Erase", Tool.ERASER],
-		["Rotate", Tool.ROTATE],
 	]
 	for def in tool_defs:
 		var btn := Button.new()
@@ -373,7 +385,7 @@ func _build_hud() -> void:
 	plan_btn.pressed.connect(_open_blueprint)
 	root.add_child(plan_btn)
 
-	# --- Restart button ---
+	# --- Restart button (fresh arc + wipe the save file) ---
 	var restart_btn := Button.new()
 	restart_btn.text = "↺ Restart"
 	restart_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
@@ -381,7 +393,9 @@ func _build_hud() -> void:
 	restart_btn.offset_top = SAFE_TOP + 298
 	restart_btn.offset_bottom = SAFE_TOP + 358
 	restart_btn.add_theme_font_size_override("font_size", 24)
-	restart_btn.pressed.connect(_restart_arc)
+	restart_btn.pressed.connect(func():
+		_clear_save()
+		_restart_arc())
 	root.add_child(restart_btn)
 
 	# --- Palette tray (bottom, raised above home indicator) ---
@@ -636,6 +650,8 @@ func _start_beat(beat: Beat) -> void:
 	_rebuild_palette()
 	_refresh_ghosts()
 	_update_progress()
+	if _booted:
+		_save_game()
 
 
 ## Unique material names used by a cell dict, in first-appearance order.
@@ -657,6 +673,7 @@ func _on_block_placed(pos: Vector3i, color_name: String) -> void:
 		_refresh_ghosts()
 		_update_progress()
 		_check_beat_complete()
+		_save_game()
 	else:
 		# Wrong cell/material: flash red and remove.
 		var block := _find_block_at(pos)
@@ -690,6 +707,7 @@ func _on_paint_requested(pos: Vector3i, color_name: String) -> void:
 	_refresh_ghosts()
 	_update_progress()
 	_check_beat_complete()
+	_save_game()
 
 
 func _find_block_at(pos: Vector3i) -> SliceBlock:
@@ -704,6 +722,7 @@ func _on_block_removed(pos: Vector3i) -> void:
 	completed_cells.erase(pos)
 	_refresh_ghosts()
 	_update_progress()
+	_save_game()
 
 
 func _check_beat_complete() -> void:
@@ -741,6 +760,148 @@ func _flourish() -> void:
 	tween.tween_property(_camera, "size", _camera.size + 1.5, 1.2)\
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.chain().tween_property(_camera, "size", _base_cam_size, 1.0)
+
+
+# ============================================================================
+# SAVE / RESTORE (progress persists at every stage; survives kill + background)
+# ============================================================================
+
+func _save_game() -> void:
+	var data := {
+		"structure_index": _structure_index,
+		"beat": current_beat,
+		"arc_completed": _arc_completed,
+		"scaffold_mode": scaffold_mode,
+		"completed": {},
+		"dust_remaining": [],
+		"cam_rot": [_pivot.rotation.x, _pivot.rotation.y, _pivot.rotation.z],
+		"cam_size": _camera.size,
+	}
+	for pos in completed_cells:
+		data["completed"]["%d,%d,%d" % [pos.x, pos.y, pos.z]] = completed_cells[pos]
+	for pos in dust_mounds:
+		data["dust_remaining"].append([pos.x, pos.y, pos.z])
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file:
+		file.store_string(JSON.stringify(data))
+		file.close()
+
+
+func _clear_save() -> void:
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+
+
+func _load_save() -> void:
+	_saved_data = {}
+	if not FileAccess.file_exists(SAVE_PATH):
+		return
+	var file := FileAccess.open(SAVE_PATH, FileAccess.READ)
+	if file == null:
+		return
+	var json := JSON.new()
+	if json.parse(file.get_as_text()) == OK and json.data is Dictionary:
+		_saved_data = json.data
+	file.close()
+
+
+## Restore a saved run. The structure is already loaded; this applies the
+## beat, the completed build, dust state, and the saved camera.
+func _apply_saved_state() -> void:
+	if _saved_data.is_empty():
+		return
+	_arc_completed = bool(_saved_data.get("arc_completed", false))
+	scaffold_mode = int(_saved_data.get("scaffold_mode", Scaffold.GHOST))
+	for i in range(_scaffold_buttons.size()):
+		_scaffold_buttons[i].button_pressed = (i == scaffold_mode)
+
+	var cam_rot: Array = _saved_data.get("cam_rot", [])
+	if cam_rot.size() == 3:
+		_pivot.rotation = Vector3(float(cam_rot[0]), float(cam_rot[1]), float(cam_rot[2]))
+	_camera.size = clampf(float(_saved_data.get("cam_size", _base_cam_size)), 5.0, 30.0)
+
+	completed_cells.clear()
+	var raw_completed: Dictionary = _saved_data.get("completed", {})
+	for key in raw_completed:
+		var parts := String(key).split(",")
+		if parts.size() == 3:
+			completed_cells[Vector3i(int(parts[0]), int(parts[1]), int(parts[2]))] = raw_completed[key]
+
+	# Rebuild the build as placed blocks (cells restored individually — a
+	# placed multi-cell piece reads identically once its cells are filled).
+	for pos in completed_cells:
+		var color_name: String = completed_cells[pos]
+		var block := SliceBlock.new()
+		add_child(block)
+		block.limit_x = _st["limits"].x
+		block.limit_z = _st["limits"].z
+		block.limit_y = _st["limits"].y
+		block.place_at(pos, _st["colors"][color_name], color_name)
+
+	var saved_beat := int(_saved_data.get("beat", Beat.RAISING))
+	if saved_beat == Beat.EXCAVATION or saved_beat == Beat.DECAY:
+		_dust_total = STRUCTS.dust_cells(_st).size()
+		var remaining: Array = _saved_data.get("dust_remaining", [])
+		if remaining.is_empty() and saved_beat == Beat.DECAY:
+			# Saved mid-cinematic decay: the mound field never spawned, so
+			# spawn the full field — excavation resumes from the start.
+			for pos in STRUCTS.dust_cells(_st):
+				_spawn_dust_at(pos)
+		else:
+			for entry in remaining:
+				var m: Array = entry
+				_spawn_dust_at(Vector3i(int(m[0]), int(m[1]), int(m[2])))
+		_dust_cleared = _dust_total - dust_mounds.size()
+
+	_restore_beat(saved_beat)
+
+	if _arc_completed and dust_mounds.is_empty():
+		_open_atlas()
+	_save_game()
+
+
+## Restore a beat's build state on launch: no banners, no cinematics.
+func _restore_beat(beat: Beat) -> void:
+	current_beat = beat
+	_beat_label.text = BEAT_TITLE[beat]
+	_is_orchestrating = false
+	_skip_btn.visible = false
+	_epilogue_card.visible = false
+	_message_card.visible = false
+	# A save taken mid-decay resumes at excavation: the cinematic is not
+	# resumable and its end state is the mound field anyway.
+	if beat == Beat.DECAY:
+		beat = Beat.EXCAVATION
+		current_beat = Beat.EXCAVATION
+		_beat_label.text = BEAT_TITLE[Beat.EXCAVATION]
+	match beat:
+		Beat.RAISING:
+			build_target = _st["core"].duplicate()
+		Beat.RESTORATION:
+			build_target = _st["zenith"].duplicate()
+		Beat.EXCAVATION:
+			build_target = {}
+	_palette = _unique_materials(build_target)
+	_rebuild_palette()
+	_refresh_ghosts()
+	_update_progress()
+	# A build beat that was already complete auto-advances, like the live flow.
+	var all_done := true
+	for pos in build_target:
+		if not completed_cells.has(pos):
+			all_done = false
+			break
+	if all_done and not build_target.is_empty():
+		if beat == Beat.RAISING:
+			_start_beat(Beat.RESTORATION)
+		elif beat == Beat.RESTORATION:
+			_run_decay()
+
+
+func _notification(what: int) -> void:
+	# iOS backgrounding can suspend/kill the app at any moment — persist then.
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		_save_game()
 
 
 # ============================================================================
@@ -839,38 +1000,35 @@ func _spawn_mound() -> void:
 func _spawn_dust() -> void:
 	dust_mounds.clear()
 	_dust_cleared = 0
-	var dust_cells := STRUCTS.dust_cells(_st)
-	_dust_total = dust_cells.size()
-	var dust_mat := ShaderMaterial.new()
-	dust_mat.resource_local_to_scene = true
-	dust_mat.shader = load("res://block.gdshader")
-	dust_mat.set_shader_parameter("albedo_color", _st["colors"]["dust"])
-	dust_mat.set_shader_parameter("alpha", 0.55)
-
-	for pos in dust_cells:
-		var mound := StaticBody3D.new()
-		mound.name = "Dust"
-		mound.position = Vector3(pos.x, 0.25, pos.z)
-		mound.input_ray_pickable = true
-		add_child(mound)
-
-		var shape := CollisionShape3D.new()
-		var box_shape := BoxShape3D.new()
-		box_shape.size = Vector3(1.0, 0.5, 1.0)
-		shape.shape = box_shape
-		mound.add_child(shape)
-
-		var mesh := MeshInstance3D.new()
-		var box_mesh := BoxMesh.new()
-		box_mesh.size = Vector3(1.05, 0.5, 1.05)
-		mesh.mesh = box_mesh
-		mesh.material_override = dust_mat
-		mound.add_child(mesh)
-
-		mound.input_event.connect(_on_dust_tapped.bind(pos))
-		dust_mounds[pos] = mound
-
+	_dust_total = STRUCTS.dust_cells(_st).size()
+	for pos in STRUCTS.dust_cells(_st):
+		_spawn_dust_at(pos)
 	_update_progress()
+
+
+## Spawns one dust mound at a cell (shared by _spawn_dust and save-restore).
+func _spawn_dust_at(pos: Vector3i) -> void:
+	var mound := StaticBody3D.new()
+	mound.name = "Dust"
+	mound.position = Vector3(pos.x, 0.25, pos.z)
+	mound.input_ray_pickable = true
+	add_child(mound)
+
+	var shape := CollisionShape3D.new()
+	var box_shape := BoxShape3D.new()
+	box_shape.size = Vector3(1.0, 0.5, 1.0)
+	shape.shape = box_shape
+	mound.add_child(shape)
+
+	var mesh := MeshInstance3D.new()
+	var box_mesh := BoxMesh.new()
+	box_mesh.size = Vector3(1.05, 0.5, 1.05)
+	mesh.mesh = box_mesh
+	mesh.material_override = dust_mat_alpha(0.55)
+	mound.add_child(mesh)
+
+	mound.input_event.connect(_on_dust_tapped.bind(pos))
+	dust_mounds[pos] = mound
 
 
 func _on_dust_tapped(_camera: Camera3D, event: InputEvent, _position: Vector3, _normal: Vector3, _shape_idx: int, pos: Vector3i) -> void:
@@ -917,6 +1075,7 @@ func _on_dust_tapped(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 
 	Input.vibrate_handheld(30)
 	_update_progress()
+	_save_game()
 
 	if dust_mounds.is_empty():
 		_arc_completed = true
@@ -1237,6 +1396,7 @@ func _on_piece_placed(origin: Vector3i, cells: Array, color_name: String) -> voi
 		_refresh_ghosts()
 		_update_progress()
 		_check_beat_complete()
+		_save_game()
 	else:
 		var block := _find_block_at(origin)
 		if block:
@@ -1253,6 +1413,7 @@ func _on_piece_removed(cells: Array) -> void:
 		completed_cells.erase(pos)
 	_refresh_ghosts()
 	_update_progress()
+	_save_game()
 
 
 ## Projects a screen point onto the camera-facing drag plane (same plane the
@@ -1346,6 +1507,15 @@ func _snap_camera(target_rot: Vector3) -> void:
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
+## True while any live block owns a finger (dragging, long-press pending, or
+## armed from a tray press). The free-orbit gesture yields to block gestures.
+func _any_block_grabbing() -> bool:
+	for block in get_tree().get_nodes_in_group("slice_blocks"):
+		if block.is_grabbing():
+			return true
+	return false
+
+
 func _input(event: InputEvent) -> void:
 	# Two-finger orbit + pinch zoom (always available).
 	if event is InputEventScreenTouch:
@@ -1356,24 +1526,25 @@ func _input(event: InputEvent) -> void:
 			_last_pinch_distance = 0.0
 			_last_pan_midpoint = Vector2.ZERO
 
-	# ROTATE tool: one-finger drag orbits the camera (reloc-proto behavior),
-	# with magnetic snap into perfect Top / Front / Side views (~5° margin).
-	if current_tool == Tool.ROTATE:
-		if event is InputEventScreenDrag and _touch_points.size() <= 1:
-			var drag := event as InputEventScreenDrag
-			_pivot.rotation.y -= drag.relative.x * 0.005
-			_pivot.rotation.x = clampf(_pivot.rotation.x - drag.relative.y * 0.005, -PI / 2.0, 0.02)
+	# One-finger drag orbits the camera — the DEFAULT rotate gesture, always
+	# available except while a block/piece owns a finger (drag from tray,
+	# long-press pickup, armed tray finger). Magnetic snap into perfect
+	# Top / Front / Side views (~5° margin) is retained.
+	if event is InputEventScreenDrag and _touch_points.size() <= 1 and not _any_block_grabbing():
+		var drag := event as InputEventScreenDrag
+		_pivot.rotation.y -= drag.relative.x * 0.005
+		_pivot.rotation.x = clampf(_pivot.rotation.x - drag.relative.y * 0.005, -PI / 2.0, 0.02)
 
-			# Magnetic snap to 90° increments.
-			var snap_margin := 0.087  # ~5 degrees
-			var snap_step := PI / 2.0
-			var target_x: float = round(_pivot.rotation.x / snap_step) * snap_step
-			if absf(_pivot.rotation.x - target_x) < snap_margin:
-				_pivot.rotation.x = target_x
-			var target_y: float = round(_pivot.rotation.y / snap_step) * snap_step
-			if absf(_pivot.rotation.y - target_y) < snap_margin:
-				_pivot.rotation.y = target_y
-			return
+		# Magnetic snap to 90° increments.
+		var snap_margin := 0.087  # ~5 degrees
+		var snap_step := PI / 2.0
+		var target_x: float = round(_pivot.rotation.x / snap_step) * snap_step
+		if absf(_pivot.rotation.x - target_x) < snap_margin:
+			_pivot.rotation.x = target_x
+		var target_y: float = round(_pivot.rotation.y / snap_step) * snap_step
+		if absf(_pivot.rotation.y - target_y) < snap_margin:
+			_pivot.rotation.y = target_y
+		return
 
 	if event is InputEventScreenDrag and _touch_points.has(event.index):
 		_touch_points[event.index] = event.position
