@@ -476,14 +476,24 @@ func is_grabbing() -> bool:
 
 
 func _physics_process(delta: float) -> void:
-	# Long-press threshold: promote a held press into a full drag.
+	# Long-press threshold: promote a held press into a full drag — but only
+	# for deletable blocks. Picking a block up is the same as deleting it, so
+	# the same rule applies: nothing above, support beneath. Otherwise a
+	# support block could be dragged out from under a stack, leaving the
+	# blocks above floating forever (the real Great Wall banner bug).
 	if is_placed and _is_pressing:
 		var elapsed := (Time.get_ticks_msec() / 1000.0) - _touch_start_time
 		if elapsed > 0.3:
-			_emit_removed()
-			is_placed = false
-			_is_pressing = false
-			_start_drag(_drag_touch_index, _drag_touch_pos)
+			if _is_deletable():
+				_emit_removed()
+				is_placed = false
+				_is_pressing = false
+				_start_drag(_drag_touch_index, _drag_touch_pos)
+			else:
+				Input.vibrate_handheld(80)
+				_flash_rejected()
+				_is_pressing = false
+				_drag_touch_index = -1
 
 	if global_position.y < -5.0:
 		is_dragging = false

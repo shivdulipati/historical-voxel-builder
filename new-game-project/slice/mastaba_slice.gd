@@ -9,7 +9,7 @@ const STRUCTS = preload("res://slice/structures.gd")
 const PIECES = preload("res://slice/pieces.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 10
+const BUILD_NO := 11
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -928,6 +928,14 @@ func _apply_saved_state() -> void:
 		var parts := String(key).split(",")
 		if parts.size() == 3:
 			completed_cells[Vector3i(int(parts[0]), int(parts[1]), int(parts[2]))] = raw_completed[key]
+
+	# Prune completed cells that no longer belong to this structure (e.g. a
+	# banner target moved by a data fix) so stale blocks never restore as
+	# floating geometry and old stuck saves self-heal.
+	var valid_cells := STRUCTS.combined_cells(_st)
+	for pos in completed_cells.keys():
+		if not valid_cells.has(pos):
+			completed_cells.erase(pos)
 
 	# Rebuild the build as placed blocks (cells restored individually — a
 	# placed multi-cell piece reads identically once its cells are filled).
