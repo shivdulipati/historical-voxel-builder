@@ -6,3 +6,7 @@
 
 # iOS build artifacts (generated, never commit)
 iOS_Build/
+
+# Raw Kenney asset packs (sprites + all formats; only GLBs are copied into
+# new-game-project/art/ for Godot import — never commit the 36MB originals)
+Art Assets/

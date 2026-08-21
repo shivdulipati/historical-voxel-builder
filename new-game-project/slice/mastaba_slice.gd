@@ -7,6 +7,7 @@ extends Node3D
 const SliceBlock = preload("res://slice/slice_block.gd")
 const STRUCTS = preload("res://slice/structures.gd")
 const PIECES = preload("res://slice/pieces.gd")
+const DIORAMA = preload("res://art/diorama.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
 const BUILD_NO := 14
@@ -88,6 +89,8 @@ var _debug_panel: Control
 var _level_input: LineEdit
 
 var _baseplate: Node3D
+var _floor_mesh: MeshInstance3D
+var _diorama: Node3D
 
 ## JSON save path: structure index, beat, completed cells, dust state, camera.
 const SAVE_PATH := "user://slice_save.json"
@@ -130,6 +133,8 @@ func _load_structure(index: int) -> void:
 	_camera.size = _base_cam_size
 
 	_top_label.text = _st["site_era"]
+	if _diorama != null:
+		_diorama.build(_st["id"], _floor_mesh)
 	_restart_arc()
 
 
@@ -206,6 +211,12 @@ func _build_world() -> void:
 	floor_mesh.material_override = floor_mat
 	floor_mesh.position = Vector3(0, -0.5, 0)
 	add_child(floor_mesh)
+	_floor_mesh = floor_mesh
+
+	# --- Diorama (per-level environmental stage: ground tint + props) ---
+	_diorama = DIORAMA.new()
+	_diorama.name = "Diorama"
+	add_child(_diorama)
 
 	# --- Baseplate tiles (build footprint marker) ---
 	_baseplate = Node3D.new()
