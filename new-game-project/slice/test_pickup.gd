@@ -1,7 +1,8 @@
 extends Node3D
-## test_pickup.gd — BUILD 11: long-press pickup must respect the deletability
-## rule (support beneath + nothing above). Also verifies the Great Wall level
-## is fully completable with the banner on the tower roof.
+## test_pickup.gd — BUILD 21: placed blocks are INERT to touch. Deletion
+## happens ONLY via the Erase tool — long-press pickup is gone, so pressing a
+## placed block (even one that would be deletable) must never remove or drag
+## it. Also keeps the Great Wall completability check.
 
 const SliceScene = preload("res://slice/mastaba_slice.tscn")
 
@@ -10,7 +11,7 @@ func _ready() -> void:
 	add_child(slice)
 	await get_tree().process_frame
 
-	# --- Pickup gating (Göbekli, stack of 2) ---
+	# --- Touch-inertness (Göbekli, stack of 2) ---
 	var a = slice.SliceBlock.new()
 	slice.add_child(a)
 	a.limit_x = slice._st["limits"].x
@@ -25,22 +26,23 @@ func _ready() -> void:
 	b.place_at(Vector3i(0, 1, 0), slice._st["colors"]["limestone"], "limestone")
 	await get_tree().physics_frame
 
-	# Long-press the BOTTOM block: must be rejected (block stays placed).
+	# Press the BOTTOM block (simulate an old long-press): must stay placed,
+	# never dragged, never removed.
 	a._is_pressing = true
 	a._drag_touch_index = 0
 	a._touch_start_time = (Time.get_ticks_msec() / 1000.0) - 0.5
 	await get_tree().physics_frame
-	var bottom_blocked: bool = a.is_placed and not a.is_dragging and not a._is_pressing
+	var bottom_inert: bool = a.is_placed and not a.is_dragging
 
-	# Long-press the TOP block: must be allowed (picks up into a drag).
+	# Press the TOP block (deletable by the old rule): must ALSO stay placed.
 	b._is_pressing = true
 	b._drag_touch_index = 0
 	b._touch_start_time = (Time.get_ticks_msec() / 1000.0) - 0.5
 	await get_tree().physics_frame
-	var top_allowed: bool = not b.is_placed and b.is_dragging
+	var top_inert: bool = b.is_placed and not b.is_dragging
 
-	print("PICKUP-TEST: bottom pickup blocked = ", bottom_blocked, " (want true) ", "PASS" if bottom_blocked else "FAIL")
-	print("PICKUP-TEST: top pickup allowed = ", top_allowed, " (want true) ", "PASS" if top_allowed else "FAIL")
+	print("PICKUP-TEST: bottom block inert = ", bottom_inert, " (want true) ", "PASS" if bottom_inert else "FAIL")
+	print("PICKUP-TEST: top block inert = ", top_inert, " (want true) ", "PASS" if top_inert else "FAIL")
 
 	# --- Great Wall (index 6) completability: every target cell reachable ---
 	slice._load_structure(6)
@@ -49,7 +51,6 @@ func _ready() -> void:
 	await get_tree().process_frame
 	var zenith: Dictionary = slice._st["zenith"]
 	print("PICKUP-TEST: wall zenith cells = ", zenith.size(), " (want 9)")
-	# Every zenith cell must have support beneath (ground or a placed cell).
 	var unsupported := []
 	for pos in zenith:
 		var below := Vector3i(pos.x, pos.y - 1, pos.z)
@@ -57,6 +58,6 @@ func _ready() -> void:
 		if not has_below:
 			unsupported.append(pos)
 	print("PICKUP-TEST: unsupported zenith cells = ", unsupported, " (want [])")
-	var ok: bool = unsupported.is_empty() and zenith.size() == 9 and bottom_blocked and top_allowed
+	var ok: bool = unsupported.is_empty() and zenith.size() == 9 and bottom_inert and top_inert
 	print("PICKUP-TEST: ", "ALL PASS" if ok else "FAIL")
 	get_tree().quit()

@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/diorama.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 20
+const BUILD_NO := 21
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -976,6 +976,7 @@ func _save_game() -> void:
 		"completed": {},
 		"dust_remaining": [],
 		"cam_rot": [_pivot.rotation.x, _pivot.rotation.y, _pivot.rotation.z],
+		"cam_pos": [_pivot.position.x, _pivot.position.y, _pivot.position.z],
 		"cam_size": _camera.size,
 	}
 	for pos in completed_cells:
@@ -1019,6 +1020,9 @@ func _apply_saved_state() -> void:
 	var cam_rot: Array = _saved_data.get("cam_rot", [])
 	if cam_rot.size() == 3:
 		_pivot.rotation = Vector3(float(cam_rot[0]), float(cam_rot[1]), float(cam_rot[2]))
+	var cam_pos: Array = _saved_data.get("cam_pos", [])
+	if cam_pos.size() == 3:
+		_pivot.position = Vector3(float(cam_pos[0]), float(cam_pos[1]), float(cam_pos[2]))
 	_camera.size = clampf(float(_saved_data.get("cam_size", _base_cam_size)), 5.0, 90.0)
 
 	completed_cells.clear()
@@ -1741,7 +1745,12 @@ func _snap_camera(target_rot: Vector3) -> void:
 	if _is_orbiting:
 		return
 	var tween := create_tween()
+	tween.set_parallel(true)
 	tween.tween_property(_pivot, "rotation", target_rot, 0.35)\
+		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	# Snapped views re-center the structure (a pan offset would fight the
+	# framing).
+	tween.tween_property(_pivot, "position", Vector3.ZERO, 0.35)\
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 
@@ -1802,17 +1811,33 @@ func _input(event: InputEvent) -> void:
 			if _last_pinch_distance > 0.0:
 				var delta_dist := distance - _last_pinch_distance
 				_camera.size = clampf(_camera.size - delta_dist * 0.05, 5.0, 90.0)
-
-				if _last_pan_midpoint != Vector2.ZERO and distance < 140.0:
-					var pan_delta := midpoint - _last_pan_midpoint
-					_pivot.rotation.y -= pan_delta.x * 0.004
-					_pivot.rotation.x = clampf(_pivot.rotation.x - pan_delta.y * 0.004, -1.2, -0.1)
+				# Two-finger drag pans ALONG THE GROUND (both fingers move
+				# together): the scene follows the fingers. (The old code
+				# rotated the camera here — that's why two-finger felt wrong.)
+				if _last_pan_midpoint != Vector2.ZERO:
+					_pan_camera(midpoint - _last_pan_midpoint)
 
 			_last_pinch_distance = distance
 			_last_pan_midpoint = midpoint
 		else:
 			_last_pinch_distance = 0.0
 			_last_pan_midpoint = Vector2.ZERO
+
+
+## Pan the camera rig along the ground plane: screen delta → world units via
+## the ortho size, directions from the pivot basis (Y-flattened). Dragging
+## right moves the ground right — the camera translates the other way.
+func _pan_camera(pan_delta: Vector2) -> void:
+	var basis := _pivot.global_transform.basis
+	var right := Vector3(basis.x.x, 0.0, basis.x.z)
+	if right.length() > 0.01:
+		right = right.normalized()
+	var up := Vector3(basis.y.x, 0.0, basis.y.z)
+	if up.length() > 0.01:
+		up = up.normalized()
+	var vp_h := float(get_viewport().get_visible_rect().size.y)
+	var world_per_px := _camera.size / vp_h
+	_pivot.position += (-pan_delta.x * right - pan_delta.y * up) * world_per_px
 
 
 # ============================================================================
@@ -1850,6 +1875,7 @@ func _restart_arc() -> void:
 	completed_cells.clear()
 	_arc_completed = false
 	_pivot.rotation = _default_cam_rot
+	_pivot.position = Vector3.ZERO
 	_sun.light_energy = 1.4
 	_sun.light_color = Color("#FFF2D0")
 	_camera.size = _base_cam_size

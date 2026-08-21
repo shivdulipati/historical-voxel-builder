@@ -480,24 +480,11 @@ func is_grabbing() -> bool:
 
 
 func _physics_process(delta: float) -> void:
-	# Long-press threshold: promote a held press into a full drag — but only
-	# for deletable blocks. Picking a block up is the same as deleting it, so
-	# the same rule applies: nothing above, support beneath. Otherwise a
-	# support block could be dragged out from under a stack, leaving the
-	# blocks above floating forever (the real Great Wall banner bug).
-	if is_placed and _is_pressing and not is_parked:
-		var elapsed := (Time.get_ticks_msec() / 1000.0) - _touch_start_time
-		if elapsed > 0.3:
-			if _is_deletable():
-				_emit_removed()
-				is_placed = false
-				_is_pressing = false
-				_start_drag(_drag_touch_index, _drag_touch_pos)
-			else:
-				Input.vibrate_handheld(80)
-				_flash_rejected()
-				_is_pressing = false
-				_drag_touch_index = -1
+	# Placed blocks are INERT to touch — deletion happens ONLY via the Erase
+	# tool (press-to-remove). The old long-press pickup ("touch a block to
+	# pick it up, which deletes it") made taps on the structure feel like
+	# accidental deletion, so it is gone: a touch on a placed block simply
+	# passes through to the camera orbit.
 
 	if global_position.y < -5.0:
 		is_dragging = false
@@ -573,20 +560,15 @@ func _on_input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 	if is_parked:
 		return
 
+	# Placed blocks: inert to touch in every non-erase tool. Pressing them
+	# does nothing (the event passes through to the camera orbit); deletion
+	# is the Erase tool's job alone.
+	if is_placed:
+		return
+
 	if event is InputEventScreenTouch and event.pressed:
-		if is_placed:
-			# Arm the long-press timer instead of dragging immediately.
-			_is_pressing = true
-			_touch_start_time = Time.get_ticks_msec() / 1000.0
-			_drag_touch_index = event.index
-			_drag_touch_pos = event.position
-		else:
-			_start_drag(event.index, event.position)
+		_start_drag(event.index, event.position)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed and OS.get_name() not in ["iOS", "Android"]:
-		# Mouse always picks up immediately (desktop testing convenience).
-		if is_placed:
-			_emit_removed()
-			is_placed = false
 		_start_drag(-1, event.position)
 
 

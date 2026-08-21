@@ -63,7 +63,7 @@ const DIORAMAS := {
 			{"m": "stairs",        "p": Vector3(-9.0, 0, 2.0), "r": 0.0},
 			{"m": "stairs",        "p": Vector3(-8.0, 0, 2.0), "r": 0.0},
 			{"m": "stairs",        "p": Vector3(-7.0, 0, 2.0), "r": 0.0},
-			{"m": "stairs-corner", "p": Vector3(-6.0, 0, 2.0), "r": -PI / 2.0},
+			{"m": "stairs-corner", "p": Vector3(-6.0, 0, 2.0), "r": PI},
 			{"m": "bricks",        "p": Vector3(-9.6, 0, 3.4), "r": 0.6},
 			{"m": "bricks",        "p": Vector3(-5.9, 0, 3.5), "r": 2.2},
 		],
@@ -141,10 +141,9 @@ func _build_arena_ground(g: Dictionary, rng: RandomNumberGenerator) -> void:
 	var detail_t: Array[Transform3D] = []
 	for gx in range(-cols / 2, cols / 2):
 		for gz in range(-rows / 2, rows / 2):
-			var pos := Vector3(
-				(gx + 0.5) * cell + rng.randf_range(-0.3, 0.3),
-				0.002,
-				(gz + 0.5) * cell + rng.randf_range(-0.3, 0.3))
+			# Grid-locked positions — no jitter, so tiles interlock with no
+			# gaps (the earlier ±0.3 jitter opened seams to the sky behind).
+			var pos := Vector3((gx + 0.5) * cell, 0.002, (gz + 0.5) * cell)
 			if rng.randf() < detail_w:
 				var rot := rng.randi_range(0, 3) * PI / 2.0
 				detail_t.append(_tile_xform(pos, rot, cell))
