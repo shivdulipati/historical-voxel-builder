@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/diorama.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 15
+const BUILD_NO := 16
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -195,13 +195,16 @@ func _build_world() -> void:
 	add_child(env)
 
 	# --- Floor (raycast target + sand) ---
+	# Thin slab: the old 1-unit-thick box read as an elevated platform from
+	# side views. Top surface stays at y=0 (raycast + resting plane) — only
+	# the visible thickness shrinks so the ground line reads clean.
 	var floor_body := StaticBody3D.new()
 	floor_body.name = "Floor"
 	var floor_shape := CollisionShape3D.new()
 	var floor_box := BoxShape3D.new()
-	floor_box.size = Vector3(60, 1, 60)
+	floor_box.size = Vector3(60, 0.1, 60)
 	floor_shape.shape = floor_box
-	floor_shape.position = Vector3(0, -0.5, 0)
+	floor_shape.position = Vector3(0, -0.05, 0)
 	floor_body.add_child(floor_shape)
 	add_child(floor_body)
 
@@ -210,10 +213,10 @@ func _build_world() -> void:
 	floor_mat.albedo_color = Color("#D9C089")
 	floor_mat.roughness = 1.0
 	var floor_box_mesh := BoxMesh.new()
-	floor_box_mesh.size = Vector3(60, 1, 60)
+	floor_box_mesh.size = Vector3(60, 0.1, 60)
 	floor_mesh.mesh = floor_box_mesh
 	floor_mesh.material_override = floor_mat
-	floor_mesh.position = Vector3(0, -0.5, 0)
+	floor_mesh.position = Vector3(0, -0.05, 0)
 	add_child(floor_mesh)
 	_floor_mesh = floor_mesh
 

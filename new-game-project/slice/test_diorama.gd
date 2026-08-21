@@ -51,6 +51,26 @@ func _ready() -> void:
 	var pct := 100.0 * nonsand / maxf(total, 1)
 	print("BUSY: outer-annulus non-sand %.1f%% (want > 15%%)" % pct)
 	assert(pct > 15.0, "outer annulus looks empty")
-	vp.get_texture().get_image().save_png("/tmp/b15_diorama_mastaba.png")
+	# Left/right balance: count in-frame props by screen half (the BUILD 15
+	# complaint was a bare right half — palms all clustered left).
+	var left := 0
+	var right := 0
+	for node in ctl._diorama.get_children():
+		var p2: Vector3 = node.position
+		if p2.y >= 0.001:
+			continue  # tiles only, skip
+		var sp2: Vector2 = ctl._camera.unproject_position(p2)
+		if sp2.x >= 0 and sp2.x <= 1080 and sp2.y >= 400 and sp2.y <= 1250:
+			if sp2.x < 540:
+				left += 1
+			else:
+				right += 1
+	print("BALANCE: in-frame props left=%d right=%d" % [left, right])
+	vp.get_texture().get_image().save_png("/tmp/b16_diorama_mastaba.png")
+	# Side-view capture: the floor slab must read as a thin ground line now
+	# (was a 1-unit-tall brown wall in BUILD 15's side view).
+	ctl._snap_camera(Vector3(0.0, -PI / 2.0, 0.0))
+	await get_tree().create_timer(0.6).timeout
+	vp.get_texture().get_image().save_png("/tmp/b16_diorama_side.png")
 	print("DIORAMA CAPTURE DONE")
 	get_tree().quit()

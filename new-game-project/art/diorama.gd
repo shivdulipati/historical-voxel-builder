@@ -21,15 +21,15 @@ const NATURE := "res://art/nature/"
 ## Kenney models are built small vs the 1-unit voxel (measured via art/measure).
 ## Awe rule: structures dominate — palm ≈ 3 blocks, boulder ≈ 1 block.
 const MODEL_SCALE := {
-	"tree_palmTall": 3.0, "tree_palmShort": 3.0, "tree_palmDetailedTall": 3.0,
-	"tree_palmBend": 3.0, "tree_oak": 2.6, "tree_pineTallA": 2.6,
-	"rock_largeA": 1.8, "rock_largeB": 1.8, "rock_smallA": 2.2,
-	"rock_smallFlatA": 2.2, "stone_smallA": 2.2, "stone_smallFlatA": 2.2,
-	"stone_tallA": 1.0, "grass": 1.3, "grass_large": 1.3, "flower_redA": 1.5,
-	"flower_yellowA": 1.5, "plant_bush": 1.6, "plant_bushSmall": 1.6,
-	"log": 1.3, "log_stack": 1.3, "statue_obelisk": 3.0, "statue_column": 2.6,
-	"mushroom_red": 1.4, "stump_round": 1.4, "tent_smallClosed": 1.5,
-	"campfire_stones": 1.6, "cactus_short": 1.8, "lily_small": 1.5,
+	"tree_palmTall": 3.4, "tree_palmShort": 3.4, "tree_palmDetailedTall": 3.4,
+	"tree_palmBend": 3.4, "tree_oak": 2.8, "tree_pineTallA": 2.8,
+	"rock_largeA": 2.4, "rock_largeB": 2.4, "rock_smallA": 2.6,
+	"rock_smallFlatA": 2.8, "stone_smallA": 2.6, "stone_smallFlatA": 2.8,
+	"stone_tallA": 1.1, "grass": 1.6, "grass_large": 1.6, "flower_redA": 1.8,
+	"flower_yellowA": 1.8, "plant_bush": 2.0, "plant_bushSmall": 2.0,
+	"log": 1.5, "log_stack": 1.5, "statue_obelisk": 3.2, "statue_column": 2.8,
+	"mushroom_red": 1.6, "stump_round": 1.6, "tent_smallClosed": 1.7,
+	"campfire_stones": 1.8, "cactus_short": 2.2, "lily_small": 1.6,
 }
 
 ## Warm khaki filter for Kenney's teal foliage (vertex-color multiply).
@@ -57,26 +57,26 @@ const DIORAMAS := {
 			{"m": "ground_pathStraight", "w": 3, "smin": 2.0, "smax": 3.0},
 			{"m": "ground_grass",        "w": 1, "smin": 2.0, "smax": 3.0},
 		],
-		"tile_count": 130,
+		"tile_count": 150,
 		"props": [
 			# Tall silhouettes on the far arc only (camera sits NE ≈ 44°).
-			{"m": "tree_palmTall",         "n": 3, "rmin": 9.0, "rmax": 20.0, "avoid": Vector2(15, 75)},
-			{"m": "tree_palmBend",         "n": 2, "rmin": 9.0, "rmax": 17.0, "avoid": Vector2(15, 75)},
-			{"m": "tree_palmShort",        "n": 3, "rmin": 6.8, "rmax": 8.5,  "avoid": Vector2(15, 75)},
+			{"m": "tree_palmTall",         "n": 4, "rmin": 9.0, "rmax": 21.0, "avoid": Vector2(15, 75)},
+			{"m": "tree_palmBend",         "n": 3, "rmin": 9.0, "rmax": 17.0, "avoid": Vector2(15, 75)},
+			{"m": "tree_palmShort",        "n": 3, "rmin": 6.8, "rmax": 8.8,  "avoid": Vector2(15, 75)},
 			{"m": "tree_palmTall",         "n": 2, "rmin": 7.0, "rmax": 8.8,  "avoid": Vector2(15, 75), "s": 0.7},
 			# Mid-ground scatter just outside the clear ring — visible framing.
-			{"m": "rock_largeB",           "n": 9, "rmin": 4.5, "rmax": 12.0},
-			{"m": "rock_smallA",           "n": 14, "rmin": 4.5, "rmax": 10.0},
-			{"m": "stone_smallFlatA",      "n": 10, "rmin": 4.5, "rmax": 9.0},
-			{"m": "stone_smallA",          "n": 7, "rmin": 4.5, "rmax": 9.0},
-			{"m": "plant_bush",            "n": 9, "rmin": 4.5, "rmax": 11.0},
-			{"m": "plant_bushSmall",       "n": 6, "rmin": 4.5, "rmax": 10.0},
-			{"m": "grass",                 "n": 24, "rmin": 4.5, "rmax": 15.0},
-			{"m": "flower_yellowA",        "n": 8, "rmin": 4.5, "rmax": 11.0},
-			{"m": "flower_redA",           "n": 4, "rmin": 5.0, "rmax": 10.0},
-			{"m": "cactus_short",          "n": 4, "rmin": 5.0, "rmax": 10.0},
-			{"m": "stump_round",           "n": 3, "rmin": 5.0, "rmax": 10.0},
-			{"m": "log",                   "n": 2, "rmin": 5.0, "rmax": 10.0},
+			{"m": "rock_largeB",           "n": 12, "rmin": 4.5, "rmax": 13.0},
+			{"m": "rock_smallA",           "n": 18, "rmin": 4.5, "rmax": 11.0},
+			{"m": "stone_smallFlatA",      "n": 15, "rmin": 4.5, "rmax": 10.0},
+			{"m": "stone_smallA",          "n": 9, "rmin": 4.5, "rmax": 10.0},
+			{"m": "plant_bush",            "n": 14, "rmin": 4.5, "rmax": 12.0},
+			{"m": "plant_bushSmall",       "n": 8, "rmin": 4.5, "rmax": 11.0},
+			{"m": "grass",                 "n": 28, "rmin": 4.5, "rmax": 16.0},
+			{"m": "flower_yellowA",        "n": 12, "rmin": 4.5, "rmax": 12.0},
+			{"m": "flower_redA",           "n": 5, "rmin": 5.0, "rmax": 11.0},
+			{"m": "cactus_short",          "n": 5, "rmin": 5.0, "rmax": 11.0},
+			{"m": "stump_round",           "n": 4, "rmin": 5.0, "rmax": 11.0},
+			{"m": "log",                   "n": 3, "rmin": 5.0, "rmax": 11.0},
 			# Workmen's camp — a small human story at the tomb site.
 			{"m": "tent_smallClosed",      "n": 1, "rmin": 7.0, "rmax": 9.0, "avoid": Vector2(15, 75)},
 			{"m": "campfire_stones",       "n": 1, "rmin": 7.0, "rmax": 9.0, "avoid": Vector2(15, 75)},
@@ -133,7 +133,9 @@ func _place_tiles(cfg: Dictionary, rng: RandomNumberGenerator, limits_rect: Rect
 		if limits_rect.has_point(Vector2(pos.x, pos.z)):
 			continue
 		var inst: Node3D = _spawn(pick["m"], rng, 1.0)
-		inst.position = pos + Vector3(0, 0.004 + rng.randf_range(0, 0.002), 0)
+		# Flush with the surface: tops at y≈0.001, bodies sunk into the floor
+		# (path tiles extend 0.05 below their pivot) — no floating slivers.
+		inst.position = pos + Vector3(0, 0.001 + rng.randf_range(0, 0.0005), 0)
 		inst.rotation = Vector3(0, rng.randi_range(0, 1) * PI / 2.0, 0)
 		var s: float = rng.randf_range(float(pick["smin"]), float(pick["smax"]))
 		inst.scale = Vector3.ONE * s
