@@ -149,7 +149,7 @@ func _place_props(cfg: Dictionary, rng: RandomNumberGenerator, clear_rect: Rect2
 		var n := int(entry["n"])
 		var rmin := float(entry["rmin"])
 		var rmax := float(entry["rmax"])
-		var per_prop_scale := float(entry.get("s", 0.0))
+		var per_prop_scale := float(entry.get("s", 1.0))
 		var avoid: Vector2 = entry.get("avoid", Vector2(-999, -999))
 		# Keep mid-ground scatter just outside the clear ring; scales with the
 		# structure footprint so big levels get proportionally more room.
