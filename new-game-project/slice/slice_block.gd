@@ -332,9 +332,11 @@ func _update_piece_indicators(cells: Array) -> void:
 		ind.global_position = Vector3(cell.x, cell.y - 0.5 + 0.02, cell.z)
 
 
-## True if any placed block (single or piece) occupies the world cell.
-## Point query at the cell CENTER — a vertical ray would graze the support
-## block below (its top face IS the cell's bottom) and falsely reject.
+## True if any placed block (single or piece, including parked/painted cells)
+## occupies the world cell. Point query at the cell CENTER — a vertical ray
+## would graze the support block below (its top face IS the cell's bottom)
+## and falsely reject. Matches by script so parked painted blocks (removed
+## from slice_blocks) still count as occupancy.
 func _world_occupied(cell: Vector3i) -> bool:
 	var space := get_world_3d().direct_space_state
 	var params := PhysicsPointQueryParameters3D.new()
@@ -342,7 +344,7 @@ func _world_occupied(cell: Vector3i) -> bool:
 	params.exclude = [get_rid()]
 	for hit in space.intersect_point(params, 8):
 		var collider = hit.collider
-		if collider is Node and collider.is_in_group("slice_blocks"):
+		if collider is Node and collider.get_script() == get_script():
 			return true
 	return false
 
@@ -539,12 +541,17 @@ func _on_input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 	if current_tool == 3: # ROTATE — camera owns gestures
 		return
 
-	# ERASER tool: a press on a placed block removes it immediately.
+	# ERASER tool: a press on a placed block removes it — only if it is
+	# deletable (supported below, nothing stacked above it).
 	var is_press: bool = (event is InputEventScreenTouch and event.pressed) \
 		or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed)
 	if is_placed and is_press and current_tool == 2:
-		_emit_removed()
-		queue_free()
+		if _is_deletable():
+			_emit_removed()
+			queue_free()
+		else:
+			Input.vibrate_handheld(80)
+			_flash_rejected()
 		return
 
 	if event is InputEventScreenTouch and event.pressed:
@@ -568,6 +575,60 @@ func _disable_collision(disabled: bool) -> void:
 	for child in get_children():
 		if child is CollisionShape3D:
 			child.disabled = disabled
+
+
+## Eraser rule: a block may be removed only when nothing sits on top of it
+## AND it has support beneath (the ground counts). Pieces are atomic — every
+## cell must be clear above, and at least one cell needs support (a T-cap's
+## overhanging sides hang by design, supported by its stem anchor).
+func _is_deletable() -> bool:
+	if not is_placed:
+		return false
+	var cells: Array = _placed_cells if not piece_cells.is_empty() and not _placed_cells.is_empty() else [current_grid_position]
+	var supported := false
+	for cell in cells:
+		if _world_occupied(Vector3i(cell.x, cell.y + 1, cell.z)):
+			return false
+		if cell.y == 0 or _world_occupied(Vector3i(cell.x, cell.y - 1, cell.z)):
+			supported = true
+	return supported
+
+
+var _highlight_tween: Tween
+
+## Erase-mode affordance: pulsing gold outline while the block is deletable.
+func set_deletable_highlight(on: bool) -> void:
+	if _material == null:
+		return
+	if on:
+		_material.set_shader_parameter("outline", 1.0)
+		if _highlight_tween == null or not _highlight_tween.is_valid():
+			_highlight_tween = create_tween().set_loops()
+			_highlight_tween.tween_method(_apply_outline_pulse, 0.025, 0.07, 0.6)\
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+			_highlight_tween.tween_method(_apply_outline_pulse, 0.07, 0.025, 0.6)\
+				.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)
+	else:
+		if _highlight_tween and _highlight_tween.is_valid():
+			_highlight_tween.kill()
+		_highlight_tween = null
+		_material.set_shader_parameter("outline", 0.0)
+		_material.set_shader_parameter("outline_width", 0.035)
+
+
+func _apply_outline_pulse(v: float) -> void:
+	if _material:
+		_material.set_shader_parameter("outline_width", v)
+
+
+## Short red flash when the eraser rejects a block (not deletable).
+func _flash_rejected() -> void:
+	if _material == null:
+		return
+	var tween := create_tween()
+	tween.tween_method(
+		func(a: float): _material.set_shader_parameter("albedo_color", Color(0.9, 0.25, 0.2).lerp(block_color, a)),
+		0.0, 1.0, 0.3)
 
 
 func _tween_to(target: Vector3) -> void:

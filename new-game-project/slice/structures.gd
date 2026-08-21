@@ -333,7 +333,7 @@ static func _great_wall() -> Dictionary:
 		_col(-1, 1, 2, 1, "brick"), _col(1, 1, 2, 1, "brick"),   # crenellations
 		_col(2, 0, 0, 1, "brick"), _col(2, 0, 1, 1, "brick"),    # wall east
 		_col(-2, 0, 0, 1, "brick"), _col(-2, 0, 1, 1, "brick"),  # wall west
-		_col(2, 1, 2, 1, "banner"),                              # the banner
+		_col(2, 1, 1, 1, "banner"),                              # the banner, atop the east wall
 	])
 	return {
 		"id": "wall",

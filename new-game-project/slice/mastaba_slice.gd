@@ -9,7 +9,7 @@ const STRUCTS = preload("res://slice/structures.gd")
 const PIECES = preload("res://slice/pieces.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 9
+const BUILD_NO := 10
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -408,13 +408,18 @@ func _build_hud() -> void:
 	debug_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
 	debug_dim.color = Color(0, 0, 0, 0.72)
 	_debug_panel.add_child(debug_dim)
+	# Tapping the dim (outside the card) dismisses the number pad only.
+	debug_dim.gui_input.connect(func(event: InputEvent):
+		if event is InputEventScreenTouch and (event as InputEventScreenTouch).pressed:
+			DisplayServer.virtual_keyboard_hide())
 
+	# Centered card, high enough that the iOS number pad never covers it.
 	var debug_card := PanelContainer.new()
-	debug_card.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	debug_card.offset_left = 40
-	debug_card.offset_right = -40
-	debug_card.offset_top = TRAY_TOP - 660
-	debug_card.offset_bottom = TRAY_TOP - 40
+	debug_card.set_anchors_preset(Control.PRESET_CENTER)
+	debug_card.offset_left = -340
+	debug_card.offset_right = 340
+	debug_card.offset_top = -330
+	debug_card.offset_bottom = 330
 	debug_card.add_theme_stylebox_override("panel", _panel_style(Color(0.13, 0.13, 0.2, 0.97)))
 	_debug_panel.add_child(debug_card)
 
@@ -448,21 +453,35 @@ func _build_hud() -> void:
 	jump_btn.add_theme_font_size_override("font_size", 32)
 	jump_btn.pressed.connect(_on_debug_jump)
 	debug_box.add_child(jump_btn)
+	# Enter on a full keyboard also jumps.
+	_level_input.text_submitted.connect(func(_t: String): _on_debug_jump())
 
 	var debug_restart := Button.new()
 	debug_restart.text = "↺ Restart current structure"
-	debug_restart.custom_minimum_size = Vector2(0, 88)
+	debug_restart.custom_minimum_size = Vector2(0, 84)
 	debug_restart.add_theme_font_size_override("font_size", 32)
 	debug_restart.pressed.connect(func():
+		DisplayServer.virtual_keyboard_hide()
 		_clear_save()
 		_restart_arc())
 	debug_box.add_child(debug_restart)
 
+	var done_btn := Button.new()
+	done_btn.text = "✓ Done"
+	done_btn.custom_minimum_size = Vector2(0, 84)
+	done_btn.add_theme_font_size_override("font_size", 32)
+	done_btn.pressed.connect(func():
+		DisplayServer.virtual_keyboard_hide()
+		_debug_panel.visible = false)
+	debug_box.add_child(done_btn)
+
 	var debug_close := Button.new()
 	debug_close.text = "✕ Close"
-	debug_close.custom_minimum_size = Vector2(0, 88)
+	debug_close.custom_minimum_size = Vector2(0, 84)
 	debug_close.add_theme_font_size_override("font_size", 32)
-	debug_close.pressed.connect(func(): _debug_panel.visible = false)
+	debug_close.pressed.connect(func():
+		DisplayServer.virtual_keyboard_hide()
+		_debug_panel.visible = false)
 	debug_box.add_child(debug_close)
 
 	debug_btn.pressed.connect(func():
@@ -471,7 +490,8 @@ func _build_hud() -> void:
 		_message_card.visible = false
 		_epilogue_card.visible = false
 		_skip_btn.visible = false
-		_debug_panel.visible = true)
+		_debug_panel.visible = true
+		_level_input.grab_focus())
 
 	# --- Palette tray (bottom, raised above home indicator) ---
 	var tray := PanelContainer.new()
@@ -753,6 +773,7 @@ func _on_block_placed(pos: Vector3i, color_name: String) -> void:
 		_update_progress()
 		_check_beat_complete()
 		_save_game()
+		_update_erase_highlights()
 	else:
 		# Wrong cell/material: flash red and remove.
 		var block := _find_block_at(pos)
@@ -787,6 +808,7 @@ func _on_paint_requested(pos: Vector3i, color_name: String) -> void:
 	_update_progress()
 	_check_beat_complete()
 	_save_game()
+	_update_erase_highlights()
 
 
 func _find_block_at(pos: Vector3i) -> SliceBlock:
@@ -802,6 +824,7 @@ func _on_block_removed(pos: Vector3i) -> void:
 	_refresh_ghosts()
 	_update_progress()
 	_save_game()
+	_update_erase_highlights()
 
 
 func _check_beat_complete() -> void:
@@ -1275,6 +1298,7 @@ func _on_debug_jump() -> void:
 	if target < 1 or target > count:
 		_level_input.text = str(_structure_index + 1)
 		return
+	DisplayServer.virtual_keyboard_hide()
 	_debug_panel.visible = false
 	_load_structure(target - 1)
 
@@ -1293,6 +1317,14 @@ func set_tool(tool: Tool) -> void:
 	# Propagate to live blocks so gestures are gated correctly.
 	for block in get_tree().get_nodes_in_group("slice_blocks"):
 		(block as SliceBlock).current_tool = current_tool
+	_update_erase_highlights()
+
+
+## Erase mode: pulse an outline on every currently-deletable block.
+func _update_erase_highlights() -> void:
+	for block in get_tree().get_nodes_in_group("slice_blocks"):
+		(block as SliceBlock).set_deletable_highlight(
+			current_tool == Tool.ERASER and block._is_deletable())
 
 
 func _on_tool_pressed(tool: Tool, _btn: Button) -> void:
@@ -1486,6 +1518,7 @@ func _on_piece_placed(origin: Vector3i, cells: Array, color_name: String) -> voi
 		_update_progress()
 		_check_beat_complete()
 		_save_game()
+		_update_erase_highlights()
 	else:
 		var block := _find_block_at(origin)
 		if block:
@@ -1503,6 +1536,7 @@ func _on_piece_removed(cells: Array) -> void:
 	_refresh_ghosts()
 	_update_progress()
 	_save_game()
+	_update_erase_highlights()
 
 
 ## Projects a screen point onto the camera-facing drag plane (same plane the
