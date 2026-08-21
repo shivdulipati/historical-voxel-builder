@@ -9,7 +9,7 @@ const STRUCTS = preload("res://slice/structures.gd")
 const PIECES = preload("res://slice/pieces.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 12
+const BUILD_NO := 13
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -25,8 +25,8 @@ const BEAT_TITLE := {
 ## iPhone notch safe-area: all top UI starts below this (design px, portrait 1080x1920).
 const SAFE_TOP := 150.0
 ## Bottom tray sits clear of the home indicator / app-switcher gesture zone.
-const TRAY_BOTTOM := -90.0
-const TRAY_TOP := -250.0
+const TRAY_BOTTOM := -70.0
+const TRAY_TOP := -270.0
 
 var current_beat: Beat = Beat.RAISING
 var scaffold_mode: Scaffold = Scaffold.GHOST
@@ -60,6 +60,10 @@ var _fill: DirectionalLight3D
 var _touch_points := {}
 var _last_pinch_distance := 0.0
 var _last_pan_midpoint := Vector2.ZERO
+## Touch indices that pressed inside the bottom tray: their drags must NEVER
+## orbit the camera (a finger aiming for a swatch may land on tray margin).
+var _tray_locked_touches := {}
+var _tray: PanelContainer
 var _default_cam_rot := Vector3(-0.45, 0.8, 0.0)
 var _is_orbiting := false
 
@@ -502,6 +506,7 @@ func _build_hud() -> void:
 	tray.offset_bottom = TRAY_BOTTOM
 	tray.add_theme_stylebox_override("panel", _panel_style(Color(0.12, 0.12, 0.18, 0.92)))
 	root.add_child(tray)
+	_tray = tray
 
 	_swatch_box = HBoxContainer.new()
 	_swatch_box.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1354,7 +1359,7 @@ func _rebuild_palette() -> void:
 	_current_swatch = _palette[0]
 	for color_name in _palette:
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(150, 96)
+		btn.custom_minimum_size = Vector2(200, 108)
 		btn.text = color_name.replace("_", " ")
 		btn.add_theme_font_size_override("font_size", 20)
 		var sb := StyleBoxFlat.new()
@@ -1379,7 +1384,7 @@ func _rebuild_palette() -> void:
 	var beat_no := current_beat + 1
 	for pd in _st.get("beat_pieces", {}).get(beat_no, []):
 		var pbtn := Button.new()
-		pbtn.custom_minimum_size = Vector2(170, 96)
+		pbtn.custom_minimum_size = Vector2(200, 108)
 		pbtn.text = PIECES.pieces()[pd["id"]]["name"]
 		pbtn.add_theme_font_size_override("font_size", 20)
 		var sb := StyleBoxFlat.new()
@@ -1654,16 +1659,22 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			_touch_points[event.index] = event.position
+			# A press inside the bottom tray never becomes a camera-orbit
+			# drag, even if it misses every swatch (margin touches happen).
+			if _tray and _tray.get_global_rect().has_point(event.position):
+				_tray_locked_touches[event.index] = true
 		else:
 			_touch_points.erase(event.index)
+			_tray_locked_touches.erase(event.index)
 			_last_pinch_distance = 0.0
 			_last_pan_midpoint = Vector2.ZERO
 
 	# One-finger drag orbits the camera — the DEFAULT rotate gesture, always
 	# available except while a block/piece owns a finger (drag from tray,
-	# long-press pickup, armed tray finger). Magnetic snap into perfect
-	# Top / Front / Side views (~5° margin) is retained.
-	if event is InputEventScreenDrag and _touch_points.size() <= 1 and not _any_block_grabbing():
+	# long-press pickup, armed tray finger) or the finger pressed in the tray.
+	# Magnetic snap into perfect Top / Front / Side views (~5° margin) stays.
+	if event is InputEventScreenDrag and _touch_points.size() <= 1 \
+			and not _any_block_grabbing() and not _tray_locked_touches.has(event.index):
 		var drag := event as InputEventScreenDrag
 		_pivot.rotation.y -= drag.relative.x * 0.005
 		_pivot.rotation.x = clampf(_pivot.rotation.x - drag.relative.y * 0.005, -PI / 2.0, 0.02)
