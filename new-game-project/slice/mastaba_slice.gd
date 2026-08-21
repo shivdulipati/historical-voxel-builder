@@ -9,7 +9,7 @@ const STRUCTS = preload("res://slice/structures.gd")
 const PIECES = preload("res://slice/pieces.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 13
+const BUILD_NO := 14
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -26,7 +26,7 @@ const BEAT_TITLE := {
 const SAFE_TOP := 150.0
 ## Bottom tray sits clear of the home indicator / app-switcher gesture zone.
 const TRAY_BOTTOM := -70.0
-const TRAY_TOP := -270.0
+const TRAY_TOP := -340.0
 
 var current_beat: Beat = Beat.RAISING
 var scaffold_mode: Scaffold = Scaffold.GHOST
@@ -504,7 +504,12 @@ func _build_hud() -> void:
 	tray.offset_right = -12
 	tray.offset_top = TRAY_TOP
 	tray.offset_bottom = TRAY_BOTTOM
-	tray.add_theme_stylebox_override("panel", _panel_style(Color(0.12, 0.12, 0.18, 0.92)))
+	var tray_sb := _panel_style(Color(0.12, 0.12, 0.18, 0.92))
+	tray_sb.content_margin_top = 36
+	tray_sb.content_margin_bottom = 36
+	tray_sb.content_margin_left = 20
+	tray_sb.content_margin_right = 20
+	tray.add_theme_stylebox_override("panel", tray_sb)
 	root.add_child(tray)
 	_tray = tray
 
@@ -736,11 +741,11 @@ func _start_beat(beat: Beat) -> void:
 	match beat:
 		Beat.RAISING:
 			build_target = _st["core"].duplicate()
-			_palette = _unique_materials(build_target)
+			_palette = _level_materials()
 			_show_message(_st["beat1_msg"], 2.2)
 		Beat.RESTORATION:
 			build_target = _st["zenith"].duplicate()
-			_palette = _unique_materials(build_target)
+			_palette = _level_materials()
 			_show_message(_st["beat2_msg"], 2.6)
 		Beat.DECAY:
 			_run_decay()
@@ -766,6 +771,15 @@ func _unique_materials(cells: Dictionary) -> Array[String]:
 		if not out.has(mat):
 			out.append(mat)
 	return out
+
+
+## Every material the level uses across BOTH build beats (core ∪ zenith), in
+## first-appearance order. The tray always offers all of them: a block that
+## can be deleted in any phase can always be re-placed — no deadlocks.
+func _level_materials() -> Array[String]:
+	var all: Dictionary = _st["core"].duplicate()
+	all.merge(_st["zenith"])
+	return _unique_materials(all)
 
 
 func _on_block_placed(pos: Vector3i, color_name: String) -> void:
@@ -998,7 +1012,7 @@ func _restore_beat(beat: Beat) -> void:
 			build_target = _st["zenith"].duplicate()
 		Beat.EXCAVATION:
 			build_target = {}
-	_palette = _unique_materials(build_target)
+	_palette = _level_materials() if not build_target.is_empty() else []
 	_rebuild_palette()
 	_refresh_ghosts()
 	_update_progress()
@@ -1359,7 +1373,11 @@ func _rebuild_palette() -> void:
 	_current_swatch = _palette[0]
 	for color_name in _palette:
 		var btn := Button.new()
-		btn.custom_minimum_size = Vector2(200, 108)
+		# Smaller than the tray on purpose: the block must read as a piece
+		# INSIDE the tray, not as the tray itself — the eye grabs the block,
+		# the locked tray margin catches the miss.
+		btn.custom_minimum_size = Vector2(160, 96)
+		btn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		btn.text = color_name.replace("_", " ")
 		btn.add_theme_font_size_override("font_size", 20)
 		var sb := StyleBoxFlat.new()
@@ -1380,11 +1398,15 @@ func _rebuild_palette() -> void:
 		btn.gui_input.connect(_on_swatch_gui_input.bind(color_name, btn))
 		_swatch_box.add_child(btn)
 
-	# Multi-cell pieces for this beat (e.g. T-Cap, Roof Slab) — first in the tray.
-	var beat_no := current_beat + 1
-	for pd in _st.get("beat_pieces", {}).get(beat_no, []):
+	# Multi-cell pieces used ANYWHERE in the level — offered in every phase,
+	# same rule as materials: a piece removed in any beat can be re-placed.
+	var all_pieces: Array = []
+	for b in _st.get("beat_pieces", {}):
+		all_pieces.append_array(_st["beat_pieces"][b])
+	for pd in all_pieces:
 		var pbtn := Button.new()
-		pbtn.custom_minimum_size = Vector2(200, 108)
+		pbtn.custom_minimum_size = Vector2(160, 96)
+		pbtn.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 		pbtn.text = PIECES.pieces()[pd["id"]]["name"]
 		pbtn.add_theme_font_size_override("font_size", 20)
 		var sb := StyleBoxFlat.new()
