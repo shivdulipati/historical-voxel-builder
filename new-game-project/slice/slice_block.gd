@@ -37,6 +37,10 @@ var drag_plane_center := Vector3(0.0, 1.5, 0.0)
 
 var is_dragging := false
 var is_placed := false
+## Painted (parked) cells: erase works on them, but they can never be picked
+## up or dragged — repaint to change. Kept in slice_blocks so tool state,
+## erase highlights and occupancy all see them.
+var is_parked := false
 var camera: Camera3D
 var drag_plane := Plane(Vector3.UP, Vector3.ZERO)
 var block_color := Color.WHITE
@@ -481,7 +485,7 @@ func _physics_process(delta: float) -> void:
 	# the same rule applies: nothing above, support beneath. Otherwise a
 	# support block could be dragged out from under a stack, leaving the
 	# blocks above floating forever (the real Great Wall banner bug).
-	if is_placed and _is_pressing:
+	if is_placed and _is_pressing and not is_parked:
 		var elapsed := (Time.get_ticks_msec() / 1000.0) - _touch_start_time
 		if elapsed > 0.3:
 			if _is_deletable():
@@ -552,7 +556,8 @@ func _on_input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 		return
 
 	# ERASER tool: a press on a placed block removes it — only if it is
-	# deletable (supported below, nothing stacked above it).
+	# deletable (supported below, nothing stacked above it). Works on parked
+	# (painted) blocks too.
 	var is_press: bool = (event is InputEventScreenTouch and event.pressed) \
 		or (event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed)
 	if is_placed and is_press and current_tool == 2:
@@ -562,6 +567,10 @@ func _on_input_event(_camera: Camera3D, event: InputEvent, _position: Vector3, _
 		else:
 			Input.vibrate_handheld(80)
 			_flash_rejected()
+		return
+
+	# Parked cells answer ONLY to the eraser — never drag, never long-press.
+	if is_parked:
 		return
 
 	if event is InputEventScreenTouch and event.pressed:

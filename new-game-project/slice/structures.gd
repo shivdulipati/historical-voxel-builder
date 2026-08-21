@@ -82,7 +82,7 @@ static func _gobekli() -> Dictionary:
 			_col(-2, 0, 0, 1, "weathered"), _col(2, 0, 0, 1, "weathered"),
 			_col(0, -1, 0, 1, "weathered"),
 		]),
-		"limits": Vector3(2.0, 3.0, 2.0),
+		"limits": Vector3(3.0, 3.0, 2.0),
 		"beat1_msg": "Set the first stones of the oldest temple on earth.",
 		"beat2_msg": "The pillars stand.\nSet their T-caps — the heads of the forgotten gods.",
 		"epilogue": [
@@ -417,8 +417,8 @@ static func _colosseum() -> Dictionary:
 	])
 	var zenith := _merge([
 		_col(-2, -1, 2, 1, "travertine"), _col(2, -1, 2, 1, "travertine"),
-		_col(-2, 1, 2, 1, "travertine"), _col(2, 1, 2, 1, "travertine"),
-		_col(-1, 0, 2, 1, "travertine"), _col(1, 0, 2, 1, "travertine"),  # upper seating
+		_col(-2, 0, 2, 1, "travertine"), _col(2, 0, 2, 1, "travertine"),
+		_col(-2, 1, 2, 1, "travertine"), _col(2, 1, 2, 1, "travertine"),  # upper seating, above the ring walls
 	])
 	return {
 		"id": "colosseum",
@@ -428,7 +428,7 @@ static func _colosseum() -> Dictionary:
 		"zenith": zenith,
 		"survivor": _merge([
 			_ring(-2, 2, -1, 1, 0, "weathered"),
-			_ring(-1, 1, 0, 0, 1, "weathered"),
+			_ring(-1, 1, 0, 0, 0, "weathered"),
 		]),
 		"limits": Vector3(2.0, 3.0, 1.0),
 		"beat1_msg": "The arena of an empire — begin the great ring.",

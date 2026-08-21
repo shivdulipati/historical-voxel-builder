@@ -9,7 +9,9 @@ func _ready() -> void:
 	var slice := SliceScene.instantiate()
 	add_child(slice)
 	await get_tree().process_frame
-	# Göbekli (index 0): limits (2,3,2).
+	# Pin to Göbekli regardless of any save left by earlier test runs.
+	slice._load_structure(0)
+	await get_tree().process_frame
 	# Stack column A at x=1: (1,0,0),(1,1,0),(1,2,0).
 	var stack := []
 	for y in range(3):
@@ -68,6 +70,23 @@ func _ready() -> void:
 	stack[2].queue_free()
 	await get_tree().physics_frame
 	check.call("stack middle after top removed", stack[1]._is_deletable(), true)
+
+	# --- Paint + erase connection (BUILD 12) ---
+	# A painted cell must be visible to Erase: in slice_blocks, deletable,
+	# and clearing it removes the completed cell.
+	slice._on_paint_requested(Vector3i(-2, 0, 0), "limestone")
+	await get_tree().physics_frame
+	var parked = null
+	for blk in get_tree().get_nodes_in_group("slice_blocks"):
+		if blk.is_parked and blk.current_grid_position == Vector3i(-2, 0, 0):
+			parked = blk
+	check.call("painted cell found in slice_blocks", parked != null, true)
+	if parked:
+		check.call("painted cell deletable", parked._is_deletable(), true)
+		parked._emit_removed()
+		parked.queue_free()
+		await get_tree().physics_frame
+		check.call("painted cell cleared from completed", not slice.completed_cells.has(Vector3i(-2, 0, 0)), true)
 
 	print("ERASE-TEST: ", "ALL PASS" if fails[0] == 0 else "%d FAIL" % fails[0])
 	get_tree().quit()

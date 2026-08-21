@@ -9,7 +9,7 @@ const STRUCTS = preload("res://slice/structures.gd")
 const PIECES = preload("res://slice/pieces.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 11
+const BUILD_NO := 12
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -791,8 +791,9 @@ func _on_paint_requested(pos: Vector3i, color_name: String) -> void:
 	if not build_target.has(pos) or build_target[pos] != color_name or completed_cells.has(pos):
 		return
 	# Spawn a parked block at the painted cell. It must STAY physics-solid so
-	# later layers stack on top of it (the stack-height ray depends on it) —
-	# only input is disabled, so it can't be grabbed or dragged.
+	# later layers stack on top of it (the stack-height ray depends on it),
+	# and it stays in slice_blocks so Erase sees it (highlight + removal).
+	# is_parked locks out pickup/drag — repaint to change a painted cell.
 	var block := SliceBlock.new()
 	add_child(block)
 	block.limit_x = _st["limits"].x
@@ -800,8 +801,9 @@ func _on_paint_requested(pos: Vector3i, color_name: String) -> void:
 	block.limit_y = _st["limits"].y
 	block.current_tool = current_tool
 	block.place_at(pos, _st["colors"][color_name], color_name)
-	block.remove_from_group("slice_blocks")
-	block.input_ray_pickable = false
+	block.is_parked = true
+	# Erase must reach the controller: removal clears the completed cell.
+	block.removed.connect(_on_block_removed)
 	completed_cells[pos] = color_name
 	Input.vibrate_handheld(20)
 	_refresh_ghosts()
