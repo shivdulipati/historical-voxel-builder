@@ -134,7 +134,11 @@ func _load_structure(index: int) -> void:
 
 	_top_label.text = _st["site_era"]
 	if _diorama != null:
-		_diorama.build(_st["id"], _floor_mesh)
+		# Clear zone: baseplate limits + 1-tile perimeter (diorama keeps this
+		# ring prop-free so the build stays readable from any orbit).
+		var lim: Vector3 = _st["limits"]
+		var clear_rect := Rect2(-(lim.x + 1.0), -(lim.z + 1.0), 2.0 * (lim.x + 1.0), 2.0 * (lim.z + 1.0))
+		_diorama.build(_st["id"], _floor_mesh, clear_rect)
 	_restart_arc()
 
 
@@ -163,7 +167,7 @@ func _build_world() -> void:
 	add_child(_sun)
 	_sun.look_at(Vector3.ZERO)
 	_sun.light_color = Color("#FFF2D0")
-	_sun.light_energy = 1.4
+	_sun.light_energy = 1.15
 
 	# --- Soft ambient fill ---
 	_fill = DirectionalLight3D.new()
@@ -171,8 +175,8 @@ func _build_world() -> void:
 	_fill.position = Vector3(-4, 6, -6)
 	add_child(_fill)
 	_fill.look_at(Vector3.ZERO)
-	_fill.light_color = Color("#C8D8F0")
-	_fill.light_energy = 0.5
+	_fill.light_color = Color("#EADFC0")
+	_fill.light_energy = 0.4
 
 	# --- Environment (warm sky) ---
 	var env := WorldEnvironment.new()
@@ -186,7 +190,7 @@ func _build_world() -> void:
 	environment.sky = Sky.new()
 	environment.sky.sky_material = sky
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	environment.ambient_light_energy = 0.6
+	environment.ambient_light_energy = 0.5
 	env.environment = environment
 	add_child(env)
 
@@ -890,7 +894,7 @@ func _check_beat_complete() -> void:
 func _flourish() -> void:
 	var tween := create_tween()
 	tween.set_parallel(true)
-	tween.tween_property(_sun, "light_energy", 1.9, 1.0)
+	tween.tween_property(_sun, "light_energy", 1.55, 1.0)
 	tween.tween_property(_camera, "size", _camera.size + 1.5, 1.2)\
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	tween.chain().tween_property(_camera, "size", _base_cam_size, 1.0)
@@ -1289,7 +1293,7 @@ func _view_atlas_state(state: String) -> void:
 		completed_cells[pos] = color_name
 
 	# Restore light + camera, then auto-orbit.
-	_sun.light_energy = 1.6
+	_sun.light_energy = 1.3
 	_sun.light_color = Color("#FFF2D0")
 	_pivot.rotation = _default_cam_rot
 	_beat_label.text = "MEMORY ATLAS — %s" % ("ZENITH" if state == "zenith" else "TODAY")
@@ -1307,7 +1311,7 @@ func _restore_build_view() -> void:
 	else:
 		# Arc finished: nothing left to restore — show the mound/site state.
 		_pivot.rotation = _default_cam_rot
-		_sun.light_energy = 1.4
+		_sun.light_energy = 1.15
 		_sun.light_color = Color("#FFF2D0")
 		_beat_label.text = BEAT_TITLE[current_beat]
 

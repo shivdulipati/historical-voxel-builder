@@ -1,53 +1,92 @@
 extends Node3D
-## diorama.gd — static environmental stage per structure: ground tint + props
-## (Kenney CC0 packs). Props are pure visuals: no physics, no collision, no
-## group membership — they can never interfere with placement or erasing.
+## diorama.gd — static environmental stage per structure: ground tint + floor
+## texture tiles + dense prop scatter. Props are pure visuals: no physics, no
+## collision, no group membership — they can never interfere with placement.
+##
+## Design rules (from playtest direction):
+##  * AWE — the structure is the hero. Props read SMALL around it (real-world
+##    relative scale vs the stylized builds). Per-prop "s" overrides tune one
+##    object without touching the global table.
+##  * BUSY — the floor carries texture (Kenney 1×1 ground tiles, grid-aligned
+##    to the voxel cells) and the area is densely scattered out to ~3 phone
+##    widths of view at normal zoom, so future large structures fit.
+##  * CLEAR RING — a 1-tile perimeter around the baseplate stays free of props
+##    (floor texture continues); the build stays readable.
+##  * TRUE COLORS — models import with their own vertex colors. A warm filter
+##    tames Kenney's neon-teal foliage (fronds read olive in desert light);
+##    remove FOLIAGE_TINT for the pure pack palette.
 
 const NATURE := "res://art/nature/"
 
-## Kenney models are built small vs the 1-unit voxel (measured via art/measure):
-## a palm is 1.36 units raw. These scales bring each model to its intended
-## read: palm ~6 blocks tall, boulder ~1 block, obelisk ~3 blocks.
+## Kenney models are built small vs the 1-unit voxel (measured via art/measure).
+## Awe rule: structures dominate — palm ≈ 3 blocks, boulder ≈ 1 block.
 const MODEL_SCALE := {
-	"tree_palmTall": 4.5, "tree_palmShort": 4.5, "tree_palmDetailedTall": 4.5,
-	"tree_palmBend": 4.5, "tree_oak": 4.0, "tree_pineTallA": 4.0,
-	"rock_largeA": 2.6, "rock_largeB": 2.6, "rock_smallA": 3.0,
-	"rock_smallFlatA": 3.0, "stone_smallA": 3.0, "stone_smallFlatA": 3.0,
-	"stone_tallA": 1.1, "grass": 1.5, "grass_large": 1.5, "flower_redA": 2.0,
-	"plant_bush": 2.2, "log": 1.5, "statue_obelisk": 3.5, "statue_column": 3.0,
-	"mushroom_red": 1.5, "stump_round": 1.6,
+	"tree_palmTall": 3.0, "tree_palmShort": 3.0, "tree_palmDetailedTall": 3.0,
+	"tree_palmBend": 3.0, "tree_oak": 2.6, "tree_pineTallA": 2.6,
+	"rock_largeA": 1.8, "rock_largeB": 1.8, "rock_smallA": 2.2,
+	"rock_smallFlatA": 2.2, "stone_smallA": 2.2, "stone_smallFlatA": 2.2,
+	"stone_tallA": 1.0, "grass": 1.3, "grass_large": 1.3, "flower_redA": 1.5,
+	"flower_yellowA": 1.5, "plant_bush": 1.6, "plant_bushSmall": 1.6,
+	"log": 1.3, "log_stack": 1.3, "statue_obelisk": 3.0, "statue_column": 2.6,
+	"mushroom_red": 1.4, "stump_round": 1.4, "tent_smallClosed": 1.5,
+	"campfire_stones": 1.6, "cactus_short": 1.8, "lily_small": 1.5,
 }
 
-## Per-structure stage config. Props sit outside the build footprint (limits
-## have a 1-cell margin; everything here is beyond it). y=0 always.
+## Warm khaki filter for Kenney's teal foliage (vertex-color multiply).
+const FOLIAGE_TINT := Color(0.82, 0.78, 0.58)
+## Shade filter for ALL diorama materials: the game light rig is hot (sun +
+## fill + sky ambient ≈ 2×), which blows mid-grey albedos to white. Scaling
+## down keeps floor tiles + props in readable contrast against the sand.
+const SHADE := 0.68
+const FOLIAGE_MODELS := [
+	"tree_palm", "tree_oak", "tree_pine", "grass", "plant_bush", "crops",
+	"tree_default", "tree_small", "tree_tall", "tree_thin", "tree_fat",
+	"tree_blocks", "tree_cone", "tree_plateau", "tree_detailed", "tree_simple",
+]
+
+## Per-structure stage config.
+##  * tiles: floor-texture mosaic from 1×1 ground tiles (grid-aligned).
+##    w = relative weight, smin/smax = tile scale range (tile covers 2-3 cells).
+##  * props: {m model, n count, rmin/rmax ring band, s optional per-prop
+##    scale multiplier, avoid optional angle arc (deg, camera-ward) for tall props}.
 const DIORAMAS := {
 	"mastaba": {
 		"ground_color": Color("#D9C089"),
+		"tiles": [
+			{"m": "ground_pathRocks",    "w": 5, "smin": 2.0, "smax": 3.5},
+			{"m": "ground_pathStraight", "w": 3, "smin": 2.0, "smax": 3.0},
+			{"m": "ground_grass",        "w": 1, "smin": 2.0, "smax": 3.0},
+		],
+		"tile_count": 80,
 		"props": [
-			# Camera rig: _default_cam_rot (-0.45, 0.8, 0) puts the camera NE of
-			# the baseplate (~10, 6.5, 9.75) looking at the origin. Foreground =
-			# toward NE (avoid); backdrop = far arc NW→S→SE (angles 120°-300°).
-			# Visible ground rect has half-diagonal ~7.9 → palms at r 7.5-9 poke
-			# into the frame edges; rocks at r 4-5 read as mid-ground scatter.
-			{"m": "tree_palmTall",         "p": Vector3(-8.5, 0, -6.5), "r": 2.4},
-			{"m": "tree_palmDetailedTall", "p": Vector3(-9.5, 0, -1.5), "r": 0.9},
-			{"m": "tree_palmBend",         "p": Vector3(4.0, 0, -8.2),   "r": -0.5},
-			{"m": "tree_palmShort",        "p": Vector3(-3.2, 0, -8.6),  "r": -1.8},
-			{"m": "rock_largeB",           "p": Vector3(-4.6, 0, 4.4),   "r": 0.8},
-			{"m": "rock_largeA",           "p": Vector3(4.4, 0, -4.6),   "r": 2.0},
-			{"m": "rock_smallA",           "p": Vector3(4.6, 0, 3.4),    "r": 2.4},
-			{"m": "stone_smallFlatA",      "p": Vector3(2.6, 0, 3.6),    "r": 1.1},
-			{"m": "stone_smallA",          "p": Vector3(-3.4, 0, 4.8),   "r": 0.3},
-			{"m": "rock_smallFlatA",       "p": Vector3(-4.4, 0, -4.4),  "r": 1.7},
-			{"m": "plant_bush",            "p": Vector3(-2.8, 0, -4.4),  "r": 0.5},
+			# Tall silhouettes on the far arc only (camera sits NE ≈ 44°).
+			{"m": "tree_palmTall",         "n": 3, "rmin": 9.0, "rmax": 20.0, "avoid": Vector2(15, 75)},
+			{"m": "tree_palmBend",         "n": 2, "rmin": 9.0, "rmax": 17.0, "avoid": Vector2(15, 75)},
+			{"m": "tree_palmShort",        "n": 1, "rmin": 7.0, "rmax": 8.5,  "avoid": Vector2(15, 75)},
+			# Mid-ground scatter just outside the clear ring — visible framing.
+			{"m": "rock_largeB",           "n": 7, "rmin": 4.5, "rmax": 13.0},
+			{"m": "rock_smallA",           "n": 10, "rmin": 4.5, "rmax": 11.0},
+			{"m": "stone_smallFlatA",      "n": 8, "rmin": 4.5, "rmax": 10.0},
+			{"m": "stone_smallA",          "n": 5, "rmin": 4.5, "rmax": 10.0},
+			{"m": "plant_bush",            "n": 7, "rmin": 4.5, "rmax": 12.0},
+			{"m": "plant_bushSmall",       "n": 4, "rmin": 4.5, "rmax": 11.0},
+			{"m": "grass",                 "n": 18, "rmin": 4.5, "rmax": 16.0},
+			{"m": "flower_yellowA",        "n": 6, "rmin": 4.5, "rmax": 12.0},
+			{"m": "flower_redA",           "n": 3, "rmin": 5.0, "rmax": 11.0},
+			{"m": "cactus_short",          "n": 3, "rmin": 5.0, "rmax": 11.0},
+			{"m": "stump_round",           "n": 2, "rmin": 5.0, "rmax": 11.0},
+			{"m": "log",                   "n": 2, "rmin": 5.0, "rmax": 11.0},
+			# Workmen's camp — a small human story at the tomb site.
+			{"m": "tent_smallClosed",      "n": 1, "rmin": 7.0, "rmax": 9.0, "avoid": Vector2(15, 75)},
+			{"m": "campfire_stones",       "n": 1, "rmin": 7.0, "rmax": 9.0, "avoid": Vector2(15, 75)},
 		],
 	},
 }
 
 
-## Build (or rebuild) the stage for a structure. floor_mesh is the shared sand
-## floor; its tint becomes the per-level ground color.
-func build(structure_id: String, floor_mesh: MeshInstance3D) -> void:
+## Build (or rebuild) the stage. clear_rect = no-prop zone in x/z (baseplate
+## limits + 1-tile perimeter, from the slice). floor_mesh tint = ground color.
+func build(structure_id: String, floor_mesh: MeshInstance3D, clear_rect: Rect2) -> void:
 	for child in get_children():
 		child.queue_free()
 	var cfg: Dictionary = DIORAMAS.get(structure_id, {})
@@ -57,14 +96,115 @@ func build(structure_id: String, floor_mesh: MeshInstance3D) -> void:
 		var mat: StandardMaterial3D = floor_mesh.material_override
 		if mat != null:
 			mat.albedo_color = cfg["ground_color"]
-	for pr in cfg["props"]:
-		var model_name: String = pr["m"]
-		var path := NATURE + model_name + ".glb"
-		if not ResourceLoader.exists(path):
-			push_warning("diorama: missing model " + path)
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = structure_id.hash()
+
+	# Floor texture mosaic: 1×1 ground tiles scaled to cover 2-3 cells each,
+	# anywhere except directly under the baseplate grid (limits rect).
+	if cfg.has("tiles") and cfg.has("tile_count"):
+		var limits_rect := Rect2(
+			clear_rect.position + Vector2.ONE,
+			clear_rect.size - Vector2(2, 2))
+		_place_tiles(cfg, rng, limits_rect)
+	_place_props(cfg, rng, clear_rect)
+
+
+func _place_tiles(cfg: Dictionary, rng: RandomNumberGenerator, limits_rect: Rect2) -> void:
+	var tiles: Array = cfg["tiles"]
+	var total_w := 0
+	for t in tiles:
+		total_w += int(t["w"])
+	var count := int(cfg["tile_count"])
+	for i in count:
+		var pick: Dictionary = tiles[rng.randi_range(0, tiles.size() - 1)]
+		# Weighted pick.
+		var roll := rng.randi_range(1, total_w)
+		var acc := 0
+		for t in tiles:
+			acc += int(t["w"])
+			if roll <= acc:
+				pick = t
+				break
+		var ang: float = rng.randf_range(0.0, TAU)
+		var r: float = rng.randf_range(3.0, 24.0)
+		var pos := Vector3(cos(ang) * r, 0.0, sin(ang) * r)
+		if limits_rect.has_point(Vector2(pos.x, pos.z)):
 			continue
-		var inst: Node3D = (load(path) as PackedScene).instantiate()
-		inst.position = pr["p"]
-		inst.rotation = Vector3(0, float(pr.get("r", 0.0)), 0)
-		inst.scale = Vector3.ONE * float(MODEL_SCALE.get(model_name, 1.0))
+		var inst: Node3D = _spawn(pick["m"], rng, 1.0)
+		inst.position = pos + Vector3(0, 0.004 + rng.randf_range(0, 0.002), 0)
+		inst.rotation = Vector3(0, rng.randi_range(0, 1) * PI / 2.0, 0)
+		var s: float = rng.randf_range(float(pick["smin"]), float(pick["smax"]))
+		inst.scale = Vector3.ONE * s
 		add_child(inst)
+
+
+func _place_props(cfg: Dictionary, rng: RandomNumberGenerator, clear_rect: Rect2) -> void:
+	for entry in cfg["props"]:
+		var n := int(entry["n"])
+		var rmin := float(entry["rmin"])
+		var rmax := float(entry["rmax"])
+		var per_prop_scale := float(entry.get("s", 0.0))
+		var avoid: Vector2 = entry.get("avoid", Vector2(-999, -999))
+		# Keep mid-ground scatter just outside the clear ring; scales with the
+		# structure footprint so big levels get proportionally more room.
+		var rmin_eff := maxf(rmin, clear_rect.size.length() * 0.5 + 0.6)
+		for i in n:
+			for attempt in 24:
+				var ang: float = rng.randf_range(0.0, TAU)
+				var deg := rad_to_deg(ang)
+				if deg >= avoid.x and deg <= avoid.y:
+					continue
+				var r: float = rng.randf_range(rmin_eff, rmax)
+				var pos := Vector3(cos(ang) * r, 0.0, sin(ang) * r)
+				if clear_rect.has_point(Vector2(pos.x, pos.z)):
+					continue
+				var inst: Node3D = _spawn(entry["m"], rng, per_prop_scale)
+				inst.position = pos
+				add_child(inst)
+				break
+
+
+## Instantiate a model with global scale (× per-prop override) and the warm
+## foliage filter when the model name matches a foliage family.
+func _spawn(model_name: String, rng: RandomNumberGenerator, per_prop_scale: float) -> Node3D:
+	var path := NATURE + model_name + ".glb"
+	if not ResourceLoader.exists(path):
+		push_warning("diorama: missing model " + path)
+		return Node3D.new()
+	var inst: Node3D = (load(path) as PackedScene).instantiate()
+	inst.scale = Vector3.ONE * float(MODEL_SCALE.get(model_name, 1.0)) * per_prop_scale
+	inst.rotation = Vector3(0, rng.randf_range(0.0, TAU), 0)
+	_apply_tint(inst, model_name)
+	return inst
+
+
+func _apply_tint(inst: Node3D, model_name: String) -> void:
+	var is_foliage := false
+	for fam in FOLIAGE_MODELS:
+		if model_name.begins_with(fam):
+			is_foliage = true
+			break
+	var filter: Color = Color(SHADE, SHADE, SHADE)
+	if is_foliage:
+		filter = Color(
+			FOLIAGE_TINT.r * SHADE, FOLIAGE_TINT.g * SHADE, FOLIAGE_TINT.b * SHADE)
+	var stack: Array[Node3D] = [inst]
+	while not stack.is_empty():
+		var n: Node3D = stack.pop_back()
+		if n is MeshInstance3D:
+			var mi := n as MeshInstance3D
+			var mats: Array[Material] = []
+			if mi.material_override != null:
+				mats.append(mi.material_override)
+			if mi.mesh != null:
+				for s in mi.mesh.get_surface_count():
+					var m := mi.mesh.surface_get_material(s)
+					if m != null:
+						mats.append(m)
+			for m in mats:
+				if m is StandardMaterial3D and (m as StandardMaterial3D).vertex_color_use_as_albedo:
+					(m as StandardMaterial3D).albedo_color = filter
+		for child in n.get_children():
+			if child is Node3D:
+				stack.push_back(child)
