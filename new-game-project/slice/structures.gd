@@ -51,7 +51,26 @@ static func structures() -> Array[Dictionary]:
 		_great_wall(),
 		_parthenon(),
 		_colosseum(),
+		_diorama_debug(),
 	]
+
+
+## 10 · DIORAMA DEBUG — empty level that renders ONLY the environmental stage
+## (no build target, no baseplate, no floor, no HUD). For isolating diorama
+## prop rendering on device.
+static func _diorama_debug() -> Dictionary:
+	return {
+		"id": "diorama_debug",
+		"site_era": "DIORAMA DEBUG — stage only",
+		"colors": {},
+		"core": {},
+		"zenith": {},
+		"limits": Vector3(3.0, 3.0, 2.0),
+		"beat1_msg": "Stage-only debug view.",
+		"beat2_msg": "",
+		"excavation_msg": "",
+		"epilogue": [],
+	}
 
 
 ## --------------------------------------------------------------------------

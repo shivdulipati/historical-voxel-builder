@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://diodebug0001"]
+
+[ext_resource type="Script" path="res://slice/test_diorama_debug.gd" id="1_dbg"]
+
+[node name="TestDioramaDebug" type="Node"]
+script = ExtResource("1_dbg")

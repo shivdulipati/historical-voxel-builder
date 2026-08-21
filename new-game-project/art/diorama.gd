@@ -23,13 +23,13 @@ const NATURE := "res://art/nature/"
 const MODEL_SCALE := {
 	"tree_palmTall": 3.4, "tree_palmShort": 3.4, "tree_palmDetailedTall": 3.4,
 	"tree_palmBend": 3.4, "tree_oak": 2.8, "tree_pineTallA": 2.8,
-	"rock_largeA": 2.6, "rock_largeB": 2.6, "rock_smallA": 2.8,
-	"rock_smallFlatA": 3.0, "stone_smallA": 2.8, "stone_smallFlatA": 3.0,
-	"stone_tallA": 1.2, "grass": 1.8, "grass_large": 1.8, "flower_redA": 2.0,
-	"flower_yellowA": 2.0, "plant_bush": 2.3, "plant_bushSmall": 2.2,
-	"log": 1.5, "log_stack": 1.5, "statue_obelisk": 3.2, "statue_column": 2.8,
-	"mushroom_red": 1.6, "stump_round": 1.6, "tent_smallClosed": 1.7,
-	"campfire_stones": 1.8, "cactus_short": 2.2, "lily_small": 1.6,
+	"rock_largeA": 3.6, "rock_largeB": 3.6, "rock_smallA": 3.8,
+	"rock_smallFlatA": 4.0, "stone_smallA": 3.8, "stone_smallFlatA": 4.0,
+	"stone_tallA": 1.4, "grass": 2.6, "grass_large": 2.6, "flower_redA": 2.8,
+	"flower_yellowA": 2.8, "plant_bush": 3.2, "plant_bushSmall": 3.0,
+	"log": 2.0, "log_stack": 2.0, "statue_obelisk": 3.2, "statue_column": 2.8,
+	"mushroom_red": 2.2, "stump_round": 2.2, "tent_smallClosed": 2.2,
+	"campfire_stones": 2.4, "cactus_short": 3.0, "lily_small": 2.0,
 }
 
 ## Warm khaki filter for Kenney's teal foliage (vertex-color multiply).
@@ -53,11 +53,11 @@ const DIORAMAS := {
 	"mastaba": {
 		"ground_color": Color("#D9C089"),
 		"tiles": [
-			{"m": "ground_pathRocks",    "w": 5, "smin": 2.0, "smax": 3.5},
-			{"m": "ground_pathStraight", "w": 3, "smin": 2.0, "smax": 3.0},
-			{"m": "ground_grass",        "w": 1, "smin": 2.0, "smax": 3.0},
+			{"m": "ground_pathRocks",    "w": 5, "smin": 1.5, "smax": 2.5},
+			{"m": "ground_pathStraight", "w": 3, "smin": 1.5, "smax": 2.2},
+			{"m": "ground_grass",        "w": 1, "smin": 1.5, "smax": 2.2},
 		],
-		"tile_count": 220,
+		"tile_count": 140,
 		"props": [
 			# Tall silhouettes OUTSIDE the camera-ward quadrant (0-90°, the NE
 			# wedge between camera and baseplate): props there project into
@@ -92,7 +92,7 @@ const DIORAMAS := {
 func build(structure_id: String, floor_mesh: MeshInstance3D, clear_rect: Rect2) -> void:
 	for child in get_children():
 		child.queue_free()
-	var cfg: Dictionary = DIORAMAS.get(structure_id, {})
+	var cfg: Dictionary = DIORAMAS.get(structure_id, DIORAMAS.get("mastaba", {}))
 	if cfg.is_empty():
 		return
 	if floor_mesh != null and cfg.has("ground_color"):

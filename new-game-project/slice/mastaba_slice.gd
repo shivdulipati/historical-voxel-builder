@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/diorama.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 17
+const BUILD_NO := 18
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -91,6 +91,9 @@ var _level_input: LineEdit
 var _baseplate: Node3D
 var _floor_mesh: MeshInstance3D
 var _diorama: Node3D
+var _hud_root: Control
+var _debug_mode := false
+var _escape_layer: CanvasLayer
 
 ## JSON save path: structure index, beat, completed cells, dust state, camera.
 const SAVE_PATH := "user://slice_save.json"
@@ -140,6 +143,40 @@ func _load_structure(index: int) -> void:
 		var clear_rect := Rect2(-(lim.x + 1.0), -(lim.z + 1.0), 2.0 * (lim.x + 1.0), 2.0 * (lim.z + 1.0))
 		_diorama.build(_st["id"], _floor_mesh, clear_rect)
 	_restart_arc()
+	_apply_debug_mode()
+
+
+## Stage-only debug level (10 · DIORAMA DEBUG): strip the world to just the
+## diorama — no floor, no baseplate, no HUD — leaving only the debug panel
+## and a lone escape button so the stage can be judged in isolation.
+func _apply_debug_mode() -> void:
+	var was_debug := _debug_mode
+	_debug_mode = (_st.get("id", "") == "diorama_debug")
+	if _debug_mode == was_debug:
+		return
+	if _debug_mode:
+		if _floor_mesh != null:
+			_floor_mesh.visible = false
+		if _baseplate != null:
+			_baseplate.visible = false
+		for child in _hud_root.get_children():
+			if child != _debug_panel:
+				child.visible = false
+		if _escape_layer != null:
+			_escape_layer.visible = true
+	else:
+		if _floor_mesh != null:
+			_floor_mesh.visible = true
+		if _baseplate != null:
+			_baseplate.visible = true
+		for child in _hud_root.get_children():
+			child.visible = true
+		if _escape_layer != null:
+			_escape_layer.visible = false
+
+
+func _exit_debug_mode() -> void:
+	_load_structure(0)  # back to Göbekli, the first real level
 
 
 # ============================================================================
@@ -262,6 +299,7 @@ func _build_hud() -> void:
 	root.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(root)
+	_hud_root = root
 
 	# --- Top bar (below notch) ---
 	var top := PanelContainer.new()
@@ -655,6 +693,26 @@ func _build_hud() -> void:
 	_atlas_card.visible = false
 	root.add_child(_atlas_card)
 
+	# --- Escape hatch for stage-only debug mode (layer above the HUD) ---
+	_escape_layer = CanvasLayer.new()
+	_escape_layer.layer = 11
+	_escape_layer.visible = false
+	add_child(_escape_layer)
+	var esc_root := Control.new()
+	esc_root.set_anchors_preset(Control.PRESET_FULL_RECT)
+	esc_root.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_escape_layer.add_child(esc_root)
+	var esc_btn := Button.new()
+	esc_btn.text = "✕ Exit diorama"
+	esc_btn.set_anchors_preset(Control.PRESET_TOP_LEFT)
+	esc_btn.offset_left = 24
+	esc_btn.offset_top = SAFE_TOP + 8
+	esc_btn.offset_right = 320
+	esc_btn.offset_bottom = SAFE_TOP + 76
+	esc_btn.add_theme_font_size_override("font_size", 30)
+	esc_btn.pressed.connect(_exit_debug_mode)
+	esc_root.add_child(esc_btn)
+
 	var atlas_box := VBoxContainer.new()
 	atlas_box.add_theme_constant_override("separation", 12)
 	_atlas_card.add_child(atlas_box)
@@ -908,6 +966,8 @@ func _flourish() -> void:
 # ============================================================================
 
 func _save_game() -> void:
+	if _debug_mode:
+		return  # never persist the stage-only debug level
 	var data := {
 		"structure_index": _structure_index,
 		"beat": current_beat,
@@ -1701,7 +1761,7 @@ func _input(event: InputEvent) -> void:
 			_touch_points[event.index] = event.position
 			# A press inside the bottom tray never becomes a camera-orbit
 			# drag, even if it misses every swatch (margin touches happen).
-			if _tray and _tray.get_global_rect().has_point(event.position):
+			if _tray and _tray.visible and _tray.get_global_rect().has_point(event.position):
 				_tray_locked_touches[event.index] = true
 		else:
 			_touch_points.erase(event.index)
