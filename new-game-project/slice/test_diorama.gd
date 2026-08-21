@@ -66,6 +66,33 @@ func _ready() -> void:
 			else:
 				right += 1
 	print("BALANCE: in-frame props left=%d right=%d" % [left, right])
+	# DEFINITIVE visibility: for every in-frame prop, sample a 20x20 pixel
+	# neighborhood at its projected position; count how many show ANY
+	# non-sand content (the vision model keeps hallucinating "empty" — this
+	# is the pixel-level truth).
+	var img2 := vp.get_texture().get_image()
+	var in_frame_total := 0
+	var in_frame_visible := 0
+	for node in ctl._diorama.get_children():
+		var p3: Vector3 = node.position
+		if p3.y >= 0.001:
+			continue
+		var sp3: Vector2 = ctl._camera.unproject_position(p3)
+		if sp3.x < 40 or sp3.x > 1040 or sp3.y < 340 or sp3.y > 1540:
+			continue
+		in_frame_total += 1
+		var hit := false
+		for dy in range(-10, 11, 2):
+			for dx in range(-10, 11, 2):
+				var c4: Color = img2.get_pixel(int(sp3.x) + dx, int(sp3.y) + dy)
+				if c4.r < 0.93 or c4.g < 0.93:
+					hit = true
+					break
+			if hit:
+				break
+		if hit:
+			in_frame_visible += 1
+	print("VISIBILITY: in-frame props %d, with visible pixels %d" % [in_frame_total, in_frame_visible])
 	vp.get_texture().get_image().save_png("/tmp/b16_diorama_mastaba.png")
 	# Side-view capture: the floor slab must read as a thin ground line now
 	# (was a 1-unit-tall brown wall in BUILD 15's side view).
