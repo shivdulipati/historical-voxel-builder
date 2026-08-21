@@ -21,12 +21,29 @@ func _ready() -> void:
 	# True rendered height: local AABB transformed by the full node hierarchy.
 	var heights: Array[float] = []
 	var zero_scale := 0
+	var mm_count := 0
+	var mm_instances := 0
+	var mm_min_x := 999.0
+	var mm_max_x := -999.0
+	var mm_min_z := 999.0
+	var mm_max_z := -999.0
 	for node in ctl._diorama.get_children():
 		if not node is Node3D:
 			continue
 		var n3 := node as Node3D
 		if n3.scale.length() < 0.1:
 			zero_scale += 1
+		if n3 is MultiMeshInstance3D:
+			mm_count += 1
+			var mm: MultiMesh = (n3 as MultiMeshInstance3D).multimesh
+			mm_instances += mm.instance_count
+			for i in mm.instance_count:
+				var o: Vector3 = mm.get_instance_transform(i).origin
+				mm_min_x = minf(mm_min_x, o.x)
+				mm_max_x = maxf(mm_max_x, o.x)
+				mm_min_z = minf(mm_min_z, o.z)
+				mm_max_z = maxf(mm_max_z, o.z)
+			continue
 		if n3.position.y >= 0.001:
 			continue  # tiles are flat by design — only props must stand tall
 		var world := _world_aabb(n3)
@@ -41,6 +58,12 @@ func _ready() -> void:
 	assert(zero_scale == 0, "props with zero scale!")
 	assert(med_h > 0.4, "props render too flat — median world height %.2f" % med_h)
 	assert(max_h > 3.0, "no tall props — palms missing, max %.2f" % max_h)
+	print("GROUND: multimeshes=%d instances=%d x[%.0f..%.0f] z[%.0f..%.0f] want x>=±19 z>=±34" % [
+		mm_count, mm_instances, mm_min_x, mm_max_x, mm_min_z, mm_max_z])
+	assert(mm_count >= 2, "arena ground MultiMeshes missing")
+	assert(mm_instances >= 600, "arena ground too sparse: %d instances" % mm_instances)
+	assert(mm_min_x <= -19.0 and mm_max_x >= 19.0, "ground x coverage short")
+	assert(mm_min_z <= -34.0 and mm_max_z >= 34.0, "ground z coverage short (5 phone lengths)")
 	vp.get_texture().get_image().save_png("/tmp/b19_diorama_debug.png")
 	print("DEBUG CAPTURE DONE")
 	get_tree().quit()

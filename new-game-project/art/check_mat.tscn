@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://checkmat0001"]
+
+[ext_resource type="Script" path="res://art/check_mat.gd" id="1_mat"]
+
+[node name="CheckMat" type="Node"]
+script = ExtResource("1_mat")

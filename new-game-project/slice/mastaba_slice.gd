@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/diorama.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 19
+const BUILD_NO := 20
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -239,7 +239,7 @@ func _build_world() -> void:
 	floor_body.name = "Floor"
 	var floor_shape := CollisionShape3D.new()
 	var floor_box := BoxShape3D.new()
-	floor_box.size = Vector3(60, 0.1, 60)
+	floor_box.size = Vector3(100, 0.1, 100)
 	floor_shape.shape = floor_box
 	floor_shape.position = Vector3(0, -0.05, 0)
 	floor_body.add_child(floor_shape)
@@ -250,7 +250,7 @@ func _build_world() -> void:
 	floor_mat.albedo_color = Color("#D9C089")
 	floor_mat.roughness = 1.0
 	var floor_box_mesh := BoxMesh.new()
-	floor_box_mesh.size = Vector3(60, 0.1, 60)
+	floor_box_mesh.size = Vector3(100, 0.1, 100)
 	floor_mesh.mesh = floor_box_mesh
 	floor_mesh.material_override = floor_mat
 	floor_mesh.position = Vector3(0, -0.05, 0)
@@ -1019,7 +1019,7 @@ func _apply_saved_state() -> void:
 	var cam_rot: Array = _saved_data.get("cam_rot", [])
 	if cam_rot.size() == 3:
 		_pivot.rotation = Vector3(float(cam_rot[0]), float(cam_rot[1]), float(cam_rot[2]))
-	_camera.size = clampf(float(_saved_data.get("cam_size", _base_cam_size)), 5.0, 30.0)
+	_camera.size = clampf(float(_saved_data.get("cam_size", _base_cam_size)), 5.0, 90.0)
 
 	completed_cells.clear()
 	var raw_completed: Dictionary = _saved_data.get("completed", {})
@@ -1801,7 +1801,7 @@ func _input(event: InputEvent) -> void:
 
 			if _last_pinch_distance > 0.0:
 				var delta_dist := distance - _last_pinch_distance
-				_camera.size = clampf(_camera.size - delta_dist * 0.05, 5.0, 30.0)
+				_camera.size = clampf(_camera.size - delta_dist * 0.05, 5.0, 90.0)
 
 				if _last_pan_midpoint != Vector2.ZERO and distance < 140.0:
 					var pan_delta := midpoint - _last_pan_midpoint

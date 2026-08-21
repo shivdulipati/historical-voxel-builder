@@ -27,8 +27,10 @@ func _ready() -> void:
 				max_r = r
 			# Tiles sit at y≈0.005 (floor texture continues in the ring by
 			# design); props sit at y=0 and must stay outside the clear ring.
-			if p.y < 0.001 and clear.has_point(Vector2(p.x, p.z)):
+			# MultiMesh ground nodes sit at the origin — they ARE the floor.
+			if p.y < 0.001 and not node is MultiMeshInstance3D and clear.has_point(Vector2(p.x, p.z)):
 				inside += 1
+				print("  IN CLEAR RING: %s at %s scale=%s" % [node.name, p, node.scale])
 	print("DIORAMA: props+tiles=%d max_r=%.1f (want >= 22) inside_clear_ring=%d (want 0)" % [count, max_r, inside])
 	assert(inside == 0, "props inside the clear ring!")
 	assert(max_r >= 22.0, "diorama does not cover 3 phone widths")
@@ -93,11 +95,10 @@ func _ready() -> void:
 		if hit:
 			in_frame_visible += 1
 	print("VISIBILITY: in-frame props %d, with visible pixels %d" % [in_frame_total, in_frame_visible])
-	vp.get_texture().get_image().save_png("/tmp/b16_diorama_mastaba.png")
-	# Side-view capture: the floor slab must read as a thin ground line now
-	# (was a 1-unit-tall brown wall in BUILD 15's side view).
-	ctl._snap_camera(Vector3(0.0, -PI / 2.0, 0.0))
+	vp.get_texture().get_image().save_png("/tmp/b20_diorama_mastaba.png")
+	# Full-stage capture: zoom out to see the whole 40x70 diorama.
+	ctl._camera.size = 64.0
 	await get_tree().create_timer(0.6).timeout
-	vp.get_texture().get_image().save_png("/tmp/b16_diorama_side.png")
+	vp.get_texture().get_image().save_png("/tmp/b20_diorama_wide.png")
 	print("DIORAMA CAPTURE DONE")
 	get_tree().quit()

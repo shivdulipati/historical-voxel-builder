@@ -7,6 +7,7 @@ const MODELS := [
 	"tree_palmTall", "tree_palmShort", "tree_palmDetailedTall", "tree_palmBend",
 	"tree_oak", "tree_pineTallA", "rock_largeA", "rock_largeB", "rock_smallA",
 	"rock_smallFlatA", "stone_smallA", "stone_smallFlatA", "stone_tallA",
+	"stone_tallB", "stone_tallC", "stone_tallD", "stone_tallE",
 	"grass", "grass_large", "flower_redA", "flower_yellowA", "plant_bush",
 	"plant_bushSmall", "log", "log_stack", "statue_obelisk", "statue_column",
 	"ground_grass", "ground_pathRocks", "ground_pathStraight", "crops_dirtSingle",
@@ -14,22 +15,32 @@ const MODELS := [
 	"cactus_short", "lily_small",
 ]
 
+const ARENA_MODELS := [
+	"floor", "floor-detail", "tree", "bricks", "stairs", "stairs-corner",
+	"column", "wall",
+]
+
 func _ready() -> void:
 	for name in MODELS:
-		var path := "res://art/nature/%s.glb" % name
-		if not ResourceLoader.exists(path):
-			print("%-22s MISSING" % name)
-			continue
-		var ps: PackedScene = load(path)
-		var inst := ps.instantiate()
-		add_child(inst)
-		await get_tree().process_frame
-		var aabb: AABB = _scene_aabb(inst)
-		var mat_desc := _first_material_desc(inst)
-		print("%-22s size=%s %s" % [name, aabb.size, mat_desc])
-		inst.queue_free()
+		_measure("res://art/nature/%s.glb" % name, name)
+	for name in ARENA_MODELS:
+		_measure("res://art/arena/%s.glb" % name, name)
 	await get_tree().process_frame
 	get_tree().quit()
+
+
+func _measure(path: String, name: String) -> void:
+	if not ResourceLoader.exists(path):
+		print("%-22s MISSING" % name)
+		return
+	var ps: PackedScene = load(path)
+	var inst := ps.instantiate()
+	add_child(inst)
+	await get_tree().process_frame
+	var aabb: AABB = _scene_aabb(inst)
+	var mat_desc := _first_material_desc(inst)
+	print("%-22s size=%s %s" % [name, aabb.size, mat_desc])
+	inst.queue_free()
 
 
 ## Merge AABBs of every VisualInstance3D descendant (glTF roots are Node3D).

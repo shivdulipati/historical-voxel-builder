@@ -1,42 +1,44 @@
 extends Node3D
-## diorama.gd — static environmental stage per structure: ground tint + floor
-## texture tiles + dense prop scatter. Props are pure visuals: no physics, no
-## collision, no group membership — they can never interfere with placement.
+## diorama.gd — static environmental stage per structure: ground + props.
+## Props are pure visuals: no physics, no collision, no group membership.
 ##
 ## Design rules (from playtest direction):
-##  * AWE — the structure is the hero. Props read SMALL around it (real-world
-##    relative scale vs the stylized builds). Per-prop "s" overrides tune one
-##    object without touching the global table.
-##  * BUSY — the floor carries texture (Kenney 1×1 ground tiles, grid-aligned
-##    to the voxel cells) and the area is densely scattered out to ~3 phone
-##    widths of view at normal zoom, so future large structures fit.
-##  * CLEAR RING — a 1-tile perimeter around the baseplate stays free of props
-##    (floor texture continues); the build stays readable.
-##  * TRUE COLORS — models import with their own vertex colors. A warm filter
-##    tames Kenney's neon-teal foliage (fronds read olive in desert light);
-##    remove FOLIAGE_TINT for the pure pack palette.
+##  * AWE — the structure is the hero; props read small around it.
+##  * GROUND — mastaba uses the mini-arena floor tiles (floor + floor-detail,
+##    detail rotated randomly so no pattern reads) over a 5×5-phone area
+##    (~40×70 units at mastaba zoom), rendered as MultiMeshes (2 draw calls).
+##  * STORY — a half-built stairs+corner platform, brick piles and log stacks
+##    give an under-construction vibe; stone_tall clusters dot the stage.
+##  * CLEAR RING — 1-tile perimeter around the baseplate stays prop-free.
+##  * TRUE COLORS — models keep their own materials (arena = textured,
+##    nature = vertex colors; a warm filter tames neon-teal foliage).
 
 const NATURE := "res://art/nature/"
+const ARENA := "res://art/arena/"
 
-## Kenney models are built small vs the 1-unit voxel (measured via art/measure).
-## Awe rule: structures dominate — palm ≈ 3 blocks, boulder ≈ 1 block.
+## Scales vs the 1-unit voxel (measured via art/measure). Awe rule: palm ≈
+## 4-5 blocks, cypress ≈ 4, boulder ≈ 2, standing stone ≈ 1.4.
 const MODEL_SCALE := {
 	"tree_palmTall": 3.4, "tree_palmShort": 3.4, "tree_palmDetailedTall": 3.4,
 	"tree_palmBend": 3.4, "tree_oak": 2.8, "tree_pineTallA": 2.8,
 	"rock_largeA": 3.6, "rock_largeB": 3.6, "rock_smallA": 3.8,
 	"rock_smallFlatA": 4.0, "stone_smallA": 3.8, "stone_smallFlatA": 4.0,
-	"stone_tallA": 1.4, "grass": 2.6, "grass_large": 2.6, "flower_redA": 2.8,
+	"stone_tallA": 1.4, "stone_tallB": 1.4, "stone_tallC": 1.6,
+	"stone_tallD": 1.6, "stone_tallE": 1.8,
+	"grass": 2.6, "grass_large": 2.6, "flower_redA": 2.8,
 	"flower_yellowA": 2.8, "plant_bush": 3.2, "plant_bushSmall": 3.0,
 	"log": 2.0, "log_stack": 2.0, "statue_obelisk": 3.2, "statue_column": 2.8,
 	"mushroom_red": 2.2, "stump_round": 2.2, "tent_smallClosed": 2.2,
 	"campfire_stones": 2.4, "cactus_short": 3.0, "lily_small": 2.0,
+	# mini-arena
+	"tree": 2.0, "bricks": 1.6, "stairs": 1.0, "stairs-corner": 1.0,
+	"column": 2.6, "wall": 1.0,
 }
 
 ## Warm khaki filter for Kenney's teal foliage (vertex-color multiply).
 const FOLIAGE_TINT := Color(0.82, 0.78, 0.58)
-## Shade filter for ALL diorama materials: the game light rig is hot (sun +
-## fill + sky ambient ≈ 2×), which blows mid-grey albedos to white. Scaling
-## down keeps floor tiles + props in readable contrast against the sand.
+## Shade filter for vertex-colored nature models (the hot light rig washes
+## mid-grey albedos to white). Arena models are textured — left untouched.
 const SHADE := 0.68
 const FOLIAGE_MODELS := [
 	"tree_palm", "tree_oak", "tree_pine", "grass", "plant_bush", "crops",
@@ -45,72 +47,176 @@ const FOLIAGE_MODELS := [
 ]
 
 ## Per-structure stage config.
-##  * tiles: floor-texture mosaic from 1×1 ground tiles (grid-aligned).
-##    w = relative weight, smin/smax = tile scale range (tile covers 2-3 cells).
-##  * props: {m model, n count, rmin/rmax ring band, s optional per-prop
-##    scale multiplier, avoid optional angle arc (deg, camera-ward) for tall props}.
 const DIORAMAS := {
 	"mastaba": {
-		"ground_color": Color("#D9C089"),
-		"tiles": [
-			{"m": "ground_pathRocks",    "w": 5, "smin": 1.5, "smax": 2.5},
-			{"m": "ground_pathStraight", "w": 3, "smin": 1.5, "smax": 2.2},
-			{"m": "ground_grass",        "w": 1, "smin": 1.5, "smax": 2.2},
+		"hide_sand_floor": true,
+		# Arena floor tiles over the whole lowermost layer, 5 phone widths ×
+		# 5 phone lengths (~40×70 units at mastaba zoom). floor-detail tiles
+		# get random 90° rotations so no pattern reads.
+		"ground": {
+			"extent": Vector2(40.0, 72.0),
+			"cell": 2.0,
+			"detail_weight": 0.45,
+		},
+		# Deliberate placements: the half-built platform + brick piles.
+		"fixed_props": [
+			{"m": "stairs",        "p": Vector3(-9.0, 0, 2.0), "r": 0.0},
+			{"m": "stairs",        "p": Vector3(-8.0, 0, 2.0), "r": 0.0},
+			{"m": "stairs",        "p": Vector3(-7.0, 0, 2.0), "r": 0.0},
+			{"m": "stairs-corner", "p": Vector3(-6.0, 0, 2.0), "r": -PI / 2.0},
+			{"m": "bricks",        "p": Vector3(-9.6, 0, 3.4), "r": 0.6},
+			{"m": "bricks",        "p": Vector3(-5.9, 0, 3.5), "r": 2.2},
 		],
-		"tile_count": 140,
+		# Standing-stone clusters (some areas, deliberately grouped).
+		"clusters": [
+			{"center": Vector3(-13.0, 0, -7.0), "n": 4, "radius": 2.4,
+			 "models": ["stone_tallA", "stone_tallB", "stone_tallC", "stone_tallE"]},
+			{"center": Vector3(11.5, 0, 10.0), "n": 4, "radius": 2.2,
+			 "models": ["stone_tallB", "stone_tallD", "stone_tallA", "stone_tallC"]},
+			{"center": Vector3(-4.0, 0, -17.0), "n": 3, "radius": 1.8,
+			 "models": ["stone_tallE", "stone_tallC", "stone_tallD"]},
+		],
+		# RNG scatter (user's mastaba set only). Palms/cypress keep out of the
+		# camera-ward quadrant (0-90°, projects behind the bottom UI band).
 		"props": [
-			# Tall silhouettes OUTSIDE the camera-ward quadrant (0-90°, the NE
-			# wedge between camera and baseplate): props there project into
-			# the bottom UI band (message card + tray) and read as "hidden".
-			{"m": "tree_palmTall",         "n": 6, "rmin": 9.0, "rmax": 22.0, "avoid": Vector2(-10, 100)},
-			{"m": "tree_palmBend",         "n": 4, "rmin": 9.0, "rmax": 17.0, "avoid": Vector2(-10, 100)},
-			{"m": "tree_palmShort",        "n": 5, "rmin": 6.8, "rmax": 8.8,  "avoid": Vector2(-10, 100)},
-			{"m": "tree_palmTall",         "n": 3, "rmin": 7.0, "rmax": 8.8,  "avoid": Vector2(-10, 100), "s": 0.7},
-			# Mid-ground scatter just outside the clear ring — visible framing.
-			{"m": "rock_largeB",           "n": 18, "rmin": 4.5, "rmax": 13.0},
-			{"m": "rock_smallA",           "n": 26, "rmin": 4.5, "rmax": 11.0},
-			{"m": "stone_smallFlatA",      "n": 22, "rmin": 4.5, "rmax": 10.0},
-			{"m": "stone_smallA",          "n": 13, "rmin": 4.5, "rmax": 10.0},
-			{"m": "plant_bush",            "n": 20, "rmin": 4.5, "rmax": 12.0},
-			{"m": "plant_bushSmall",       "n": 12, "rmin": 4.5, "rmax": 11.0},
-			{"m": "grass",                 "n": 40, "rmin": 4.5, "rmax": 16.0},
-			{"m": "flower_yellowA",        "n": 18, "rmin": 4.5, "rmax": 12.0},
-			{"m": "flower_redA",           "n": 8, "rmin": 5.0, "rmax": 11.0},
-			{"m": "cactus_short",          "n": 7, "rmin": 5.0, "rmax": 11.0},
-			{"m": "stump_round",           "n": 6, "rmin": 5.0, "rmax": 11.0},
-			{"m": "log",                   "n": 5, "rmin": 5.0, "rmax": 11.0},
-			# Workmen's camp — a small human story at the tomb site.
-			{"m": "tent_smallClosed",      "n": 1, "rmin": 7.0, "rmax": 9.0, "avoid": Vector2(-10, 100)},
-			{"m": "campfire_stones",       "n": 1, "rmin": 7.0, "rmax": 9.0, "avoid": Vector2(-10, 100)},
+			{"m": "tree_palmTall",  "n": 5, "rmin": 9.0, "rmax": 28.0, "avoid": Vector2(-10, 100)},
+			{"m": "tree_palmBend",  "n": 3, "rmin": 9.0, "rmax": 22.0, "avoid": Vector2(-10, 100)},
+			{"m": "tree_palmShort", "n": 3, "rmin": 6.8, "rmax": 10.0, "avoid": Vector2(-10, 100)},
+			{"m": "tree",           "n": 6, "rmin": 10.0, "rmax": 26.0, "avoid": Vector2(-10, 100)},
+			{"m": "bricks",         "n": 6, "rmin": 8.0, "rmax": 22.0},
+			{"m": "stone_tallA",    "n": 4, "rmin": 8.0, "rmax": 22.0},
+			{"m": "stone_tallB",    "n": 3, "rmin": 8.0, "rmax": 20.0},
+			{"m": "stone_tallC",    "n": 2, "rmin": 9.0, "rmax": 18.0},
+			{"m": "stone_tallD",    "n": 2, "rmin": 9.0, "rmax": 18.0},
+			{"m": "stone_tallE",    "n": 2, "rmin": 9.0, "rmax": 18.0},
 		],
 	},
 }
 
 
-## Build (or rebuild) the stage. clear_rect = no-prop zone in x/z (baseplate
-## limits + 1-tile perimeter, from the slice). floor_mesh tint = ground color.
+## Build (or rebuild) the stage. clear_rect = no-prop zone in x/z. floor_mesh
+## is the slice's sand slab — hidden when the arena tiles are the ground.
 func build(structure_id: String, floor_mesh: MeshInstance3D, clear_rect: Rect2) -> void:
 	for child in get_children():
 		child.queue_free()
 	var cfg: Dictionary = DIORAMAS.get(structure_id, DIORAMAS.get("mastaba", {}))
 	if cfg.is_empty():
 		return
-	if floor_mesh != null and cfg.has("ground_color"):
-		var mat: StandardMaterial3D = floor_mesh.material_override
-		if mat != null:
-			mat.albedo_color = cfg["ground_color"]
+	if floor_mesh != null:
+		floor_mesh.visible = not bool(cfg.get("hide_sand_floor", false))
+		if cfg.has("ground_color"):
+			var mat: StandardMaterial3D = floor_mesh.material_override
+			if mat != null:
+				mat.albedo_color = cfg["ground_color"]
 
 	var rng := RandomNumberGenerator.new()
 	rng.seed = structure_id.hash()
 
-	# Floor texture mosaic: 1×1 ground tiles scaled to cover 2-3 cells each,
-	# anywhere except directly under the baseplate grid (limits rect).
+	if cfg.has("ground"):
+		_build_arena_ground(cfg["ground"], rng)
+	for pr in cfg.get("fixed_props", []):
+		var inst: Node3D = _spawn(pr["m"], rng, float(pr.get("s", 1.0)))
+		inst.position = pr["p"]
+		inst.rotation = Vector3(0, float(pr["r"]), 0)
+		add_child(inst)
+	for cl in cfg.get("clusters", []):
+		_place_cluster(cl, rng, clear_rect)
 	if cfg.has("tiles") and cfg.has("tile_count"):
 		var limits_rect := Rect2(
 			clear_rect.position + Vector2.ONE,
 			clear_rect.size - Vector2(2, 2))
 		_place_tiles(cfg, rng, limits_rect)
 	_place_props(cfg, rng, clear_rect)
+
+
+## Arena floor tiles as two MultiMeshes (floor + floor-detail) — the whole
+## lowermost layer, detail tiles randomly rotated so no pattern reads.
+func _build_arena_ground(g: Dictionary, rng: RandomNumberGenerator) -> void:
+	var extent: Vector2 = g["extent"]
+	var cell := float(g.get("cell", 2.0))
+	var detail_w := float(g.get("detail_weight", 0.35))
+	var cols := int(ceil(extent.x / cell))
+	var rows := int(ceil(extent.y / cell))
+	var floor_t: Array[Transform3D] = []
+	var detail_t: Array[Transform3D] = []
+	for gx in range(-cols / 2, cols / 2):
+		for gz in range(-rows / 2, rows / 2):
+			var pos := Vector3(
+				(gx + 0.5) * cell + rng.randf_range(-0.3, 0.3),
+				0.002,
+				(gz + 0.5) * cell + rng.randf_range(-0.3, 0.3))
+			if rng.randf() < detail_w:
+				var rot := rng.randi_range(0, 3) * PI / 2.0
+				detail_t.append(_tile_xform(pos, rot, cell))
+			else:
+				floor_t.append(_tile_xform(pos, rng.randi_range(0, 1) * PI / 2.0, cell))
+	_make_multimesh(_shade_mesh(_extract_mesh(ARENA + "floor.glb")), floor_t)
+	_make_multimesh(_shade_mesh(_extract_mesh(ARENA + "floor-detail.glb")), detail_t)
+
+
+## Textured arena materials skip the vertex-color tint path — apply the shade
+## filter directly to the mesh's surface materials (albedo multiplies the
+## colormap texture, taming the hot light rig's white-out on the floor).
+func _shade_mesh(mesh: Mesh) -> Mesh:
+	if mesh == null:
+		return mesh
+	for s in mesh.get_surface_count():
+		var m := mesh.surface_get_material(s)
+		if m is StandardMaterial3D:
+			(m as StandardMaterial3D).albedo_color = Color(SHADE, SHADE, SHADE)
+	return mesh
+
+
+func _tile_xform(pos: Vector3, rot: float, cell: float) -> Transform3D:
+	return Transform3D(Basis(Vector3.UP, rot).scaled(Vector3(cell, 1.0, cell)), pos)
+
+
+func _make_multimesh(mesh: Mesh, transforms: Array[Transform3D]) -> void:
+	if mesh == null or transforms.is_empty():
+		return
+	var mm := MultiMesh.new()
+	mm.transform_format = MultiMesh.TRANSFORM_3D
+	mm.mesh = mesh
+	mm.instance_count = transforms.size()
+	for i in transforms.size():
+		mm.set_instance_transform(i, transforms[i])
+	var mmi := MultiMeshInstance3D.new()
+	mmi.multimesh = mm
+	add_child(mmi)
+
+
+## First MeshInstance3D mesh from a GLB scene (keeps its surface materials).
+func _extract_mesh(path: String) -> Mesh:
+	var ps: PackedScene = load(path)
+	var inst := ps.instantiate()
+	var mesh: Mesh = null
+	var stack: Array[Node] = [inst]
+	while not stack.is_empty() and mesh == null:
+		var n: Node = stack.pop_back()
+		if n is MeshInstance3D:
+			mesh = (n as MeshInstance3D).mesh
+		for child in n.get_children():
+			stack.push_back(child)
+	inst.free()
+	return mesh
+
+
+## Standing-stone cluster: n stones jittered around the center.
+func _place_cluster(cl: Dictionary, rng: RandomNumberGenerator, clear_rect: Rect2) -> void:
+	var center: Vector3 = cl["center"]
+	var n := int(cl["n"])
+	var radius := float(cl["radius"])
+	var models: Array = cl["models"]
+	for i in n:
+		var ang: float = rng.randf_range(0.0, TAU)
+		var r: float = rng.randf_range(0.0, radius)
+		var pos := center + Vector3(cos(ang) * r, 0.0, sin(ang) * r)
+		if clear_rect.has_point(Vector2(pos.x, pos.z)):
+			continue
+		var model_name: String = models[rng.randi_range(0, models.size() - 1)]
+		var inst: Node3D = _spawn(model_name, rng, 1.0)
+		inst.position = pos
+		add_child(inst)
 
 
 func _place_tiles(cfg: Dictionary, rng: RandomNumberGenerator, limits_rect: Rect2) -> void:
@@ -120,10 +226,9 @@ func _place_tiles(cfg: Dictionary, rng: RandomNumberGenerator, limits_rect: Rect
 		total_w += int(t["w"])
 	var count := int(cfg["tile_count"])
 	for i in count:
-		var pick: Dictionary = tiles[rng.randi_range(0, tiles.size() - 1)]
-		# Weighted pick.
 		var roll := rng.randi_range(1, total_w)
 		var acc := 0
+		var pick: Dictionary = tiles[0]
 		for t in tiles:
 			acc += int(t["w"])
 			if roll <= acc:
@@ -135,8 +240,6 @@ func _place_tiles(cfg: Dictionary, rng: RandomNumberGenerator, limits_rect: Rect
 		if limits_rect.has_point(Vector2(pos.x, pos.z)):
 			continue
 		var inst: Node3D = _spawn(pick["m"], rng, 1.0)
-		# Flush with the surface: tops at y≈0.001, bodies sunk into the floor
-		# (path tiles extend 0.05 below their pivot) — no floating slivers.
 		inst.position = pos + Vector3(0, 0.001 + rng.randf_range(0, 0.0005), 0)
 		inst.rotation = Vector3(0, rng.randi_range(0, 1) * PI / 2.0, 0)
 		var s: float = rng.randf_range(float(pick["smin"]), float(pick["smax"]))
@@ -151,8 +254,6 @@ func _place_props(cfg: Dictionary, rng: RandomNumberGenerator, clear_rect: Rect2
 		var rmax := float(entry["rmax"])
 		var per_prop_scale := float(entry.get("s", 1.0))
 		var avoid: Vector2 = entry.get("avoid", Vector2(-999, -999))
-		# Keep mid-ground scatter just outside the clear ring; scales with the
-		# structure footprint so big levels get proportionally more room.
 		var rmin_eff := maxf(rmin, clear_rect.size.length() * 0.5 + 0.6)
 		for i in n:
 			for attempt in 24:
@@ -170,10 +271,11 @@ func _place_props(cfg: Dictionary, rng: RandomNumberGenerator, clear_rect: Rect2
 				break
 
 
-## Instantiate a model with global scale (× per-prop override) and the warm
-## foliage filter when the model name matches a foliage family.
+## Instantiate with global scale (× per-prop override) + warm foliage filter.
 func _spawn(model_name: String, rng: RandomNumberGenerator, per_prop_scale: float) -> Node3D:
 	var path := NATURE + model_name + ".glb"
+	if not ResourceLoader.exists(path):
+		path = ARENA + model_name + ".glb"
 	if not ResourceLoader.exists(path):
 		push_warning("diorama: missing model " + path)
 		return Node3D.new()
