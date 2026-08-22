@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/diorama.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 21
+const BUILD_NO := 22
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -61,6 +61,18 @@ var _fill: DirectionalLight3D
 var _touch_points := {}
 var _last_pinch_distance := 0.0
 var _last_pan_midpoint := Vector2.ZERO
+## Camera gesture latch: 0 = none, 1 = one-finger orbit, 2 = two-finger
+## pan/zoom. Latched on press/release so a gesture never changes kind midway
+## (two fingers down can NEVER rotate the camera).
+var _gesture := 0
+## Px of one-finger drag accumulated before orbit engages — a small slop so a
+## second finger landing right after the first can still claim the gesture as
+## a pan instead of an accidental rotation.
+var _orbit_slop_accum := 0.0
+const ORBIT_SLOP := 10.0
+## Rotation captured when the first finger pressed; restored the moment a
+## second finger lands (undoes any orbit that fired while it was landing).
+var _rot_latch := Vector3.ZERO
 ## Touch indices that pressed inside the bottom tray: their drags must NEVER
 ## orbit the camera (a finger aiming for a swatch may land on tray margin).
 var _tray_locked_touches := {}
@@ -1764,7 +1776,6 @@ func _any_block_grabbing() -> bool:
 
 
 func _input(event: InputEvent) -> void:
-	# Two-finger orbit + pinch zoom (always available).
 	if event is InputEventScreenTouch:
 		if event.pressed:
 			_touch_points[event.index] = event.position
@@ -1777,31 +1788,25 @@ func _input(event: InputEvent) -> void:
 			_tray_locked_touches.erase(event.index)
 			_last_pinch_distance = 0.0
 			_last_pan_midpoint = Vector2.ZERO
-
-	# One-finger drag orbits the camera — the DEFAULT rotate gesture, always
-	# available except while a block/piece owns a finger (drag from tray,
-	# long-press pickup, armed tray finger) or the finger pressed in the tray.
-	# Magnetic snap into perfect Top / Front / Side views (~5° margin) stays.
-	if event is InputEventScreenDrag and _touch_points.size() <= 1 \
-			and not _any_block_grabbing() and not _tray_locked_touches.has(event.index):
-		var drag := event as InputEventScreenDrag
-		_pivot.rotation.y -= drag.relative.x * 0.005
-		_pivot.rotation.x = clampf(_pivot.rotation.x - drag.relative.y * 0.005, -PI / 2.0, 0.02)
-
-		# Magnetic snap to 90° increments.
-		var snap_margin := 0.087  # ~5 degrees
-		var snap_step := PI / 2.0
-		var target_x: float = round(_pivot.rotation.x / snap_step) * snap_step
-		if absf(_pivot.rotation.x - target_x) < snap_margin:
-			_pivot.rotation.x = target_x
-		var target_y: float = round(_pivot.rotation.y / snap_step) * snap_step
-		if absf(_pivot.rotation.y - target_y) < snap_margin:
-			_pivot.rotation.y = target_y
+		# Re-latch on every press/release so a lift mid-gesture (two fingers →
+		# one) hands control back to the orbit cleanly, and a second finger
+		# landing claims the gesture as a pan before any more rotation applies.
+		_latch_gesture()
 		return
 
 	if event is InputEventScreenDrag and _touch_points.has(event.index):
 		_touch_points[event.index] = event.position
-		if _touch_points.size() == 2:
+		if _gesture == 1:
+			# One-finger orbit — engages only after a small drag slop so a
+			# second finger landing right after can still claim the gesture
+			# as a pan. Magnetic snap into perfect Top / Front / Side views
+			# (~5° margin) stays.
+			var drag := event as InputEventScreenDrag
+			_orbit_slop_accum += drag.relative.length()
+			if _orbit_slop_accum >= ORBIT_SLOP and not _any_block_grabbing() \
+					and not _tray_locked_touches.has(event.index):
+				_apply_orbit(drag)
+		elif _gesture == 2:
 			var points := _touch_points.values()
 			var p0: Vector2 = points[0]
 			var p1: Vector2 = points[1]
@@ -1812,8 +1817,7 @@ func _input(event: InputEvent) -> void:
 				var delta_dist := distance - _last_pinch_distance
 				_camera.size = clampf(_camera.size - delta_dist * 0.05, 5.0, 90.0)
 				# Two-finger drag pans ALONG THE GROUND (both fingers move
-				# together): the scene follows the fingers. (The old code
-				# rotated the camera here — that's why two-finger felt wrong.)
+				# together): the scene follows the fingers.
 				if _last_pan_midpoint != Vector2.ZERO:
 					_pan_camera(midpoint - _last_pan_midpoint)
 
@@ -1824,9 +1828,47 @@ func _input(event: InputEvent) -> void:
 			_last_pan_midpoint = Vector2.ZERO
 
 
+## Latch the camera gesture from the current touch set. Two fingers down =
+## pan/zoom — and any orbit that fired while the second finger was landing is
+## undone (the rotation is restored to where it was when the first finger
+## pressed): a two-finger gesture must never rotate. One finger = orbit.
+func _latch_gesture() -> void:
+	var n := _touch_points.size()
+	if n >= 2 and not _any_block_grabbing():
+		_pivot.rotation = _rot_latch
+		_gesture = 2
+		_last_pinch_distance = 0.0
+		_last_pan_midpoint = Vector2.ZERO
+	elif n == 1 and not _any_block_grabbing() \
+			and not _tray_locked_touches.has(_touch_points.keys()[0]):
+		_gesture = 1
+		_orbit_slop_accum = 0.0
+		_rot_latch = _pivot.rotation
+	else:
+		_gesture = 0
+		_orbit_slop_accum = 0.0
+
+
+func _apply_orbit(drag: InputEventScreenDrag) -> void:
+	_pivot.rotation.y -= drag.relative.x * 0.005
+	_pivot.rotation.x = clampf(_pivot.rotation.x - drag.relative.y * 0.005, -PI / 2.0, 0.02)
+
+	# Magnetic snap to 90° increments.
+	var snap_margin := 0.087  # ~5 degrees
+	var snap_step := PI / 2.0
+	var target_x: float = round(_pivot.rotation.x / snap_step) * snap_step
+	if absf(_pivot.rotation.x - target_x) < snap_margin:
+		_pivot.rotation.x = target_x
+	var target_y: float = round(_pivot.rotation.y / snap_step) * snap_step
+	if absf(_pivot.rotation.y - target_y) < snap_margin:
+		_pivot.rotation.y = target_y
+
+
 ## Pan the camera rig along the ground plane: screen delta → world units via
-## the ortho size, directions from the pivot basis (Y-flattened). Dragging
-## right moves the ground right — the camera translates the other way.
+## the ortho size, directions from the pivot basis (Y-flattened). The ground
+## follows the fingers: drag right → ground moves right (camera translates
+## -right). Screen Y grows DOWNWARD while the ground's "up" is +up, so the Y
+## term is NEGATED: drag up → ground moves up, drag down → ground moves down.
 func _pan_camera(pan_delta: Vector2) -> void:
 	var basis := _pivot.global_transform.basis
 	var right := Vector3(basis.x.x, 0.0, basis.x.z)
@@ -1837,7 +1879,7 @@ func _pan_camera(pan_delta: Vector2) -> void:
 		up = up.normalized()
 	var vp_h := float(get_viewport().get_visible_rect().size.y)
 	var world_per_px := _camera.size / vp_h
-	_pivot.position += (-pan_delta.x * right - pan_delta.y * up) * world_per_px
+	_pivot.position += (-pan_delta.x * right + pan_delta.y * up) * world_per_px
 
 
 # ============================================================================
