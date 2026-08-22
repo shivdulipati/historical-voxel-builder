@@ -39,12 +39,29 @@ design discussion first (user direction before code, per the workflow).
     icons later — parked until the UI/HUD discussion.
 
 ### 4. Camera pan (drag-to-pan)
-- Status: parked (user: "we'll need to implement a pan functionality... park
-  that for now until we start playtesting").
-- Why: dioramas now cover ~3×3 phone widths at normal zoom (future large
-  structures); orbiting alone won't frame the whole stage. Two-finger drag
-  to pan or a dedicated pan mode — decide in the UI/HUD discussion.
-- Blocked by: nothing; deliberately deferred until playtesting starts.
+- Status: IMPLEMENTED (BUILD 21/22, two-finger ground-plane pan + gesture
+  latch) — remaining polish parked.
+- P3 polish items (user, BUILD 22 playtest: "slight edge cases in pan, but
+  workable for most part — park as P3"):
+  - Edge cases seen: pan/rotate boundary quirks at extreme angles, tiny
+    drift on finger lift near gesture edges. Capture exact repros when they
+    annoy during play; fix batch-style, not per-playtest.
+- Why (original): dioramas cover ~3×3 phone widths at normal zoom; orbiting
+  alone won't frame the whole stage.
+
+### 5. World-map vision: spin-the-globe era selector (long-term)
+- Status: parked vision (user, BUILD 22 discussion — feasibility unknown)
+- The flow the earth-slice diorama is building toward:
+  - World map UI: a spinning earth; player rotates it to move forward/back
+    in time (era selector) and picks a region to work on.
+  - Selecting an area pops its earth-slice diorama OUT of the globe, zooms
+    into the build view (the slice is lifted from the earth; background is
+    pure sky — no horizon).
+  - When an area completes, the slice inserts itself back into the earth.
+- Notes: the user's earlier "hemisphere" background idea is really THIS
+  view (the globe), not the build view — the build view is the floating
+  slice. Keep the two layers distinct when this is eventually scoped.
+- Not before: biomes roll-out, structure pipeline, UI/HUD review.
 
 ## Parked/deferred elsewhere
 

@@ -1,104 +1,114 @@
 extends Node
-## test_diorama.gd — verify the mastaba diorama:
-##  * clear ring (baseplate limits + 1 tile) contains NO props
-##  * diorama covers ~3 phone widths (props/tiles out to r ≈ 23)
-##  * the default view's OUTER annulus (outside the build area) carries
-##    visible texture — the "busy" gate, measured in pixels.
+## test_diorama.gd — verify the mastaba EARTH-SLICE diorama:
+##  * the slab exists with its top face at y=0 (block resting plane)
+##  * the strata texture is bound to the slab material
+##  * fossils are embedded in the sides (>= 6 sprites + the bone)
+##  * the sky is the beat shader and every beat repaints distinct colors
+##  * the idle bob moves the stage only when hands-off
+##  * captures: default view + all four beat skies + side + top views
+
+const BEATS := [
+	[0, "raising"],
+	[1, "restoration"],
+	[2, "decay"],
+	[3, "excavation"],
+]
 
 func _ready() -> void:
 	var ctl := preload("res://slice/mastaba_slice.gd").new()
 	add_child(ctl)
 	var vp := get_viewport()
 	vp.size = Vector2i(1080, 1920)
-	ctl._load_structure(1)  # mastaba — builds diorama + raising beat
+	ctl._load_structure(1)  # mastaba — builds earth slice + raising beat
 	await get_tree().create_timer(1.5).timeout
 
-	var lim: Vector3 = ctl._st["limits"]
-	var clear := Rect2(-(lim.x + 1.0), -(lim.z + 1.0), 2.0 * (lim.x + 1.0), 2.0 * (lim.z + 1.0))
-	var inside := 0
-	var count := 0
-	var max_r := 0.0
-	for node in ctl._diorama.get_children():
-		count += 1
-		if node is Node3D:
-			var p: Vector3 = node.position
-			var r: float = Vector2(p.x, p.z).length()
-			if r > max_r:
-				max_r = r
-			# Tiles sit at y≈0.005 (floor texture continues in the ring by
-			# design); props sit at y=0 and must stay outside the clear ring.
-			# MultiMesh ground nodes sit at the origin — they ARE the floor.
-			if p.y < 0.001 and not node is MultiMeshInstance3D and clear.has_point(Vector2(p.x, p.z)):
-				inside += 1
-				print("  IN CLEAR RING: %s at %s scale=%s" % [node.name, p, node.scale])
-	print("DIORAMA: props+tiles=%d max_r=%.1f (want >= 22) inside_clear_ring=%d (want 0)" % [count, max_r, inside])
-	assert(inside == 0, "props inside the clear ring!")
-	assert(max_r >= 22.0, "diorama does not cover 3 phone widths")
+	# --- Slab: exists, top at y=0, strata texture bound ---
+	var slab: MeshInstance3D = null
+	for child in ctl._earth_slice.get_children():
+		if child.name == "EarthSlab":
+			slab = child
+	assert(slab != null, "EarthSlab missing")
+	var box := slab.mesh as BoxMesh
+	assert(box != null, "slab is not a BoxMesh")
+	var top_y: float = slab.position.y + box.size.y / 2.0
+	print("SLAB: top_y=%.3f (want 0.0) size=%s" % [top_y, box.size])
+	assert(absf(top_y) < 0.001, "slab top face must sit at y=0")
+	assert(absf(box.size.x - box.size.z) < 0.01, "slab should be square")
+	assert(box.size.y > 6.0, "slab too thin — strata need depth")
+	var mat := slab.material_override as ShaderMaterial
+	assert(mat != null, "slab needs the strata shader")
+	assert(mat.get_shader_parameter("strata_tex") != null, "strata texture not bound")
+	assert(mat.get_shader_parameter("top_tex") != null, "top sand texture not bound")
 
-	# Busy gate: sample the OUTER annulus of the default view (corner strips
-	# away from the build grid + ghost cluster). Want > 15% non-sand pixels.
-	var img := vp.get_texture().get_image()
-	var total := 0
-	var nonsand := 0
-	for y in range(400, 1250, 3):
-		for x in range(0, 1080, 3):
-			# Skip the central band where the baseplate/ghosts live (approx:
-			# middle 55% of width around x=540, minus nothing else).
-			if absf(x - 540.0) < 300.0:
-				continue
-			var c: Color = img.get_pixel(x, y)
-			total += 1
-			if c.r < 0.94 or c.g < 0.94:
-				nonsand += 1
-	var pct := 100.0 * nonsand / maxf(total, 1)
-	print("BUSY: outer-annulus non-sand %.1f%% (want > 15%%)" % pct)
-	assert(pct > 15.0, "outer annulus looks empty")
-	# Left/right balance: count in-frame props by screen half (the BUILD 15
-	# complaint was a bare right half — palms all clustered left).
-	var left := 0
-	var right := 0
-	for node in ctl._diorama.get_children():
-		var p2: Vector3 = node.position
-		if p2.y >= 0.001:
-			continue  # tiles only, skip
-		var sp2: Vector2 = ctl._camera.unproject_position(p2)
-		if sp2.x >= 0 and sp2.x <= 1080 and sp2.y >= 400 and sp2.y <= 1250:
-			if sp2.x < 540:
-				left += 1
-			else:
-				right += 1
-	print("BALANCE: in-frame props left=%d right=%d" % [left, right])
-	# DEFINITIVE visibility: for every in-frame prop, sample a 20x20 pixel
-	# neighborhood at its projected position; count how many show ANY
-	# non-sand content (the vision model keeps hallucinating "empty" — this
-	# is the pixel-level truth).
-	var img2 := vp.get_texture().get_image()
-	var in_frame_total := 0
-	var in_frame_visible := 0
-	for node in ctl._diorama.get_children():
-		var p3: Vector3 = node.position
-		if p3.y >= 0.001:
-			continue
-		var sp3: Vector2 = ctl._camera.unproject_position(p3)
-		if sp3.x < 40 or sp3.x > 1040 or sp3.y < 340 or sp3.y > 1540:
-			continue
-		in_frame_total += 1
-		var hit := false
-		for dy in range(-10, 11, 2):
-			for dx in range(-10, 11, 2):
-				var c4: Color = img2.get_pixel(int(sp3.x) + dx, int(sp3.y) + dy)
-				if c4.r < 0.93 or c4.g < 0.93:
-					hit = true
-					break
-			if hit:
-				break
-		if hit:
-			in_frame_visible += 1
-	print("VISIBILITY: in-frame props %d, with visible pixels %d" % [in_frame_total, in_frame_visible])
-	vp.get_texture().get_image().save_png("/tmp/b20_diorama_mastaba.png")
-	# Full-stage capture: zoom out to see the whole 40x70 diorama.
-	ctl._camera.size = 64.0
-	await get_tree().create_timer(0.6).timeout
-	vp.get_texture().get_image().save_png("/tmp/b20_diorama_wide.png")
-	print("DIORAMA CAPTURE DONE")
+	# --- Fossils: sprites embedded in the sides + the procedural bone ---
+	print("FOSSILS: sprites=%d bones=%d (want >= 6 and >= 1)" % [
+		ctl._earth_slice.fossil_count, ctl._earth_slice.bone_count])
+	assert(ctl._earth_slice.fossil_count >= 6, "too few fossil sprites")
+	assert(ctl._earth_slice.bone_count >= 1, "bone missing")
+	var fossil_3d := 0
+	for child in ctl._earth_slice.get_children():
+		if child is Sprite3D:
+			fossil_3d += 1
+			var p: Vector3 = child.position
+			var radial := maxf(absf(p.x), absf(p.z))
+			assert(radial > 20.0, "fossil not on a slab side: %s at %s" % [child.name, p])
+	assert(fossil_3d >= 6, "fossil sprites not all placed")
+
+	# --- Sky: beat shader + distinct palette per beat ---
+	assert(ctl._sky_mat != null, "sky material missing")
+	assert(ctl._sky_mat.shader.resource_path == "res://art/sky_beat.gdshader", "wrong sky shader")
+	var tops := {}
+	for b in BEATS:
+		ctl.current_beat = b[0]
+		ctl._apply_beat_sky()
+		var c: Color = ctl._sky_mat.get_shader_parameter("top_col")
+		tops[b[1]] = c
+		print("SKY %s: top_col=%s" % [b[1], c])
+	assert(tops.size() == 4, "missing beat palettes")
+	var distinct := true
+	for key in tops:
+		for other in tops:
+			if key != other and tops[key].is_equal_approx(tops[other]):
+				distinct = false
+	assert(distinct, "two beats share the same sky top color")
+	ctl.current_beat = 0
+	ctl._apply_beat_sky()
+	assert(ctl._sky_mat.get_shader_parameter("stars_alpha") == 0.0
+			or ctl._sky_mat.get_shader_parameter("stars_alpha") == 0, "raising must be starless")
+	assert(ctl._sky_mat.get_shader_parameter("moon_alpha") == 0.0, "raising must be moonless")
+
+	# --- Idle bob: still under touch, moving when hands-off ---
+	ctl._last_touch_time = Time.get_ticks_msec() / 1000.0
+	await get_tree().create_timer(0.3).timeout
+	assert(absf(ctl.position.y) < 0.001, "stage must not bob during/right after touch")
+	ctl._last_touch_time = Time.get_ticks_msec() / 1000.0 - 5.0
+	var max_bob := 0.0
+	for i in 6:
+		await get_tree().create_timer(0.25).timeout
+		max_bob = maxf(max_bob, absf(ctl.position.y))
+	print("BOB: max stage y=%.4f (want > 0.001 when idle)" % max_bob)
+	assert(max_bob > 0.001, "idle bob not moving the stage")
+	ctl._last_touch_time = Time.get_ticks_msec() / 1000.0
+	await get_tree().create_timer(0.3).timeout
+
+	# --- Captures: frame the whole slab (zoom out), then beat skies + views ---
+	ctl._camera.size = 55.0
+	ctl._pivot.rotation = Vector3(-0.45, 0.8, 0.0)
+	ctl._pivot.position = Vector3.ZERO
+	await get_tree().create_timer(0.5).timeout
+	vp.get_texture().get_image().save_png("/tmp/b23_slice_default.png")
+	for b in BEATS:
+		ctl.current_beat = b[0]
+		ctl._apply_beat_sky()
+		await get_tree().create_timer(0.35).timeout
+		vp.get_texture().get_image().save_png("/tmp/b23_sky_%s.png" % b[1])
+	ctl.current_beat = 0
+	ctl._apply_beat_sky()
+	ctl._pivot.rotation = Vector3(0.0, PI * 0.52, 0.0)  # eye-level side view
+	await get_tree().create_timer(0.35).timeout
+	vp.get_texture().get_image().save_png("/tmp/b23_slice_side.png")
+	ctl._pivot.rotation = Vector3(-PI / 2.0, 0.0, 0.0)  # top-down
+	await get_tree().create_timer(0.35).timeout
+	vp.get_texture().get_image().save_png("/tmp/b23_slice_top.png")
+	print("EARTH-SLICE CAPTURES DONE")
 	get_tree().quit()

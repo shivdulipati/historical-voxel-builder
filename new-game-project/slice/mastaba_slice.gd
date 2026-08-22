@@ -7,10 +7,10 @@ extends Node3D
 const SliceBlock = preload("res://slice/slice_block.gd")
 const STRUCTS = preload("res://slice/structures.gd")
 const PIECES = preload("res://slice/pieces.gd")
-const DIORAMA = preload("res://art/diorama.gd")
+const EARTH_SLICE = preload("res://art/earth_slice.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 22
+const BUILD_NO := 23
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -101,8 +101,13 @@ var _debug_panel: Control
 var _level_input: LineEdit
 
 var _baseplate: Node3D
-var _floor_mesh: MeshInstance3D
-var _diorama: Node3D
+var _earth_slice: Node3D
+var _sky_mat: ShaderMaterial
+## Seconds since the last touch (any press/release/drag) — drives the idle
+## bob: the floating earth slice sways gently when the player is hands-off.
+var _last_touch_time := 0.0
+const BOB_AMPLITUDE := 0.09
+const BOB_PERIOD := 3.5
 var _hud_root: Control
 var _debug_mode := false
 var _escape_layer: CanvasLayer
@@ -119,6 +124,7 @@ var _atlas_states: Dictionary = {}
 
 
 func _ready() -> void:
+	_last_touch_time = Time.get_ticks_msec() / 1000.0
 	_build_world()
 	_build_hud()
 	_load_save()
@@ -148,14 +154,10 @@ func _load_structure(index: int) -> void:
 	_camera.size = _base_cam_size
 
 	_top_label.text = _st["site_era"]
-	if _diorama != null:
-		# Clear zone: baseplate limits + 1-tile perimeter (diorama keeps this
-		# ring prop-free so the build stays readable from any orbit).
-		var lim: Vector3 = _st["limits"]
-		var clear_rect := Rect2(-(lim.x + 1.0), -(lim.z + 1.0), 2.0 * (lim.x + 1.0), 2.0 * (lim.z + 1.0))
-		_diorama.build(_st["id"], _floor_mesh, clear_rect)
-	_restart_arc()
+	if _earth_slice != null:
+		_earth_slice.build(_st["id"])
 	_apply_debug_mode()
+	_restart_arc()
 
 
 ## Stage-only debug level (10 · DIORAMA DEBUG): strip the world to just the
@@ -167,8 +169,8 @@ func _apply_debug_mode() -> void:
 	if _debug_mode == was_debug:
 		return
 	if _debug_mode:
-		if _floor_mesh != null:
-			_floor_mesh.visible = false
+		if _earth_slice != null:
+			_earth_slice.visible = false
 		if _baseplate != null:
 			_baseplate.visible = false
 		for child in _hud_root.get_children():
@@ -177,8 +179,8 @@ func _apply_debug_mode() -> void:
 		if _escape_layer != null:
 			_escape_layer.visible = true
 	else:
-		if _floor_mesh != null:
-			_floor_mesh.visible = true
+		if _earth_slice != null:
+			_earth_slice.visible = true
 		if _baseplate != null:
 			_baseplate.visible = true
 		for child in _hud_root.get_children():
@@ -206,7 +208,12 @@ func _build_world() -> void:
 	_camera.name = "Camera3D"
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	_camera.size = _base_cam_size
-	_camera.position = Vector3(0, 0, 14)
+	# Camera 24 units out (beyond the 44-wide earth slab's edge) and 0.05
+	# ABOVE its top plane. At the old 14 the Front/Side snap views put the
+	# camera INSIDE the slab footprint — only the top face rendered, the
+	# strata walls were backface-culled (BUILD 23 bug). Orthographic framing
+	# is by `size`, so the extra distance is invisible in every other view.
+	_camera.position = Vector3(0, 0.05, 24)
 	_pivot.add_child(_camera)
 
 	# --- Sun ---
@@ -227,26 +234,24 @@ func _build_world() -> void:
 	_fill.light_color = Color("#EADFC0")
 	_fill.light_energy = 0.4
 
-	# --- Environment (warm sky) ---
+	# --- Environment: beat-driven sky (floating slice — pure sky, no ground
+	# band) + sky-sampled ambient so night/dusk tint the whole scene.
 	var env := WorldEnvironment.new()
 	var environment := Environment.new()
 	environment.background_mode = Environment.BG_SKY
-	var sky := ProceduralSkyMaterial.new()
-	sky.sky_top_color = Color("#8FC1E8")
-	sky.sky_horizon_color = Color("#F2DFB8")
-	sky.ground_bottom_color = Color("#8A7A60")
-	sky.ground_horizon_color = Color("#E8D5AC")
+	_sky_mat = ShaderMaterial.new()
+	_sky_mat.shader = load("res://art/sky_beat.gdshader")
 	environment.sky = Sky.new()
-	environment.sky.sky_material = sky
+	environment.sky.sky_material = _sky_mat
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	environment.ambient_light_energy = 0.5
 	env.environment = environment
 	add_child(env)
+	_apply_beat_sky()
 
-	# --- Floor (raycast target + sand) ---
-	# Thin slab: the old 1-unit-thick box read as an elevated platform from
-	# side views. Top surface stays at y=0 (raycast + resting plane) — only
-	# the visible thickness shrinks so the ground line reads clean.
+	# --- Floor (raycast target only — the VISIBLE ground is the earth slab).
+	# Top surface at y=0 matches the slab top: block resting + support checks
+	# are unchanged.
 	var floor_body := StaticBody3D.new()
 	floor_body.name = "Floor"
 	var floor_shape := CollisionShape3D.new()
@@ -257,22 +262,10 @@ func _build_world() -> void:
 	floor_body.add_child(floor_shape)
 	add_child(floor_body)
 
-	var floor_mesh := MeshInstance3D.new()
-	var floor_mat := StandardMaterial3D.new()
-	floor_mat.albedo_color = Color("#D9C089")
-	floor_mat.roughness = 1.0
-	var floor_box_mesh := BoxMesh.new()
-	floor_box_mesh.size = Vector3(100, 0.1, 100)
-	floor_mesh.mesh = floor_box_mesh
-	floor_mesh.material_override = floor_mat
-	floor_mesh.position = Vector3(0, -0.05, 0)
-	add_child(floor_mesh)
-	_floor_mesh = floor_mesh
-
-	# --- Diorama (per-level environmental stage: ground tint + props) ---
-	_diorama = DIORAMA.new()
-	_diorama.name = "Diorama"
-	add_child(_diorama)
+	# --- Earth slice (the diorama: floating chunk of earth + strata fossils).
+	_earth_slice = EARTH_SLICE.new()
+	_earth_slice.name = "EarthSlice"
+	add_child(_earth_slice)
 
 	# --- Baseplate tiles (build footprint marker) ---
 	_baseplate = Node3D.new()
@@ -818,9 +811,73 @@ func _panel_style(bg: Color) -> StyleBoxFlat:
 # BEAT MACHINE
 # ============================================================================
 
+## Four palettes, one per beat: RAISING = dawn, RESTORATION = noon,
+## DECAY = dusk, EXCAVATION = night. The sky shader carries the whole
+## background, so a beat change repaints the entire sky.
+func _apply_beat_sky() -> void:
+	if _sky_mat == null:
+		return
+	match current_beat:
+		Beat.RAISING:
+			_sky_mat.set_shader_parameter("top_col", Color("#3D5A8C"))
+			_sky_mat.set_shader_parameter("horizon_col", Color("#F0A76E"))
+			_sky_mat.set_shader_parameter("below_col", Color("#4A5078"))
+			_sky_mat.set_shader_parameter("cloud_alpha", 0.4)
+			_sky_mat.set_shader_parameter("sun_dir", Vector3(-0.45, 0.18, 0.35))
+			_sky_mat.set_shader_parameter("sun_col", Color("#FFC98A"))
+			_sky_mat.set_shader_parameter("sun_alpha", 1.0)
+			_sky_mat.set_shader_parameter("moon_alpha", 0.0)
+			_sky_mat.set_shader_parameter("stars_alpha", 0.0)
+		Beat.RESTORATION:
+			_sky_mat.set_shader_parameter("top_col", Color("#3E7FC4"))
+			_sky_mat.set_shader_parameter("horizon_col", Color("#F2DFB8"))
+			_sky_mat.set_shader_parameter("below_col", Color("#8E97AC"))
+			_sky_mat.set_shader_parameter("cloud_alpha", 0.5)
+			_sky_mat.set_shader_parameter("sun_dir", Vector3(-0.35, 0.6, -0.5))
+			_sky_mat.set_shader_parameter("sun_col", Color("#FFF3D6"))
+			_sky_mat.set_shader_parameter("sun_alpha", 1.0)
+			_sky_mat.set_shader_parameter("moon_alpha", 0.0)
+			_sky_mat.set_shader_parameter("stars_alpha", 0.0)
+		Beat.DECAY:
+			_sky_mat.set_shader_parameter("top_col", Color("#2E2A55"))
+			_sky_mat.set_shader_parameter("horizon_col", Color("#E8873E"))
+			_sky_mat.set_shader_parameter("below_col", Color("#3A3A5E"))
+			_sky_mat.set_shader_parameter("cloud_alpha", 0.55)
+			_sky_mat.set_shader_parameter("sun_dir", Vector3(-0.6, 0.12, 0.2))
+			_sky_mat.set_shader_parameter("sun_col", Color("#FFB066"))
+			_sky_mat.set_shader_parameter("sun_alpha", 1.0)
+			_sky_mat.set_shader_parameter("moon_alpha", 0.0)
+			_sky_mat.set_shader_parameter("stars_alpha", 0.0)
+		Beat.EXCAVATION:
+			_sky_mat.set_shader_parameter("top_col", Color("#0A1128"))
+			_sky_mat.set_shader_parameter("horizon_col", Color("#24365C"))
+			_sky_mat.set_shader_parameter("below_col", Color("#141E38"))
+			_sky_mat.set_shader_parameter("cloud_alpha", 0.25)
+			_sky_mat.set_shader_parameter("sun_alpha", 0.0)
+			_sky_mat.set_shader_parameter("moon_dir", Vector3(-0.2, 0.45, 0.6))
+			_sky_mat.set_shader_parameter("moon_col", Color("#C8D4EE"))
+			_sky_mat.set_shader_parameter("moon_alpha", 1.0)
+			_sky_mat.set_shader_parameter("stars_alpha", 0.8)
+
+
+## The floating earth slice sways gently while the player is hands-off.
+## The whole stage (root) bobs; the camera pivot counter-bobs so the view
+## stays still while the world breathes. Ramps in ~1s after the last touch
+## so placement math (raycasts, stacking) only ever runs at y=0.
+func _process(_delta: float) -> void:
+	if _pivot == null:
+		return
+	var idle := Time.get_ticks_msec() / 1000.0 - _last_touch_time
+	var ramp := clampf((idle - 1.0) / 2.0, 0.0, 1.0)
+	var bob := sin(Time.get_ticks_msec() / 1000.0 * TAU / BOB_PERIOD) * BOB_AMPLITUDE * ramp
+	position.y = bob
+	_pivot.position.y = -bob
+
+
 func _start_beat(beat: Beat) -> void:
 	current_beat = beat
 	_beat_label.text = BEAT_TITLE[beat]
+	_apply_beat_sky()
 	_is_orchestrating = false
 	_skip_btn.visible = false
 	_epilogue_card.visible = false
@@ -840,7 +897,7 @@ func _start_beat(beat: Beat) -> void:
 			return
 		Beat.EXCAVATION:
 			build_target = {}
-			_palette = []
+			_palette.clear()
 			_show_message(_st["excavation_msg"], 2.6)
 			_spawn_dust()
 
@@ -980,6 +1037,9 @@ func _flourish() -> void:
 func _save_game() -> void:
 	if _debug_mode:
 		return  # never persist the stage-only debug level
+	if _st != null and _st.get("id", "") == "diorama_debug":
+		return  # belt + suspenders: the id guard catches saves fired from
+		# _start_beat during _load_structure(9), before the debug flag is set
 	var data := {
 		"structure_index": _structure_index,
 		"beat": current_beat,
@@ -1106,7 +1166,10 @@ func _restore_beat(beat: Beat) -> void:
 			build_target = _st["zenith"].duplicate()
 		Beat.EXCAVATION:
 			build_target = {}
-	_palette = _level_materials() if not build_target.is_empty() else []
+	if build_target.is_empty():
+		_palette.clear()
+	else:
+		_palette = _level_materials()
 	_rebuild_palette()
 	_refresh_ghosts()
 	_update_progress()
@@ -1135,7 +1198,7 @@ func _notification(what: int) -> void:
 
 func _run_decay() -> void:
 	_is_orchestrating = true
-	_palette = []
+	_palette.clear()
 	_rebuild_palette()
 	_clear_ghosts()
 
@@ -1777,6 +1840,7 @@ func _any_block_grabbing() -> bool:
 
 func _input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
+		_last_touch_time = Time.get_ticks_msec() / 1000.0
 		if event.pressed:
 			_touch_points[event.index] = event.position
 			# A press inside the bottom tray never becomes a camera-orbit
@@ -1795,6 +1859,7 @@ func _input(event: InputEvent) -> void:
 		return
 
 	if event is InputEventScreenDrag and _touch_points.has(event.index):
+		_last_touch_time = Time.get_ticks_msec() / 1000.0
 		_touch_points[event.index] = event.position
 		if _gesture == 1:
 			# One-finger orbit — engages only after a small drag slop so a
