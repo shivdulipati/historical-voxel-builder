@@ -10,8 +10,8 @@ shader_type sky;
 
 uniform sampler2D sky_tex : source_color, filter_linear, repeat_enable;
 // The 256px texture is stretched over the whole dome; repeating it along the
-// azimuth keeps the clouds at their native scale (fixes the "blown-up" look).
-uniform float repeat_x = 3.0;
+// azimuth keeps the clouds at their native scale (user: 10x smaller than x3).
+uniform float repeat_x = 30.0;
 uniform vec4 tint : source_color = vec4(1.0, 1.0, 1.0, 1.0);
 uniform vec4 below_col : source_color = vec4(0.55, 0.5, 0.41, 1.0);
 
@@ -40,9 +40,14 @@ void sky() {
 	// texture tiles horizontally by design). EYEDIR points from the sky point
 	// TOWARD the camera, so dir.y = -1 at the zenith, 0 at the horizon. The
 	// texture's white cloud band sits at its BOTTOM rows: v = 1 + dir.y puts
-	// the clouds on the horizon band and the clear blue over the dome.
+	// the clouds on the horizon band and the clear blue over the dome. The
+	// band is flipped vertically (user: the fluffy tops must point UP, the
+	// flat bases hang above the horizon).
 	vec2 uv = vec2((atan(dir.z, dir.x) / 6.2831853 + 0.5) * repeat_x,
 			clamp(1.0 + dir.y, 0.0, 1.0));
+	if (uv.y >= 0.815) {
+		uv.y = 1.815 - uv.y;   // flip the cloud band across the horizon
+	}
 	vec3 texcol = texture(sky_tex, uv).rgb;
 
 	vec3 skycol = texcol * tint.rgb;
