@@ -19,11 +19,14 @@ func _ready() -> void:
 	assert(not ctl._baseplate.visible, "baseplate should be hidden")
 
 	var dia: Node3D = ctl._diorama
-	var mask_cells: int = dia._mask.size()
-	var grass_n: int = dia.get_node_or_null("GrassFloor").multimesh.instance_count
-	print("DEBUG: mask=%d grass=%d" % [mask_cells, grass_n])
-	assert(mask_cells > 150, "island not built in debug stage")
-	assert(grass_n > 100, "blob floor incomplete")
+	var nodes := dia.get_children()
+	var prop_count := 0
+	for c in nodes:
+		if (c as Node3D) != null and not ((c as Node3D).name in ["Main", "LedgeL", "ExtR", "PlatBack", "CornerFR"]):
+			prop_count += 1
+	print("DEBUG: nodes=%d props=%d" % [nodes.size(), prop_count])
+	assert(nodes.size() >= 13, "composition not built in debug stage")
+	assert(prop_count >= 8, "props missing in debug stage")
 	# Re-enable the diorama so the capture shows the full stage.
 	ctl._diorama.visible = true
 	ctl._camera.size = 55.0

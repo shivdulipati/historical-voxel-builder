@@ -22,26 +22,36 @@ func _ready() -> void:
 	ctl._load_structure(1)  # mastaba — builds blob diorama + raising beat
 	await get_tree().create_timer(1.5).timeout
 
-	# --- Island: one connected mask, grass floor + strata columns ---
+	# --- Composition: few big slabs + props, centre clear for the baseplate ---
 	var dia: Node3D = ctl._diorama
-	assert(dia != null, "diorama missing")
-	var mask_cells: int = dia._mask.size()
-	var edge_cells: int = dia._edge_cells.size()
-	print("BLOB: mask cells=%d edge cells=%d (want > 150 and > 40)" % [mask_cells, edge_cells])
-	assert(mask_cells > 150, "island too small")
-	assert(edge_cells > 40, "island has no coastline")
-	var grass: MultiMeshInstance3D = dia.get_node_or_null("GrassFloor")
-	assert(grass != null, "grass floor missing")
-	var grass_n: int = grass.multimesh.instance_count
-	print("BLOB: grass=%d (want > 100 and < mask %d)" % [grass_n, mask_cells])
-	assert(grass_n > 100 and grass_n < mask_cells, "grass floor should tile the interior only")
-	# Tall blocks: the brown body IS the strata — top pinned at y=0, down to -TALL.
-	var gt := grass.multimesh.get_instance_transform(0)
-	print("BLOB: grass scale=%s origin_y=%.3f (want y≈%.1f, origin≈-%.1f)" %
-			[gt.basis.get_scale(), gt.origin.y, 4.0, 4.0])
-	assert(absf(gt.basis.get_scale().y - 4.0) < 0.01, "grass blocks must be TALL")
-	assert(absf(gt.origin.y + 4.0) < 0.01, "grass top must sit at y=0")
-	assert(gt.basis.get_scale().x > 1.05, "floor tiles must overlap (no bevel gaps)")
+	var nodes := dia.get_children()
+	print("BLOB: total nodes=%d (want 5 slabs + >= 8 props, total < 40)" % nodes.size())
+	assert(nodes.size() < 40, "too many models — compose, don't tile")
+	assert(nodes.size() >= 13, "composition incomplete")
+	var main_slab: Node3D = null
+	var prop_count := 0
+	var in_clear := 0
+	for c in nodes:
+		var n := c as Node3D
+		if n == null:
+			continue
+		if n.name == "Main":
+			main_slab = n
+		elif n.name in ["LedgeL", "ExtR", "PlatBack", "CornerFR"]:
+			pass
+		else:
+			prop_count += 1
+			if absf(n.position.x) <= 3.5 and absf(n.position.z) <= 3.0:
+				in_clear += 1
+	print("BLOB: props=%d in-clear-box=%d (want >= 8 and 0)" % [prop_count, in_clear])
+	assert(prop_count >= 8, "props missing")
+	assert(in_clear == 0, "a prop sits in the structure/baseplate area")
+	assert(main_slab != null, "main slab missing")
+	var ms := main_slab.scale
+	var top_y: float = main_slab.position.y + 2.0 * ms.y  # large-tall top_mesh = 2
+	print("BLOB: main scale=%s top_y=%.3f (want y≈2.0, top≈0)" % [ms, top_y])
+	assert(absf(ms.y - 2.0) < 0.01, "main slab must be 4 units tall")
+	assert(absf(top_y) < 0.01, "main slab top must sit at y=0")
 
 	# --- Sky: beat shader + distinct palette per beat ---
 	assert(ctl._sky_mat != null, "sky material missing")
