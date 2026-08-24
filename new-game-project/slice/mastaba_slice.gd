@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 32
+const BUILD_NO := 33
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -829,37 +829,21 @@ func _apply_beat_sky() -> void:
 		return
 	match current_beat:
 		Beat.RAISING:
-			_sky_mat.set_shader_parameter("tint", Color("#FFD9A8"))
-			_sky_mat.set_shader_parameter("below_col", Color("#4A5078"))
-			_sky_mat.set_shader_parameter("sun_dir", Vector3(-0.45, 0.18, 0.35))
-			_sky_mat.set_shader_parameter("sun_col", Color("#FFC98A"))
-			_sky_mat.set_shader_parameter("sun_alpha", 1.0)
-			_sky_mat.set_shader_parameter("moon_alpha", 0.0)
-			_sky_mat.set_shader_parameter("stars_alpha", 0.0)
+			# Dawn: the morning skybox (peach clouds, low sun) + warm wash.
+			_sky_mat.set_shader_parameter("sky_tex", load("res://art/textures/sky_morning.png"))
+			_sky_mat.set_shader_parameter("tint", Color("#FFF3E0"))
 		Beat.RESTORATION:
+			# Noon: the day skybox (blue, clouds, high sun) at full color.
+			_sky_mat.set_shader_parameter("sky_tex", load("res://art/textures/sky_day.png"))
 			_sky_mat.set_shader_parameter("tint", Color("#FFFFFF"))
-			_sky_mat.set_shader_parameter("below_col", Color("#8E97AC"))
-			_sky_mat.set_shader_parameter("sun_dir", Vector3(-0.35, 0.6, -0.5))
-			_sky_mat.set_shader_parameter("sun_col", Color("#FFF3D6"))
-			_sky_mat.set_shader_parameter("sun_alpha", 1.0)
-			_sky_mat.set_shader_parameter("moon_alpha", 0.0)
-			_sky_mat.set_shader_parameter("stars_alpha", 0.0)
 		Beat.DECAY:
-			_sky_mat.set_shader_parameter("tint", Color("#FF9A4D"))
-			_sky_mat.set_shader_parameter("below_col", Color("#3A3A5E"))
-			_sky_mat.set_shader_parameter("sun_dir", Vector3(-0.6, 0.12, 0.2))
-			_sky_mat.set_shader_parameter("sun_col", Color("#FFB066"))
-			_sky_mat.set_shader_parameter("sun_alpha", 1.0)
-			_sky_mat.set_shader_parameter("moon_alpha", 0.0)
-			_sky_mat.set_shader_parameter("stars_alpha", 0.0)
+			# Dusk: the morning skybox again, pushed orange.
+			_sky_mat.set_shader_parameter("sky_tex", load("res://art/textures/sky_morning.png"))
+			_sky_mat.set_shader_parameter("tint", Color("#FFD9B0"))
 		Beat.EXCAVATION:
-			_sky_mat.set_shader_parameter("tint", Color("#1A2344"))
-			_sky_mat.set_shader_parameter("below_col", Color("#141E38"))
-			_sky_mat.set_shader_parameter("sun_alpha", 0.0)
-			_sky_mat.set_shader_parameter("moon_dir", Vector3(-0.2, 0.45, 0.6))
-			_sky_mat.set_shader_parameter("moon_col", Color("#C8D4EE"))
-			_sky_mat.set_shader_parameter("moon_alpha", 1.0)
-			_sky_mat.set_shader_parameter("stars_alpha", 0.8)
+			# Night: the night skybox (moon, stars) + cool wash.
+			_sky_mat.set_shader_parameter("sky_tex", load("res://art/textures/sky_night.png"))
+			_sky_mat.set_shader_parameter("tint", Color("#E8ECFF"))
 
 
 ## The floating earth slice sways gently while the player is hands-off.

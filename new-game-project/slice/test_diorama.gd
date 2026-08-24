@@ -49,16 +49,19 @@ func _ready() -> void:
 	# --- Sky: texture + beat tint + distinct palette per beat ---
 	assert(ctl._sky_mat != null, "sky material missing")
 	assert(ctl._sky_mat.shader.resource_path == "res://art/sky_beat.gdshader", "wrong sky shader")
-	assert(ctl._sky_mat.get_shader_parameter("sky_tex") != null, "clouds texture not bound")
+	assert(ctl._sky_mat.get_shader_parameter("sky_tex") != null, "skybox texture not bound")
 	assert(ctl._camera.projection == Camera3D.PROJECTION_PERSPECTIVE, "camera must be perspective")
 	assert(absf(ctl._camera.fov - 60.0) < 0.1, "camera fov should be 60")
 	var tints := {}
+	var skyboxes := {}
 	for b in BEATS:
 		ctl.current_beat = b[0]
 		ctl._apply_beat_sky()
 		var c: Color = ctl._sky_mat.get_shader_parameter("tint")
 		tints[b[1]] = c
-		print("SKY %s: tint=%s" % [b[1], c])
+		var tex: Texture2D = ctl._sky_mat.get_shader_parameter("sky_tex")
+		skyboxes[b[1]] = tex.resource_path if tex != null else ""
+		print("SKY %s: tint=%s tex=%s" % [b[1], c, skyboxes[b[1]]])
 	assert(tints.size() == 4, "missing beat palettes")
 	var distinct := true
 	for key in tints:
@@ -66,11 +69,10 @@ func _ready() -> void:
 			if key != other and tints[key].is_equal_approx(tints[other]):
 				distinct = false
 	assert(distinct, "two beats share the same sky tint")
-	ctl.current_beat = 0
-	ctl._apply_beat_sky()
-	assert(ctl._sky_mat.get_shader_parameter("stars_alpha") == 0.0
-			or ctl._sky_mat.get_shader_parameter("stars_alpha") == 0, "raising must be starless")
-	assert(ctl._sky_mat.get_shader_parameter("moon_alpha") == 0.0, "raising must be moonless")
+	# Day maps to noon, night maps to excavation.
+	assert(skyboxes["restoration"].ends_with("sky_day.png"), "noon must use the day skybox")
+	assert(skyboxes["excavation"].ends_with("sky_night.png"), "night must use the night skybox")
+	assert(skyboxes["raising"].ends_with("sky_morning.png"), "dawn must use the morning skybox")
 
 	# --- Idle bob: still under touch, moving when hands-off ---
 	ctl._last_touch_time = Time.get_ticks_msec() / 1000.0
