@@ -1,0 +1,4 @@
+[gd_scene load_steps=2 format=3]
+[ext_resource type="Script" path="res://slice/check_pk.gd" id="1_cp"]
+[node name="CheckPK" type="Node"]
+script = ExtResource("1_cp")

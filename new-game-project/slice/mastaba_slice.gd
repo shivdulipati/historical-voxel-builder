@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const EARTH_SLICE = preload("res://art/earth_slice.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 23
+const BUILD_NO := 24
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -108,6 +108,9 @@ var _sky_mat: ShaderMaterial
 var _last_touch_time := 0.0
 const BOB_AMPLITUDE := 0.09
 const BOB_PERIOD := 3.5
+## View-center pan clamp: keeps the camera (24 units behind the pivot) from
+## ever entering the 44-wide earth slab's volume.
+const PAN_CLAMP := 18.0
 var _hud_root: Control
 var _debug_mode := false
 var _escape_layer: CanvasLayer
@@ -208,12 +211,13 @@ func _build_world() -> void:
 	_camera.name = "Camera3D"
 	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	_camera.size = _base_cam_size
-	# Camera 24 units out (beyond the 44-wide earth slab's edge) and 0.05
+	# Camera 24 units out (beyond the 44-wide earth slab's edge) and 0.15
 	# ABOVE its top plane. At the old 14 the Front/Side snap views put the
 	# camera INSIDE the slab footprint — only the top face rendered, the
 	# strata walls were backface-culled (BUILD 23 bug). Orthographic framing
 	# is by `size`, so the extra distance is invisible in every other view.
-	_camera.position = Vector3(0, 0.05, 24)
+	# The 0.15 keeps the top face clear of the near plane in level views.
+	_camera.position = Vector3(0, 0.15, 24)
 	_pivot.add_child(_camera)
 
 	# --- Sun ---
@@ -1094,7 +1098,10 @@ func _apply_saved_state() -> void:
 		_pivot.rotation = Vector3(float(cam_rot[0]), float(cam_rot[1]), float(cam_rot[2]))
 	var cam_pos: Array = _saved_data.get("cam_pos", [])
 	if cam_pos.size() == 3:
-		_pivot.position = Vector3(float(cam_pos[0]), float(cam_pos[1]), float(cam_pos[2]))
+		_pivot.position = Vector3(
+			clampf(float(cam_pos[0]), -PAN_CLAMP, PAN_CLAMP),
+			float(cam_pos[1]),
+			clampf(float(cam_pos[2]), -PAN_CLAMP, PAN_CLAMP))
 	_camera.size = clampf(float(_saved_data.get("cam_size", _base_cam_size)), 5.0, 90.0)
 
 	completed_cells.clear()
@@ -1916,7 +1923,10 @@ func _latch_gesture() -> void:
 
 func _apply_orbit(drag: InputEventScreenDrag) -> void:
 	_pivot.rotation.y -= drag.relative.x * 0.005
-	_pivot.rotation.x = clampf(_pivot.rotation.x - drag.relative.y * 0.005, -PI / 2.0, 0.02)
+	# Pitch never goes above level (0.0): a positive pitch drops the camera
+	# BELOW the earth slab's top plane, where the near plane slices the slab
+	# and the hollow interior shows sky (BUILD 23 camera-clip bug).
+	_pivot.rotation.x = clampf(_pivot.rotation.x - drag.relative.y * 0.005, -PI / 2.0, 0.0)
 
 	# Magnetic snap to 90° increments.
 	var snap_margin := 0.087  # ~5 degrees
@@ -1945,6 +1955,11 @@ func _pan_camera(pan_delta: Vector2) -> void:
 	var vp_h := float(get_viewport().get_visible_rect().size.y)
 	var world_per_px := _camera.size / vp_h
 	_pivot.position += (-pan_delta.x * right + pan_delta.y * up) * world_per_px
+	# Keep the view center on the slab: the camera rides 24 units behind it,
+	# so an unclamped pan can push the camera INTO the slab volume (near-plane
+	# slices + backface-culled interior — the BUILD 23 camera-clip bug).
+	_pivot.position.x = clampf(_pivot.position.x, -PAN_CLAMP, PAN_CLAMP)
+	_pivot.position.z = clampf(_pivot.position.z, -PAN_CLAMP, PAN_CLAMP)
 
 
 # ============================================================================

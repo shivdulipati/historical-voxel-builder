@@ -1,16 +1,17 @@
 shader_type sky;
-// Sky for the floating earth-slice diorama: a vertical gradient that runs
-// past the horizon (no flat "ground" band — the slab floats in pure sky),
-// drifting fbm clouds, a sun disc + glow, and an optional moon + stars for
-// the EXCAVATION (night) beat. The beat palettes are set from GDScript via
-// the *_col uniforms.
+// Static beat sky for the floating earth-slice diorama. The pattern is
+// sampled from the view ray direction, so it is fixed in world space — the
+// diorama rotates beneath it; only the camera's look direction reveals
+// different parts of the sky, exactly like a real sky. No time animation
+// (clouds do not drift, stars do not twinkle), and the cloud mapping clamps
+// the horizon division so the noise never stretches into warping streaks
+// (the BUILD 23 sky-streak bug). The beat palettes are set from GDScript.
 
 uniform vec4 top_col : source_color = vec4(0.24, 0.50, 0.85, 1.0);
 uniform vec4 horizon_col : source_color = vec4(0.95, 0.87, 0.72, 1.0);
 uniform vec4 below_col : source_color = vec4(0.88, 0.80, 0.66, 1.0);
 uniform vec4 cloud_col : source_color = vec4(1.0, 0.98, 0.94, 1.0);
 uniform float cloud_alpha : hint_range(0.0, 1.0) = 0.45;
-uniform float cloud_speed : hint_range(0.0, 0.2) = 0.02;
 
 uniform vec3 sun_dir = vec3(-0.35, 0.45, -0.55);
 uniform vec4 sun_col : source_color = vec4(1.0, 0.95, 0.82, 1.0);
@@ -61,28 +62,30 @@ void sky() {
 		skycol = mix(horizon_col.rgb, below_col.rgb, pow(clamp(-h, 0.0, 1.0), 0.55));
 	}
 
-	// Sun disc + soft glow; moon (night) with a cooler, dimmer glow.
+	// Sun / moon discs with a tight glow (no broad radial wash).
 	float s = max(dot(dir, normalize(sun_dir)), 0.0);
-	skycol += sun_col.rgb * (pow(s, 900.0) * 1.5 + pow(s, 6.0) * 0.28) * sun_alpha;
+	skycol += sun_col.rgb * (pow(s, 900.0) * 1.5 + pow(s, 30.0) * 0.25) * sun_alpha;
 	float m = max(dot(dir, normalize(moon_dir)), 0.0);
-	skycol += moon_col.rgb * (pow(m, 300.0) * 1.1 + pow(m, 4.0) * 0.1) * moon_alpha;
+	skycol += moon_col.rgb * (pow(m, 300.0) * 1.1 + pow(m, 20.0) * 0.15) * moon_alpha;
 
-	// Two fbm layers drifting at different speeds; fade out at the horizon.
-	if (h > -0.02) {
-		vec2 cuv = dir.xz / max(h, 0.08);
-		float n1 = fbm(cuv * 1.6 + vec2(TIME * cloud_speed * 3.0, TIME * cloud_speed * 1.7));
-		float n2 = fbm(cuv * 3.1 - vec2(TIME * cloud_speed * 2.1, 0.0) + 7.3);
+	// Static cloud band above the horizon. The UV division is clamped so the
+	// noise cannot stretch into streaks, and the band fades to zero well
+	// before the clamp region — nothing warps as the camera turns.
+	float band = smoothstep(0.04, 0.10, h) * (1.0 - smoothstep(0.42, 0.62, h));
+	if (band > 0.001) {
+		vec2 cuv = dir.xz / max(h, 0.28);
+		float n1 = fbm(cuv * 1.6 + vec2(13.7, 7.3));
+		float n2 = fbm(cuv * 3.1 - vec2(5.1, 11.9));
 		float clouds = smoothstep(0.52, 0.78, n1 * 0.62 + n2 * 0.38);
-		skycol = mix(skycol, cloud_col.rgb, clouds * cloud_alpha * smoothstep(-0.02, 0.06, h));
+		skycol = mix(skycol, cloud_col.rgb, clouds * cloud_alpha * band);
 	}
 
-	// Stars: fixed hash points on the dome, gently twinkling. Night only.
-	if (h > 0.05) {
-		vec2 sp = dir.xz / max(h, 0.05) * 2.0;
+	// Static stars (night only), well above the horizon so they never stretch.
+	if (h > 0.15) {
+		vec2 sp = dir.xz / max(h, 0.2) * 2.0;
 		vec2 g = floor(sp * 9.0);
 		float st = hash21(g);
-		float tw = 0.55 + 0.45 * sin(TIME * 2.0 + hash21(g + 17.0) * 40.0);
-		skycol += vec3(0.85, 0.9, 1.0) * step(0.968, st) * tw * stars_alpha;
+		skycol += vec3(0.85, 0.9, 1.0) * step(0.968, st) * stars_alpha;
 	}
 
 	COLOR = skycol;
