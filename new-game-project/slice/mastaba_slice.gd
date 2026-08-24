@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 31
+const BUILD_NO := 32
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }

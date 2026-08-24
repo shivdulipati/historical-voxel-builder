@@ -39,15 +39,13 @@ void sky() {
 	// Equirectangular sample from the view direction: u wraps around (the
 	// texture tiles horizontally by design). EYEDIR points from the sky point
 	// TOWARD the camera, so dir.y = -1 at the zenith, 0 at the horizon. The
-	// texture's white cloud band sits at its BOTTOM rows: v = 1 + dir.y puts
-	// the clouds on the horizon band and the clear blue over the dome. The
-	// band is flipped vertically (user: the fluffy tops must point UP, the
-	// flat bases hang above the horizon).
+	// texture's white cloud band sits at its BOTTOM rows with the domes
+	// pointing UP and the flat base at the band's bottom edge: v = 1 + dir.y
+	// puts the flat base on the horizon and the domes rising above it. The v
+	// range is compressed 6x so the clouds are square with the 30x azimuth
+	// scale (no more paint-drip elongation).
 	vec2 uv = vec2((atan(dir.z, dir.x) / 6.2831853 + 0.5) * repeat_x,
-			clamp(1.0 + dir.y, 0.0, 1.0));
-	if (uv.y >= 0.815) {
-		uv.y = 1.815 - uv.y;   // flip the cloud band across the horizon
-	}
+			clamp(1.0 + dir.y * 6.0, 0.0, 1.0));
 	vec3 texcol = texture(sky_tex, uv).rgb;
 
 	vec3 skycol = texcol * tint.rgb;
