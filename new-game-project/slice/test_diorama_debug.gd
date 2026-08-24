@@ -21,10 +21,9 @@ func _ready() -> void:
 	var dia: Node3D = ctl._diorama
 	var mask_cells: int = dia._mask.size()
 	var grass_n: int = dia.get_node_or_null("GrassFloor").multimesh.instance_count
-	var strata_n: int = dia.get_node_or_null("Strata").multimesh.instance_count
-	print("DEBUG: mask=%d grass=%d strata=%d" % [mask_cells, grass_n, strata_n])
+	print("DEBUG: mask=%d grass=%d" % [mask_cells, grass_n])
 	assert(mask_cells > 150, "island not built in debug stage")
-	assert(grass_n > 100 and strata_n == mask_cells, "blob floor/strata incomplete")
+	assert(grass_n > 100, "blob floor incomplete")
 	# Re-enable the diorama so the capture shows the full stage.
 	ctl._diorama.visible = true
 	ctl._camera.size = 55.0

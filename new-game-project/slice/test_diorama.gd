@@ -31,18 +31,17 @@ func _ready() -> void:
 	assert(mask_cells > 150, "island too small")
 	assert(edge_cells > 40, "island has no coastline")
 	var grass: MultiMeshInstance3D = dia.get_node_or_null("GrassFloor")
-	var strata: MultiMeshInstance3D = dia.get_node_or_null("Strata")
-	assert(grass != null and strata != null, "grass floor or strata missing")
+	assert(grass != null, "grass floor missing")
 	var grass_n: int = grass.multimesh.instance_count
-	var strata_n: int = strata.multimesh.instance_count
-	print("BLOB: grass=%d strata=%d (strata == mask, grass < mask)" % [grass_n, strata_n])
-	assert(strata_n == mask_cells, "strata must cover every mask cell")
+	print("BLOB: grass=%d (want > 100 and < mask %d)" % [grass_n, mask_cells])
 	assert(grass_n > 100 and grass_n < mask_cells, "grass floor should tile the interior only")
-	var mat := strata.material_override as ShaderMaterial
-	assert(mat != null and mat.get_shader_parameter("strata_tex") != null,
-			"strata texture not bound")
-	assert(strata.multimesh.get_instance_transform(0).origin.y < -4.0, "strata must sit below the floor")
-	assert(grass.multimesh.get_instance_transform(0).origin.y < 0.01, "grass must rest at the top plane")
+	# Tall blocks: the brown body IS the strata — top pinned at y=0, down to -TALL.
+	var gt := grass.multimesh.get_instance_transform(0)
+	print("BLOB: grass scale=%s origin_y=%.3f (want y≈%.1f, origin≈-%.1f)" %
+			[gt.basis.get_scale(), gt.origin.y, 4.0, 4.0])
+	assert(absf(gt.basis.get_scale().y - 4.0) < 0.01, "grass blocks must be TALL")
+	assert(absf(gt.origin.y + 4.0) < 0.01, "grass top must sit at y=0")
+	assert(gt.basis.get_scale().x > 1.05, "floor tiles must overlap (no bevel gaps)")
 
 	# --- Sky: beat shader + distinct palette per beat ---
 	assert(ctl._sky_mat != null, "sky material missing")

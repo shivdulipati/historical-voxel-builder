@@ -1,11 +1,13 @@
 extends Node3D
-## BUILD 24 POC v2: the organic "mini-map" earth slice, at 1-unit block
-## resolution and ~a third of the area:
+## BUILD 25 POC v2 → v3: the organic "mini-map" earth slice at 1-unit block
+## resolution, ~a third of the original area:
 ##  * a noise-perturbed island mask (~27 wide, forced solid under the build)
-##  * the FLOOR = platformer-kit block-grass models on every interior cell
-##    (brown dirt sides + green caps → the reference's tiled grass lawn)
-##  * strata columns beneath (brown-only platformer strip, deepening with
-##    depth — no grey stone)
+##  * the FLOOR = platformer-kit block-grass models on every interior cell —
+##    the block's own brown body IS the strata now, stretched TALL so the
+##    cliff reads (no 2D tiles, no strip shader; user: "remove the strata
+##    entirely... use tall blocks from the models")
+##  * floor tiles overlapped slightly in XZ (OVERLAP) so the beveled top
+##    corners can't leave diamond gaps between neighbours (user gap report)
 ##  * platformer-kit grass overhang blocks along the rim, corners handled
 ##  * a few platformer trees + rocks
 ##  * NO fossils yet (user: "we'll tackle those later")
@@ -13,10 +15,10 @@ extends Node3D
 
 const CELL := 1.0
 const GRID := 18            # mask half-extent (units)
-const STRATA_DEPTH := 7.0   # visible strata below the grass floor (to y=-8)
+const TALL := 4.0           # vertical stretch of the grass blocks = strata height
+const OVERLAP := 1.08       # XZ scale per tile: kills the beveled-corner gaps
 const BLOB_SEED := 1337
 
-const STRATA_TEX := "res://art/textures/strata_platformer.png"
 const GRASS_MODEL := "res://art/platformer/block-grass.glb"
 const RIM_MODEL := "res://art/platformer/block-grass-overhang-narrow.glb"
 const CORNER_MODEL := "res://art/platformer/block-grass-corner-overhang.glb"
@@ -35,7 +37,6 @@ func build(structure_id: String) -> void:
 		return
 	_rng.seed = BLOB_SEED
 	_gen_mask()
-	_build_strata()
 	_build_grass_floor()
 	_build_rim()
 	_build_props()
@@ -104,35 +105,7 @@ func _gen_mask() -> void:
 				_edge_cells.append(Vector2i(gx, gz))
 
 
-# --- Strata columns (below the grass floor) --------------------------------
-
-func _build_strata() -> void:
-	var mm := MultiMesh.new()
-	mm.transform_format = MultiMesh.TRANSFORM_3D
-	var box := BoxMesh.new()
-	box.size = Vector3(CELL, STRATA_DEPTH, CELL)
-	mm.mesh = box
-	mm.instance_count = _mask.size()
-	var mat := ShaderMaterial.new()
-	mat.shader = load("res://art/strata_face.gdshader")
-	mat.set_shader_parameter("strata_tex", load(STRATA_TEX))
-	mat.set_shader_parameter("top_tex", load(STRATA_TEX))
-	mat.set_shader_parameter("depth", STRATA_DEPTH)
-	mat.set_shader_parameter("tile", 1.0)
-	var i := 0
-	for cell in _mask:
-		var t := Transform3D(Basis.IDENTITY,
-				Vector3(cell.x * CELL, -1.0 - STRATA_DEPTH / 2.0, cell.y * CELL))
-		mm.set_instance_transform(i, t)
-		i += 1
-	var mi := MultiMeshInstance3D.new()
-	mi.name = "Strata"
-	mi.multimesh = mm
-	mi.material_override = mat
-	add_child(mi)
-
-
-# --- Grass floor (platformer block-grass on every interior cell) -----------
+# --- Grass floor + strata (the block's own brown body, stretched tall) ----
 
 func _build_grass_floor() -> void:
 	var scene := load(GRASS_MODEL) as PackedScene
@@ -144,7 +117,10 @@ func _build_grass_floor() -> void:
 		return
 	_grass_mesh = mi_node.mesh
 	var aabb := _grass_mesh.get_aabb()
-	var top_y: float = -aabb.position.y - aabb.size.y  # mesh top → world y=0
+	# Top-pinned tall scale: world top stays at y=0, the body runs down to -TALL.
+	var top_mesh: float = aabb.position.y + aabb.size.y
+	var scale_v := Vector3(OVERLAP, TALL, OVERLAP)
+	var origin_y: float = -top_mesh * TALL
 	sample.free()
 
 	var mm := MultiMesh.new()
@@ -157,8 +133,8 @@ func _build_grass_floor() -> void:
 	mm.instance_count = interior.size()
 	var i := 0
 	for cell in interior:
-		var t := Transform3D(Basis.IDENTITY,
-				Vector3(cell.x * CELL, top_y, cell.y * CELL))
+		var t := Transform3D(Basis.IDENTITY.scaled(scale_v),
+				Vector3(cell.x * CELL, origin_y, cell.y * CELL))
 		mm.set_instance_transform(i, t)
 		i += 1
 	var mi := MultiMeshInstance3D.new()
@@ -172,6 +148,7 @@ func _build_grass_floor() -> void:
 func _build_rim() -> void:
 	var rim := load(RIM_MODEL) as PackedScene
 	var corner := load(CORNER_MODEL) as PackedScene
+	var scale_v := Vector3(OVERLAP, TALL, OVERLAP)
 	for cell in _edge_cells:
 		var dirs := _outward_dirs(cell)
 		if dirs.size() == 0:
@@ -181,7 +158,10 @@ func _build_rim() -> void:
 		var inst: Node3D = (corner if is_corner else rim).instantiate()
 		var m: MeshInstance3D = _first_mesh(inst)
 		var aabb := m.mesh.get_aabb() if m != null and m.mesh != null else AABB(Vector3.ZERO, Vector3.ONE)
-		inst.position = Vector3(cell.x * CELL, -aabb.position.y - aabb.size.y, cell.y * CELL)
+		inst.scale = scale_v
+		# Top-pinned: the lip stays at world y=0, the body runs down to -TALL.
+		inst.position = Vector3(cell.x * CELL,
+				-(aabb.position.y + aabb.size.y) * TALL, cell.y * CELL)
 		var dir: Vector2i = dirs[0]
 		# +Z (the lip side) faces outward.
 		inst.rotation.y = atan2(float(dir.x), float(dir.y))
