@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://d00jgxrmo0hvn"
-path="res://.godot/imported/flowers.glb-42290b5db96b937f7d00e1bcfe7a095d.scn"
+uid="uid://ponvpr8wmw0a"
+path="res://.godot/imported/block-grass-overhang-large-tall.glb-5cd372e6cd72a8d033f47e59237446e1.scn"
 
 [deps]
 
-source_file="res://art/platformer/flowers.glb"
-dest_files=["res://.godot/imported/flowers.glb-42290b5db96b937f7d00e1bcfe7a095d.scn"]
+source_file="res://art/platformer/block-grass-overhang-large-tall.glb"
+dest_files=["res://.godot/imported/block-grass-overhang-large-tall.glb-5cd372e6cd72a8d033f47e59237446e1.scn"]
 
 [params]
 

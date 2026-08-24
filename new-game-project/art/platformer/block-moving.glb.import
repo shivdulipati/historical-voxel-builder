@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://d00jgxrmo0hvn"
-path="res://.godot/imported/flowers.glb-42290b5db96b937f7d00e1bcfe7a095d.scn"
+uid="uid://tqbhh8gfklde"
+path="res://.godot/imported/block-moving.glb-2a0c8a84eb6b2529632a641b8689e18b.scn"
 
 [deps]
 
-source_file="res://art/platformer/flowers.glb"
-dest_files=["res://.godot/imported/flowers.glb-42290b5db96b937f7d00e1bcfe7a095d.scn"]
+source_file="res://art/platformer/block-moving.glb"
+dest_files=["res://.godot/imported/block-moving.glb-2a0c8a84eb6b2529632a641b8689e18b.scn"]
 
 [params]
 

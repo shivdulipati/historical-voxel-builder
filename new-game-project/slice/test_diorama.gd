@@ -22,36 +22,29 @@ func _ready() -> void:
 	ctl._load_structure(1)  # mastaba — builds blob diorama + raising beat
 	await get_tree().create_timer(1.5).timeout
 
-	# --- Composition: few big slabs + props, centre clear for the baseplate ---
+	# --- Transcription: 29 blocks from Test_01.model, marker box respected ---
 	var dia: Node3D = ctl._diorama
 	var nodes := dia.get_children()
-	print("BLOB: total nodes=%d (want 5 slabs + >= 8 props, total < 40)" % nodes.size())
-	assert(nodes.size() < 40, "too many models — compose, don't tile")
-	assert(nodes.size() >= 13, "composition incomplete")
-	var main_slab: Node3D = null
-	var prop_count := 0
-	var in_clear := 0
+	print("BLOB: total nodes=%d (want 29)" % nodes.size())
+	assert(nodes.size() == 29, "must transcribe all 29 blocks from the .model")
+	var moving := 0
+	var marker_violations := 0
 	for c in nodes:
 		var n := c as Node3D
 		if n == null:
 			continue
-		if n.name == "Main":
-			main_slab = n
-		elif n.name in ["LedgeL", "ExtR", "PlatBack", "CornerFR"]:
-			pass
-		else:
-			prop_count += 1
-			if absf(n.position.x) <= 3.5 and absf(n.position.z) <= 3.0:
-				in_clear += 1
-	print("BLOB: props=%d in-clear-box=%d (want >= 8 and 0)" % [prop_count, in_clear])
-	assert(prop_count >= 8, "props missing")
-	assert(in_clear == 0, "a prop sits in the structure/baseplate area")
-	assert(main_slab != null, "main slab missing")
-	var ms := main_slab.scale
-	var top_y: float = main_slab.position.y + 2.0 * ms.y  # large-tall top_mesh = 2
-	print("BLOB: main scale=%s top_y=%.3f (want y≈2.0, top≈0)" % [ms, top_y])
-	assert(absf(ms.y - 2.0) < 0.01, "main slab must be 4 units tall")
-	assert(absf(top_y) < 0.01, "main slab top must sit at y=0")
+		if n.name.begins_with("block-moving"):
+			moving += 1
+		# The 3x4 marker box: only block-moving blocks may sit inside it.
+		if absf(n.position.x) <= 1.5 and absf(n.position.z) <= 1.5:
+			if not n.name.begins_with("block-moving"):
+				marker_violations += 1
+	print("BLOB: moving=%d marker-violations=%d (want 12 and 0)" % [moving, marker_violations])
+	assert(moving == 12, "the 3x4 marker must be 12 block-moving blocks")
+	assert(marker_violations == 0, "a non-marker block sits in the structure/baseplate area")
+	var base := dia.get_node("block-grass-overhang-large-tall_00")
+	assert(base.scale.is_equal_approx(Vector3(4.5, 1.1, 4.5)), "main base scale wrong")
+	assert(absf(base.position.y + 2.2) < 0.01, "main base top must sit at y=0")
 
 	# --- Sky: beat shader + distinct palette per beat ---
 	assert(ctl._sky_mat != null, "sky material missing")

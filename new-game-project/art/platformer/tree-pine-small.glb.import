@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://d00jgxrmo0hvn"
-path="res://.godot/imported/flowers.glb-42290b5db96b937f7d00e1bcfe7a095d.scn"
+uid="uid://b2phcir64a3l0"
+path="res://.godot/imported/tree-pine-small.glb-bb4bd8f5f54d98bb5263ce9accd334d8.scn"
 
 [deps]
 
-source_file="res://art/platformer/flowers.glb"
-dest_files=["res://.godot/imported/flowers.glb-42290b5db96b937f7d00e1bcfe7a095d.scn"]
+source_file="res://art/platformer/tree-pine-small.glb"
+dest_files=["res://.godot/imported/tree-pine-small.glb-bb4bd8f5f54d98bb5263ce9accd334d8.scn"]
 
 [params]
 
