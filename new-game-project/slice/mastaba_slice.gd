@@ -7,10 +7,10 @@ extends Node3D
 const SliceBlock = preload("res://slice/slice_block.gd")
 const STRUCTS = preload("res://slice/structures.gd")
 const PIECES = preload("res://slice/pieces.gd")
-const EARTH_SLICE = preload("res://art/earth_slice.gd")
+const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 24
+const BUILD_NO := 25
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -101,7 +101,7 @@ var _debug_panel: Control
 var _level_input: LineEdit
 
 var _baseplate: Node3D
-var _earth_slice: Node3D
+var _diorama: Node3D
 var _sky_mat: ShaderMaterial
 ## Seconds since the last touch (any press/release/drag) — drives the idle
 ## bob: the floating earth slice sways gently when the player is hands-off.
@@ -154,11 +154,16 @@ func _load_structure(index: int) -> void:
 
 	# Camera framing per structure footprint.
 	_base_cam_size = maxf(_st["limits"].x, _st["limits"].z) * 2.6 + 6.0
+	# Diorama stages: the island (~27 wide + rim) needs wider framing than the
+	# structure footprint alone dictates — floor the base size so the whole
+	# island sits in a portrait frame.
+	if _st.get("id", "") == "mastaba" or _st.get("id", "") == "diorama_debug":
+		_base_cam_size = maxf(_base_cam_size, 30.0)
 	_camera.size = _base_cam_size
 
 	_top_label.text = _st["site_era"]
-	if _earth_slice != null:
-		_earth_slice.build(_st["id"])
+	if _diorama != null:
+		_diorama.build(_st["id"])
 	_apply_debug_mode()
 	_restart_arc()
 
@@ -172,8 +177,8 @@ func _apply_debug_mode() -> void:
 	if _debug_mode == was_debug:
 		return
 	if _debug_mode:
-		if _earth_slice != null:
-			_earth_slice.visible = false
+		if _diorama != null:
+			_diorama.visible = false
 		if _baseplate != null:
 			_baseplate.visible = false
 		for child in _hud_root.get_children():
@@ -182,8 +187,8 @@ func _apply_debug_mode() -> void:
 		if _escape_layer != null:
 			_escape_layer.visible = true
 	else:
-		if _earth_slice != null:
-			_earth_slice.visible = true
+		if _diorama != null:
+			_diorama.visible = true
 		if _baseplate != null:
 			_baseplate.visible = true
 		for child in _hud_root.get_children():
@@ -266,10 +271,10 @@ func _build_world() -> void:
 	floor_body.add_child(floor_shape)
 	add_child(floor_body)
 
-	# --- Earth slice (the diorama: floating chunk of earth + strata fossils).
-	_earth_slice = EARTH_SLICE.new()
-	_earth_slice.name = "EarthSlice"
-	add_child(_earth_slice)
+	# --- Diorama (the organic blob island: grass floor + brown-only strata).
+	_diorama = DIORAMA.new()
+	_diorama.name = "Diorama"
+	add_child(_diorama)
 
 	# --- Baseplate tiles (build footprint marker) ---
 	_baseplate = Node3D.new()
