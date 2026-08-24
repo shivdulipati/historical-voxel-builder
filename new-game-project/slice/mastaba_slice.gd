@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 28
+const BUILD_NO := 29
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -51,7 +51,10 @@ var _current_swatch := ""
 var _is_orchestrating := false   # beat transition in flight (input locked)
 var _dust_total := 0
 var _dust_cleared := 0
-var _base_cam_size := 14.0
+var _base_cam_dist := 24.0   # default orbit distance (perspective camera)
+var _cam_dist := 24.0        # live distance — zoom = dolly along the view axis
+const CAM_DIST_MIN := 8.0
+const CAM_DIST_MAX := 64.0
 
 # --- Camera ---
 var _pivot: Node3D
@@ -153,13 +156,13 @@ func _load_structure(index: int) -> void:
 	_st["limits"] = STRUCTS.build_limits(_st)
 
 	# Camera framing per structure footprint.
-	_base_cam_size = maxf(_st["limits"].x, _st["limits"].z) * 2.6 + 6.0
-	# Diorama stages: the island (~27 wide + rim) needs wider framing than the
-	# structure footprint alone dictates — floor the base size so the whole
+	_base_cam_dist = maxf(_st["limits"].x, _st["limits"].z) * 2.6 + 6.0
+	# Diorama stages: the island (~9+ units + chunks) needs wider framing than
+	# the structure footprint alone dictates — floor the distance so the whole
 	# island sits in a portrait frame.
 	if _st.get("id", "") == "mastaba" or _st.get("id", "") == "diorama_debug":
-		_base_cam_size = maxf(_base_cam_size, 30.0)
-	_camera.size = _base_cam_size
+		_base_cam_dist = maxf(_base_cam_dist, 24.0)
+	_set_cam_dist(_base_cam_dist)
 
 	_top_label.text = _st["site_era"]
 	if _diorama != null:
@@ -214,15 +217,12 @@ func _build_world() -> void:
 
 	_camera = Camera3D.new()
 	_camera.name = "Camera3D"
-	_camera.projection = Camera3D.PROJECTION_ORTHOGONAL
-	_camera.size = _base_cam_size
-	# Camera 24 units out (beyond the 44-wide earth slab's edge) and 0.15
-	# ABOVE its top plane. At the old 14 the Front/Side snap views put the
-	# camera INSIDE the slab footprint — only the top face rendered, the
-	# strata walls were backface-culled (BUILD 23 bug). Orthographic framing
-	# is by `size`, so the extra distance is invisible in every other view.
-	# The 0.15 keeps the top face clear of the near plane in level views.
-	_camera.position = Vector3(0, 0.15, 24)
+	# BUILD 29: perspective (3-point) — Asset Forge-style depth; zoom = dolly.
+	_camera.projection = Camera3D.PROJECTION_PERSPECTIVE
+	_camera.fov = 60.0
+	# Camera 24 units out (beyond the island's edge) and 0.15 ABOVE the top
+	# plane so level views keep the top face clear of the near plane.
+	_camera.position = Vector3(0, 0.15, _cam_dist)
 	_pivot.add_child(_camera)
 
 	# --- Sun ---
@@ -250,6 +250,7 @@ func _build_world() -> void:
 	environment.background_mode = Environment.BG_SKY
 	_sky_mat = ShaderMaterial.new()
 	_sky_mat.shader = load("res://art/sky_beat.gdshader")
+	_sky_mat.set_shader_parameter("sky_tex", load("res://art/textures/sky_clouds.png"))
 	environment.sky = Sky.new()
 	environment.sky.sky_material = _sky_mat
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
@@ -828,40 +829,32 @@ func _apply_beat_sky() -> void:
 		return
 	match current_beat:
 		Beat.RAISING:
-			_sky_mat.set_shader_parameter("top_col", Color("#3D5A8C"))
-			_sky_mat.set_shader_parameter("horizon_col", Color("#F0A76E"))
+			_sky_mat.set_shader_parameter("tint", Color("#FFD9A8"))
 			_sky_mat.set_shader_parameter("below_col", Color("#4A5078"))
-			_sky_mat.set_shader_parameter("cloud_alpha", 0.4)
 			_sky_mat.set_shader_parameter("sun_dir", Vector3(-0.45, 0.18, 0.35))
 			_sky_mat.set_shader_parameter("sun_col", Color("#FFC98A"))
 			_sky_mat.set_shader_parameter("sun_alpha", 1.0)
 			_sky_mat.set_shader_parameter("moon_alpha", 0.0)
 			_sky_mat.set_shader_parameter("stars_alpha", 0.0)
 		Beat.RESTORATION:
-			_sky_mat.set_shader_parameter("top_col", Color("#3E7FC4"))
-			_sky_mat.set_shader_parameter("horizon_col", Color("#F2DFB8"))
+			_sky_mat.set_shader_parameter("tint", Color("#FFFFFF"))
 			_sky_mat.set_shader_parameter("below_col", Color("#8E97AC"))
-			_sky_mat.set_shader_parameter("cloud_alpha", 0.5)
 			_sky_mat.set_shader_parameter("sun_dir", Vector3(-0.35, 0.6, -0.5))
 			_sky_mat.set_shader_parameter("sun_col", Color("#FFF3D6"))
 			_sky_mat.set_shader_parameter("sun_alpha", 1.0)
 			_sky_mat.set_shader_parameter("moon_alpha", 0.0)
 			_sky_mat.set_shader_parameter("stars_alpha", 0.0)
 		Beat.DECAY:
-			_sky_mat.set_shader_parameter("top_col", Color("#2E2A55"))
-			_sky_mat.set_shader_parameter("horizon_col", Color("#E8873E"))
+			_sky_mat.set_shader_parameter("tint", Color("#FF9A4D"))
 			_sky_mat.set_shader_parameter("below_col", Color("#3A3A5E"))
-			_sky_mat.set_shader_parameter("cloud_alpha", 0.55)
 			_sky_mat.set_shader_parameter("sun_dir", Vector3(-0.6, 0.12, 0.2))
 			_sky_mat.set_shader_parameter("sun_col", Color("#FFB066"))
 			_sky_mat.set_shader_parameter("sun_alpha", 1.0)
 			_sky_mat.set_shader_parameter("moon_alpha", 0.0)
 			_sky_mat.set_shader_parameter("stars_alpha", 0.0)
 		Beat.EXCAVATION:
-			_sky_mat.set_shader_parameter("top_col", Color("#0A1128"))
-			_sky_mat.set_shader_parameter("horizon_col", Color("#24365C"))
+			_sky_mat.set_shader_parameter("tint", Color("#1A2344"))
 			_sky_mat.set_shader_parameter("below_col", Color("#141E38"))
-			_sky_mat.set_shader_parameter("cloud_alpha", 0.25)
 			_sky_mat.set_shader_parameter("sun_alpha", 0.0)
 			_sky_mat.set_shader_parameter("moon_dir", Vector3(-0.2, 0.45, 0.6))
 			_sky_mat.set_shader_parameter("moon_col", Color("#C8D4EE"))
@@ -1034,9 +1027,9 @@ func _flourish() -> void:
 	var tween := create_tween()
 	tween.set_parallel(true)
 	tween.tween_property(_sun, "light_energy", 1.55, 1.0)
-	tween.tween_property(_camera, "size", _camera.size + 1.5, 1.2)\
+	tween.tween_property(_camera, "position:z", _cam_dist + 2.0, 1.2)\
 		.set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.chain().tween_property(_camera, "size", _base_cam_size, 1.0)
+	tween.chain().tween_property(_camera, "position:z", _base_cam_dist, 1.0)
 
 
 # ============================================================================
@@ -1058,7 +1051,7 @@ func _save_game() -> void:
 		"dust_remaining": [],
 		"cam_rot": [_pivot.rotation.x, _pivot.rotation.y, _pivot.rotation.z],
 		"cam_pos": [_pivot.position.x, _pivot.position.y, _pivot.position.z],
-		"cam_size": _camera.size,
+		"cam_size": _cam_dist,
 	}
 	for pos in completed_cells:
 		data["completed"]["%d,%d,%d" % [pos.x, pos.y, pos.z]] = completed_cells[pos]
@@ -1107,7 +1100,7 @@ func _apply_saved_state() -> void:
 			clampf(float(cam_pos[0]), -PAN_CLAMP, PAN_CLAMP),
 			float(cam_pos[1]),
 			clampf(float(cam_pos[2]), -PAN_CLAMP, PAN_CLAMP))
-	_camera.size = clampf(float(_saved_data.get("cam_size", _base_cam_size)), 5.0, 90.0)
+	_set_cam_dist(clampf(float(_saved_data.get("cam_size", _base_cam_dist)), CAM_DIST_MIN, CAM_DIST_MAX))
 
 	completed_cells.clear()
 	var raw_completed: Dictionary = _saved_data.get("completed", {})
@@ -1892,7 +1885,7 @@ func _input(event: InputEvent) -> void:
 
 			if _last_pinch_distance > 0.0:
 				var delta_dist := distance - _last_pinch_distance
-				_camera.size = clampf(_camera.size - delta_dist * 0.05, 5.0, 90.0)
+				_set_cam_dist(_cam_dist - delta_dist * 0.08)
 				# Two-finger drag pans ALONG THE GROUND (both fingers move
 				# together): the scene follows the fingers.
 				if _last_pan_midpoint != Vector2.ZERO:
@@ -1944,6 +1937,13 @@ func _apply_orbit(drag: InputEventScreenDrag) -> void:
 		_pivot.rotation.y = target_y
 
 
+## Perspective dolly: set the orbit distance (clamped) and move the camera
+## along its view axis (local +Z — the camera looks down its -Z at the pivot).
+func _set_cam_dist(d: float) -> void:
+	_cam_dist = clampf(d, CAM_DIST_MIN, CAM_DIST_MAX)
+	_camera.position.z = _cam_dist
+
+
 ## Pan the camera rig along the ground plane: screen delta → world units via
 ## the ortho size, directions from the pivot basis (Y-flattened). The ground
 ## follows the fingers: drag right → ground moves right (camera translates
@@ -1958,7 +1958,8 @@ func _pan_camera(pan_delta: Vector2) -> void:
 	if up.length() > 0.01:
 		up = up.normalized()
 	var vp_h := float(get_viewport().get_visible_rect().size.y)
-	var world_per_px := _camera.size / vp_h
+	# Perspective: world height at the pivot plane = 2 * dist * tan(fov/2).
+	var world_per_px := 2.0 * _cam_dist * tan(deg_to_rad(_camera.fov) * 0.5) / vp_h
 	_pivot.position += (-pan_delta.x * right + pan_delta.y * up) * world_per_px
 	# Keep the view center on the slab: the camera rides 24 units behind it,
 	# so an unclamped pan can push the camera INTO the slab volume (near-plane
@@ -2005,7 +2006,7 @@ func _restart_arc() -> void:
 	_pivot.position = Vector3.ZERO
 	_sun.light_energy = 1.4
 	_sun.light_color = Color("#FFF2D0")
-	_camera.size = _base_cam_size
+	_set_cam_dist(_base_cam_dist)
 	set_tool(Tool.SINGLE)
 	_build_baseplate()
 	_start_beat(Beat.RAISING)

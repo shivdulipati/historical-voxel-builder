@@ -46,23 +46,26 @@ func _ready() -> void:
 	assert(base.scale.is_equal_approx(Vector3(4.5, 1.1, 4.5)), "main base scale wrong")
 	assert(absf(base.position.y + 2.2) < 0.01, "main base top must sit at y=0")
 
-	# --- Sky: beat shader + distinct palette per beat ---
+	# --- Sky: texture + beat tint + distinct palette per beat ---
 	assert(ctl._sky_mat != null, "sky material missing")
 	assert(ctl._sky_mat.shader.resource_path == "res://art/sky_beat.gdshader", "wrong sky shader")
-	var tops := {}
+	assert(ctl._sky_mat.get_shader_parameter("sky_tex") != null, "clouds texture not bound")
+	assert(ctl._camera.projection == Camera3D.PROJECTION_PERSPECTIVE, "camera must be perspective")
+	assert(absf(ctl._camera.fov - 60.0) < 0.1, "camera fov should be 60")
+	var tints := {}
 	for b in BEATS:
 		ctl.current_beat = b[0]
 		ctl._apply_beat_sky()
-		var c: Color = ctl._sky_mat.get_shader_parameter("top_col")
-		tops[b[1]] = c
-		print("SKY %s: top_col=%s" % [b[1], c])
-	assert(tops.size() == 4, "missing beat palettes")
+		var c: Color = ctl._sky_mat.get_shader_parameter("tint")
+		tints[b[1]] = c
+		print("SKY %s: tint=%s" % [b[1], c])
+	assert(tints.size() == 4, "missing beat palettes")
 	var distinct := true
-	for key in tops:
-		for other in tops:
-			if key != other and tops[key].is_equal_approx(tops[other]):
+	for key in tints:
+		for other in tints:
+			if key != other and tints[key].is_equal_approx(tints[other]):
 				distinct = false
-	assert(distinct, "two beats share the same sky top color")
+	assert(distinct, "two beats share the same sky tint")
 	ctl.current_beat = 0
 	ctl._apply_beat_sky()
 	assert(ctl._sky_mat.get_shader_parameter("stars_alpha") == 0.0
