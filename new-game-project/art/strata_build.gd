@@ -13,10 +13,12 @@ extends Node
 ##
 ## Run: Godot --headless --path . res://art/strata_build.tscn
 
-## [out_path, px_per_unit, [ [tile_path, height_units], ... ], gold_pockets, mode]
+## [out_path, px_per_unit, [ [tile_path, height_units], ... ], gold_pockets, mode, darken]
 ## mode: "noise" = per-row offset scramble (voxel-pack noise tiles);
 ##       "straight" = sample tiles as designed (platformer tiles are full
 ##       terrain blocks with a designed top edge and tile perfectly).
+## darken: per-band brightness multiplier (1.0 = none) — the BUILD 24
+##         brown-only theme deepens with depth ("until brown is deep enough").
 ## gold_pockets: [ [band_index, x0, x1, blend], ... ] — ore pockets blended
 ## into that band (uses stone_gold.png; pass [] to skip).
 const THEMES := [
@@ -32,18 +34,20 @@ const THEMES := [
 		],
 		[[4, 34, 72, 0.6], [4, 168, 208, 0.55]],
 		"noise",
+		[1.0, 1.0, 1.0, 1.0, 1.0, 1.0],
 	],
 	[
 		"res://art/textures/strata_platformer.png", 64,
 		[
-			["res://art/2d_src/platformer/terrain_grass_block_center.png", 1.0],
+			["res://art/2d_src/platformer/terrain_sand_block_center.png", 1.0],
+			["res://art/2d_src/platformer/terrain_sand_block_center.png", 2.0],
+			["res://art/2d_src/platformer/terrain_sand_block_center.png", 2.0],
 			["res://art/2d_src/platformer/terrain_sand_block_center.png", 1.5],
-			["res://art/2d_src/platformer/terrain_dirt_block_center.png", 1.5],
-			["res://art/2d_src/platformer/terrain_stone_block_center.png", 2.0],
-			["res://art/2d_src/platformer/terrain_snow_block_center.png", 2.0],
+			["res://art/2d_src/platformer/terrain_sand_block_center.png", 1.5],
 		],
 		[],
 		"straight",
+		[1.0, 0.85, 0.72, 0.6, 0.5],
 	],
 ]
 
@@ -51,12 +55,12 @@ const STRIP_W := 256
 
 func _ready() -> void:
 	for theme in THEMES:
-		_build_strip(theme[0], theme[1], theme[2], theme[3], theme[4])
+		_build_strip(theme[0], theme[1], theme[2], theme[3], theme[4], theme[5])
 	print("STRATA-BUILD: all themes saved")
 	get_tree().quit(0)
 
 
-func _build_strip(out_path: String, px_per_unit: int, bands: Array, gold_pockets: Array, mode: String) -> void:
+func _build_strip(out_path: String, px_per_unit: int, bands: Array, gold_pockets: Array, mode: String, darken: Array) -> void:
 	var total := 0.0
 	for band in bands:
 		total += band[1]
@@ -71,9 +75,11 @@ func _build_strip(out_path: String, px_per_unit: int, bands: Array, gold_pockets
 			tiles[band[0]] = img
 
 	var row := 0
+	var band_i := 0
 	for band in bands:
 		var tile: Image = tiles[band[0]]
 		var band_h := int(band[1] * px_per_unit)
+		var k: float = darken[band_i]
 		for r in range(band_h):
 			var off := 0
 			if mode == "noise":
@@ -81,8 +87,11 @@ func _build_strip(out_path: String, px_per_unit: int, bands: Array, gold_pockets
 				off = (row / 8) * 53 % tile.get_width()
 			for x in range(STRIP_W):
 				var c: Color = tile.get_pixel((x + off) % tile.get_width(), r % tile.get_height())
+				if k < 1.0:
+					c = c * k
 				strip.set_pixel(x, row, c)
 			row += 1
+		band_i += 1
 		# Dark seam line above each band boundary (reads as a strata break).
 		for d in range(3):
 			var seam := row - 1 - d
