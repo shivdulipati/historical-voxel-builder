@@ -73,6 +73,14 @@ func _ready() -> void:
 	assert(skyboxes["restoration"].ends_with("sky_day.png"), "noon must use the day skybox")
 	assert(skyboxes["excavation"].ends_with("sky_night.png"), "night must use the night skybox")
 	assert(skyboxes["raising"].ends_with("sky_morning.png"), "dawn must use the morning skybox")
+	# BUILD 34: the sky must be standard-equirect oriented (not inverted) and
+	# zoomed so the night moon lands inside the reachable sky band. Assert the
+	# SHADER's declared defaults via RenderingServer (ShaderMaterial
+	# get_shader_parameter returns Nil until the param is set).
+	var flip_def: float = RenderingServer.shader_get_parameter_default(ctl._sky_mat.shader.get_rid(), "flip_v")
+	var zoom_def: float = RenderingServer.shader_get_parameter_default(ctl._sky_mat.shader.get_rid(), "v_zoom")
+	assert(absf(flip_def - 1.0) < 0.01, "sky mapping must be standard equirect (flip_v=1)")
+	assert(absf(zoom_def - 1.3) < 0.01, "sky vertical zoom should be 1.3")
 
 	# --- Idle bob: still under touch, moving when hands-off ---
 	ctl._last_touch_time = Time.get_ticks_msec() / 1000.0
