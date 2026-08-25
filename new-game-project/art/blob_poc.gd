@@ -80,8 +80,8 @@ const BLOCKS := [
 	["block-grass-large-tall", Vector3(3.00, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(3.00, 0.00, -4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(3.00, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["hedge-corner", Vector3(2.00, 2.00, 0.00), 90.0, Vector3(1.00, 1.00, 1.00)],
-	["hedge-corner", Vector3(-3.50, 2.00, 0.00), 180.0, Vector3(1.00, 1.00, 1.00)],
+	["hedge-corner", Vector3(2.00, 2.00, 0.00), 270.0, Vector3(1.00, 1.00, 1.00)],
+	["hedge-corner", Vector3(-3.50, 2.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(6.00, 0.00, 0.00), 0.0, Vector3(1.25, 1.25, 1.25)],
 	["rocks", Vector3(6.44, 2.50, -0.05), 180.0, Vector3(1.00, 1.00, 1.00)],
 	["rocks", Vector3(6.63, 2.50, 0.28), 45.0, Vector3(1.00, 1.00, 1.00)],
@@ -122,8 +122,8 @@ const BLOCKS := [
 	["block-grass-large-tall", Vector3(-1.50, 0.00, 9.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(-1.50, 0.00, 7.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(-1.50, 0.00, 6.00), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["hedge-corner", Vector3(2.00, 2.00, 9.50), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["hedge-corner", Vector3(-3.50, 2.00, 9.50), 270.0, Vector3(1.00, 1.00, 1.00)],
+	["hedge-corner", Vector3(2.00, 2.00, 9.50), 180.0, Vector3(1.00, 1.00, 1.00)],
+	["hedge-corner", Vector3(-3.50, 2.00, 9.50), 90.0, Vector3(1.00, 1.00, 1.00)],
 ]
 
 # The structure earmark: the L-bracket rectangle (after CENTER_SHIFT) spans

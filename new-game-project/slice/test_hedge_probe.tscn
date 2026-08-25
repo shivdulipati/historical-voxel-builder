@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://testhedgeprobe001"]
+
+[ext_resource type="Script" path="res://slice/test_hedge_probe.gd" id="1_probe"]
+
+[node name="TestHedgeProbe" type="Node"]
+script = ExtResource("1_probe")
