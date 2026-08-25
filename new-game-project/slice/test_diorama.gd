@@ -22,13 +22,13 @@ func _ready() -> void:
 	ctl._load_structure(1)  # mastaba — builds blob diorama + raising beat
 	await get_tree().create_timer(1.5).timeout
 
-	# --- Transcription: 55 blocks from Mastaba_01.model ---
+	# --- Transcription: 67 blocks from Mastaba_01.model (updated) ---
 	var dia: Node3D = ctl._diorama
 	var nodes := dia.get_children()
-	print("BLOB: total nodes=%d (want 55)" % nodes.size())
-	assert(nodes.size() == 55, "must transcribe all 55 blocks from Mastaba_01.model")
+	print("BLOB: total nodes=%d (want 67)" % nodes.size())
+	assert(nodes.size() == 67, "must transcribe all 67 blocks from Mastaba_01.model")
 	# The structure earmark: 4 raised hedge-corner L-brackets at the corners
-	# of the square platform, landing at (±2.75, 0, ±2.5) after CENTER_SHIFT.
+	# of the platform, landing at (±2.75, 0, ±4.75) after CENTER_SHIFT.
 	var hedges := []
 	for c in nodes:
 		var n := c as Node3D
@@ -37,8 +37,8 @@ func _ready() -> void:
 	print("BLOB: hedges=%d (want 4)" % hedges.size())
 	assert(hedges.size() == 4, "must be 4 hedge-corner earmark brackets")
 	for h in hedges:
-		assert(absf(absf(h.x) - 2.75) < 0.01 and absf(absf(h.z) - 2.5) < 0.01,
-			"hedge bracket must sit at an earmark corner (±2.75, ±2.5)")
+		assert(absf(absf(h.x) - 2.75) < 0.01 and absf(absf(h.z) - 4.75) < 0.01,
+			"hedge bracket must sit at an earmark corner (±2.75, ±4.75)")
 	# Center box (|x|<=1, |z|<=1 = structure/baseplate spot): only grass
 	# platform tiles may sit there (they are the floor).
 	var violations := 0
@@ -51,8 +51,8 @@ func _ready() -> void:
 			violations += 1
 	print("BLOB: center violations=%d (want 0)" % violations)
 	assert(violations == 0, "a non-platform block sits in the structure/baseplate area")
-	# Platform tile at AF (0,0,0) (index 19): base at y=-2, top at y=0.
-	var tile := dia.get_node("block-grass-large-tall_19")
+	# Platform tile at AF (0,0,0) (index 14): base at y=-2, top at y=0.
+	var tile := dia.get_node("block-grass-large-tall_14")
 	assert(absf(tile.position.y + 2.0) < 0.01, "platform tile base must sit at y=-2")
 
 	# --- Sky: texture + beat tint + distinct palette per beat ---

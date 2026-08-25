@@ -1,26 +1,21 @@
 extends Node3D
-## BUILD 35 → v6: EXACT transcription of the user's Mastaba_01.model (55
-## blocks, 9 model types — Asset Forge "Sample Levels" drop, 2026-08-25).
-## The .model file is human-readable, so every block's type/position/rotation/
-## scale is parsed 1:1. Asset Forge's top surface sits at y=2; the game's
-## resting plane is y=0, so everything shifts by Y_SHIFT (-2).
+## BUILD 36 → v7: EXACT transcription of Mastaba_01.model (UPDATED 2026-08-25:
+## 67 blocks, 9 model types). The earmarked area was enlarged (z 0..9.5) to
+## hold the baseplate + structure; its center (-0.75, 4.75 in AF coords) is
+## shifted onto the game origin, so the hedge L-brackets land at
+## (±2.75, 0, ±4.75).
 ##
-## Structure earmark: the square platform with raised hedge-corner L-brackets
-## (4 blocks at y=2 in AF coords). Its center (-0.75, 2.5 in AF coords) is
-## shifted onto the game origin, where the structure + baseplate spawn. The
-## hedges land at (±2.75, 0, ±2.5) — the earmark's four corners.
-##
-## Material note: the user's blocks carry a sand-texture override (custom1)
-## in Asset Forge; the game uses the kit's baked GLB textures (same
-## simplification as Test_01). Built-in blocks (icosphere_half dome,
-## stairs_half_corner, debris_stone) have no OBJ export in the app — they are
-## Blender stand-ins (see art/sample_levels/README).
+## Materials: AF material overrides are replicated — custom1 (Nature/sand.png)
+## on the kit blocks (grass tiles, snow, hedges, debris) via a triplanar
+## sand shader; the built-in exports (icosphere_half, stairs_half_corner,
+## debris_stone) are the USER'S OWN exports from Asset Forge (exact geometry,
+## flat MTL colors) — no more Blender stand-ins.
 ## Pure visuals — no physics, no collisions.
 
 const Y_SHIFT := -2.0
-# Earmark (L-bracket square) center in Asset Forge coords: x -3.5..2, z 0..5
-# -> center (-0.75, 2.5). Shift so it lands on the game origin.
-const CENTER_SHIFT := Vector2(0.75, -2.5)
+# Earmark (L-bracket square) center in AF coords: x -3.5..2, z 0..9.5
+# -> center (-0.75, 4.75). Shift so it lands on the game origin.
+const CENTER_SHIFT := Vector2(0.75, -4.75)
 
 const M := {
 	"block-grass": "res://art/platformer/block-grass.glb",
@@ -45,20 +40,26 @@ const M := {
 	"debris_stone": "res://art/platformer/debris_stone.glb",
 }
 
+# AF material overrides -> triplanar texture (the .model's custom1 = sand;
+# the built-in exports carry their own flat MTL colors).
+const MATERIAL_TEX := {
+	"block-grass-large-tall": "res://art/textures/sand.png",
+	"block-snow-low-large": "res://art/textures/sand.png",
+	"block-snow-large": "res://art/textures/sand.png",
+	"hedge-corner": "res://art/textures/sand.png",
+	"debris_stone": "res://art/textures/sand.png",
+	"icosphere_half": "res://art/textures/marble.png",
+}
+
 # [type, pos (Asset Forge), rot_y deg, scale] — verbatim from Mastaba_01.model.
 const BLOCKS := [
 	["block-grass-large-tall", Vector3(0.00, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["block-grass-large-tall", Vector3(1.50, 0.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(1.50, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(1.50, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(0.00, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(4.50, 0.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["block-grass-large-tall", Vector3(1.50, 0.00, 1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(-1.50, 0.00, 1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(-1.50, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["block-grass-large-tall", Vector3(1.50, 0.00, 3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["block-grass-large-tall", Vector3(0.00, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["block-grass-large-tall", Vector3(-1.50, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(-3.00, 0.00, 3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(-3.00, 0.00, 1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(-3.00, 0.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
@@ -75,12 +76,8 @@ const BLOCKS := [
 	["block-grass-large-tall", Vector3(3.00, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(3.00, 0.00, -4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(3.00, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["block-grass-large-tall", Vector3(1.50, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["hedge-corner", Vector3(2.00, 2.00, 0.00), 90.0, Vector3(1.00, 1.00, 1.00)],
 	["hedge-corner", Vector3(-3.50, 2.00, 0.00), 180.0, Vector3(1.00, 1.00, 1.00)],
-	["hedge-corner", Vector3(-3.50, 2.00, 5.00), 270.0, Vector3(1.00, 1.00, 1.00)],
-	["block-grass-large-tall", Vector3(-3.00, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["hedge-corner", Vector3(2.00, 2.00, 5.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(6.00, 0.00, 0.00), 0.0, Vector3(1.25, 1.25, 1.25)],
 	["rocks", Vector3(6.44, 2.50, -0.05), 180.0, Vector3(1.00, 1.00, 1.00)],
 	["rocks", Vector3(6.63, 2.50, 0.28), 45.0, Vector3(1.00, 1.00, 1.00)],
@@ -102,13 +99,36 @@ const BLOCKS := [
 	["stairs_half_corner", Vector3(3.30, 2.00, -2.20), 270.0, Vector3(1.00, 1.00, 1.00)],
 	["debris_stone", Vector3(1.90, 2.00, -2.90), 270.0, Vector3(1.00, 1.00, 1.00)],
 	["debris_stone", Vector3(1.40, 2.00, -2.50), 180.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-1.50, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 6.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 7.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 9.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-3.00, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-3.00, 0.00, 6.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-3.00, 0.00, 7.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-3.00, 0.00, 9.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(0.00, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(0.00, 0.00, 6.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(0.00, 0.00, 7.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(0.00, 0.00, 9.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-1.50, 0.00, 9.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-1.50, 0.00, 7.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-1.50, 0.00, 6.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["hedge-corner", Vector3(2.00, 2.00, 9.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["hedge-corner", Vector3(-3.50, 2.00, 9.50), 270.0, Vector3(1.00, 1.00, 1.00)],
 ]
 
-# The structure earmark: the L-bracket square (after CENTER_SHIFT) spans
-# x -2.75..2.75, z -2.5..2.5. Only the hedge-corner brackets may sit on its
+# The structure earmark: the L-bracket rectangle (after CENTER_SHIFT) spans
+# x -2.75..2.75, z -4.75..4.75. Only hedge-corner brackets may sit on its
 # rim; only grass platform tiles may sit inside (they are the floor).
 const MARKER_X := 2.75
-const MARKER_Z := 2.5
+const MARKER_Z := 4.75
+
+var _mat_cache := {}
 
 
 func build(structure_id: String) -> void:
@@ -123,8 +143,23 @@ func build(structure_id: String) -> void:
 		inst.scale = b[3]
 		inst.rotation.y = deg_to_rad(b[2])
 		inst.position = Vector3(b[1].x + CENTER_SHIFT.x, b[1].y + Y_SHIFT, b[1].z + CENTER_SHIFT.y)
+		# AF material override replication (triplanar texture on every mesh).
+		if MATERIAL_TEX.has(b[0]):
+			var m := _get_override_mat(b[0])
+			for mi in inst.find_children("*", "MeshInstance3D", true, false):
+				(mi as MeshInstance3D).material_override = m
 		add_child(inst)
 		i += 1
+
+
+func _get_override_mat(block_type: String) -> Material:
+	if _mat_cache.has(block_type):
+		return _mat_cache[block_type]
+	var mat := ShaderMaterial.new()
+	mat.shader = load("res://art/sand_override.gdshader")
+	mat.set_shader_parameter("tex", load(MATERIAL_TEX[block_type]))
+	_mat_cache[block_type] = mat
+	return mat
 
 
 func _clear() -> void:

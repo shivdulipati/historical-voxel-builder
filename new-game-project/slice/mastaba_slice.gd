@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 35
+const BUILD_NO := 36
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -161,7 +161,9 @@ func _load_structure(index: int) -> void:
 	# the structure footprint alone dictates — floor the distance so the whole
 	# island sits in a portrait frame.
 	if _st.get("id", "") == "mastaba" or _st.get("id", "") == "diorama_debug":
-		_base_cam_dist = maxf(_base_cam_dist, 24.0)
+		# BUILD 36: the enlarged Mastaba_01 island (~13.5 units long) needs
+		# wider framing than the 24-unit floor — floor at 36.
+		_base_cam_dist = maxf(_base_cam_dist, 36.0)
 	_set_cam_dist(_base_cam_dist)
 
 	_top_label.text = _st["site_era"]
