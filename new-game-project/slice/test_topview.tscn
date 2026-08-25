@@ -1,0 +1,6 @@
+[gd_scene load_steps=2 format=3 uid="uid://testtopview001"]
+
+[ext_resource type="Script" path="res://slice/test_topview.gd" id="1_tv"]
+
+[node name="TestTopview" type="Node"]
+script = ExtResource("1_tv")

@@ -1,15 +1,15 @@
 extends Node3D
-## BUILD 36 → v7: EXACT transcription of Mastaba_01.model (UPDATED 2026-08-25:
-## 67 blocks, 9 model types). The earmarked area was enlarged (z 0..9.5) to
-## hold the baseplate + structure; its center (-0.75, 4.75 in AF coords) is
-## shifted onto the game origin, so the hedge L-brackets land at
-## (±2.75, 0, ±4.75).
+## BUILD 39 → v8: EXACT transcription of Mastaba_01.model (UPDATED 2026-08-25:
+## 66 blocks, 8 model types). The user removed the hedge L-brackets and added
+## a 4-stair ring ("practice mastaba") + debris near the platform — the
+## diorama now reads as a construction site. Earmark center (-0.75, 4.75 in
+## AF coords) is shifted onto the game origin.
 ##
-## Materials: AF material overrides are replicated — custom1 (Nature/sand.png)
-## on the kit blocks (grass tiles, snow, hedges, debris) via a triplanar
-## sand shader; the built-in exports (icosphere_half, stairs_half_corner,
-## debris_stone) are the USER'S OWN exports from Asset Forge (exact geometry,
-## flat MTL colors) — no more Blender stand-ins.
+## Materials: AF material overrides replicated — custom1 (Nature/sand.png)
+## on the sand blocks via a shader sampling the BAKED per-face UV1 (uniform
+## 1-tile-per-unit, identical sand on floor/stairs/debris); the marble domes
+## use their own UVs; the built-in exports (icosphere_half, stairs_half_corner,
+## debris_stone) are the USER'S OWN exports from Asset Forge (exact geometry).
 ## Pure visuals — no physics, no collisions.
 
 const Y_SHIFT := -2.0
@@ -44,12 +44,11 @@ const M := {
 	"debris_stone": "res://art/platformer/debris_stone.glb",
 }
 
-# AF material overrides -> triplanar texture (the .model's custom1 = sand;
-# the built-in exports carry their own flat MTL colors).
+# AF material overrides -> texture (the .model's custom1 = sand; the built-in
+# exports carry their own flat MTL colors). Sand blocks sample the baked
+# per-face UV1 (uniform tiling); marble uses the dome's own UVs.
 const MATERIAL_TEX := {
 	"block-grass-large-tall": "res://art/textures/sand.png",
-	"block-snow-low-large": "res://art/textures/sand.png",
-	"block-snow-large": "res://art/textures/sand.png",
 	"hedge-corner": "res://art/textures/sand.png",
 	"debris_stone": "res://art/textures/sand.png",
 	"icosphere_half": "res://art/textures/marble.png",
@@ -80,8 +79,6 @@ const BLOCKS := [
 	["block-grass-large-tall", Vector3(3.00, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(3.00, 0.00, -4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(3.00, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["hedge-corner", Vector3(2.00, 2.00, 0.00), 270.0, Vector3(1.00, 1.00, 1.00)],
-	["hedge-corner", Vector3(-3.50, 2.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(6.00, 0.00, 0.00), 0.0, Vector3(1.25, 1.25, 1.25)],
 	["rocks", Vector3(6.44, 2.50, -0.05), 180.0, Vector3(1.00, 1.00, 1.00)],
 	["rocks", Vector3(6.63, 2.50, 0.28), 45.0, Vector3(1.00, 1.00, 1.00)],
@@ -101,6 +98,9 @@ const BLOCKS := [
 	["icosphere_half", Vector3(-1.17, 2.50, -4.07), 270.0, Vector3(0.25, 0.25, 0.25)],
 	["icosphere_half", Vector3(-1.78, 2.50, -4.12), 315.0, Vector3(0.50, 0.50, 0.50)],
 	["stairs_half_corner", Vector3(3.30, 2.00, -2.20), 270.0, Vector3(1.00, 1.00, 1.00)],
+	["stairs_half_corner", Vector3(4.20, 2.00, -2.20), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["stairs_half_corner", Vector3(3.30, 2.00, -3.20), 180.0, Vector3(1.00, 1.00, 1.00)],
+	["stairs_half_corner", Vector3(4.20, 2.00, -3.20), 90.0, Vector3(1.00, 1.00, 1.00)],
 	["debris_stone", Vector3(1.90, 2.00, -2.90), 270.0, Vector3(1.00, 1.00, 1.00)],
 	["debris_stone", Vector3(1.40, 2.00, -2.50), 180.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(-1.50, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
@@ -122,8 +122,6 @@ const BLOCKS := [
 	["block-grass-large-tall", Vector3(-1.50, 0.00, 9.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(-1.50, 0.00, 7.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(-1.50, 0.00, 6.00), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["hedge-corner", Vector3(2.00, 2.00, 9.50), 180.0, Vector3(1.00, 1.00, 1.00)],
-	["hedge-corner", Vector3(-3.50, 2.00, 9.50), 90.0, Vector3(1.00, 1.00, 1.00)],
 ]
 
 # The structure earmark: the L-bracket rectangle (after CENTER_SHIFT) spans
@@ -162,6 +160,7 @@ func _get_override_mat(block_type: String) -> Material:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://art/sand_override.gdshader")
 	mat.set_shader_parameter("tex", load(MATERIAL_TEX[block_type]))
+	mat.set_shader_parameter("use_uv2", not MATERIAL_TEX[block_type].ends_with("marble.png"))
 	_mat_cache[block_type] = mat
 	return mat
 

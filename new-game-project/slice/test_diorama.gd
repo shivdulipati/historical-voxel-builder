@@ -22,23 +22,31 @@ func _ready() -> void:
 	ctl._load_structure(1)  # mastaba — builds blob diorama + raising beat
 	await get_tree().create_timer(1.5).timeout
 
-	# --- Transcription: 67 blocks from Mastaba_01.model (updated) ---
+	# --- Transcription: 66 blocks from Mastaba_01.model (updated) ---
 	var dia: Node3D = ctl._diorama
 	var nodes := dia.get_children()
-	print("BLOB: total nodes=%d (want 67)" % nodes.size())
-	assert(nodes.size() == 67, "must transcribe all 67 blocks from Mastaba_01.model")
-	# The structure earmark: 4 raised hedge-corner L-brackets at the corners
-	# of the platform, landing at (±2.75, 0, ±4.75) after CENTER_SHIFT.
+	print("BLOB: total nodes=%d (want 66)" % nodes.size())
+	assert(nodes.size() == 66, "must transcribe all 66 blocks from Mastaba_01.model")
+	# The practice mastaba: 4 stairs_half_corner in a ring at AF x 3.3..4.2,
+	# z -3.2..-2.2 -> game x -4.95..-4.05, z -7.95..-6.95 (x-mirror + z shift).
+	var stairs := []
+	for c in nodes:
+		var n := c as Node3D
+		if n != null and n.name.begins_with("stairs_half_corner"):
+			stairs.append(n.position)
+	print("BLOB: stairs=%d (want 4)" % stairs.size())
+	assert(stairs.size() == 4, "must be 4 stairs_half_corner practice-mastaba pieces")
+	for s in stairs:
+		assert(s.x <= -4.0 and s.x >= -5.0 and s.z >= -8.0 and s.z <= -6.9,
+			"stair must sit in the practice-mastaba ring (game x -4.95..-4.05, z -7.95..-6.95)")
+	# No hedge brackets (user removed them from the model).
 	var hedges := []
 	for c in nodes:
 		var n := c as Node3D
 		if n != null and n.name.begins_with("hedge-corner"):
 			hedges.append(n.position)
-	print("BLOB: hedges=%d (want 4)" % hedges.size())
-	assert(hedges.size() == 4, "must be 4 hedge-corner earmark brackets")
-	for h in hedges:
-		assert(absf(absf(h.x) - 2.75) < 0.01 and absf(absf(h.z) - 4.75) < 0.01,
-			"hedge bracket must sit at an earmark corner (±2.75, ±4.75)")
+	print("BLOB: hedges=%d (want 0)" % hedges.size())
+	assert(hedges.is_empty(), "hedge brackets were removed from the model")
 	# Center box (|x|<=1, |z|<=1 = structure/baseplate spot): only grass
 	# platform tiles may sit there (they are the floor).
 	var violations := 0
