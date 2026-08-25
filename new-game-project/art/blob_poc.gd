@@ -1,17 +1,26 @@
 extends Node3D
-## BUILD 27 → v5: the diorama is now an EXACT transcription of the user's
-## Asset Forge level (Test_01.model — 29 blocks, 12 model types). The .model
-## file is human-readable, so every block's type/position/rotation/scale was
-## parsed 1:1. Asset Forge's top surface sits at y=2; the game's resting plane
-## is y=0, so everything shifts by Y_SHIFT (-2). Blocks embed/overlap exactly
-## as authored (the "overlap to look aesthetic" language).
+## BUILD 35 → v6: EXACT transcription of the user's Mastaba_01.model (55
+## blocks, 9 model types — Asset Forge "Sample Levels" drop, 2026-08-25).
+## The .model file is human-readable, so every block's type/position/rotation/
+## scale is parsed 1:1. Asset Forge's top surface sits at y=2; the game's
+## resting plane is y=0, so everything shifts by Y_SHIFT (-2).
+##
+## Structure earmark: the square platform with raised hedge-corner L-brackets
+## (4 blocks at y=2 in AF coords). Its center (-0.75, 2.5 in AF coords) is
+## shifted onto the game origin, where the structure + baseplate spawn. The
+## hedges land at (±2.75, 0, ±2.5) — the earmark's four corners.
+##
+## Material note: the user's blocks carry a sand-texture override (custom1)
+## in Asset Forge; the game uses the kit's baked GLB textures (same
+## simplification as Test_01). Built-in blocks (icosphere_half dome,
+## stairs_half_corner, debris_stone) have no OBJ export in the app — they are
+## Blender stand-ins (see art/sample_levels/README).
 ## Pure visuals — no physics, no collisions.
 
 const Y_SHIFT := -2.0
-# The 3x4 marker (structure spot) centers at (-0.1, 4.5) in Asset Forge coords;
-# shift the whole composition so that point lands on the game origin, where
-# the structure + baseplate spawn.
-const CENTER_SHIFT := Vector2(0.1, -2.5)
+# Earmark (L-bracket square) center in Asset Forge coords: x -3.5..2, z 0..5
+# -> center (-0.75, 2.5). Shift so it lands on the game origin.
+const CENTER_SHIFT := Vector2(0.75, -2.5)
 
 const M := {
 	"block-grass": "res://art/platformer/block-grass.glb",
@@ -26,47 +35,80 @@ const M := {
 	"plant": "res://art/platformer/plant.glb",
 	"stones": "res://art/platformer/stones.glb",
 	"flowers": "res://art/platformer/flowers.glb",
+	"rocks": "res://art/platformer/rocks.glb",
+	"grass": "res://art/platformer/grass.glb",
+	"hedge-corner": "res://art/platformer/hedge-corner.glb",
+	"block-snow-low-large": "res://art/platformer/block-snow-low-large.glb",
+	"block-snow-large": "res://art/platformer/block-snow-large.glb",
+	"icosphere_half": "res://art/platformer/icosphere_half.glb",
+	"stairs_half_corner": "res://art/platformer/stairs_half_corner.glb",
+	"debris_stone": "res://art/platformer/debris_stone.glb",
 }
 
-# [type, pos (Asset Forge), rot_y deg, scale] — verbatim from Test_01.model.
+# [type, pos (Asset Forge), rot_y deg, scale] — verbatim from Mastaba_01.model.
 const BLOCKS := [
-	["block-grass-overhang-large-tall", Vector3(-0.76, -0.20, 4.54), 0.0, Vector3(4.50, 1.10, 4.50)],
-	["block-grass-large-tall", Vector3(3.90, 0.00, 0.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-grass", Vector3(3.90, 1.00, 1.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-grass-overhang-long", Vector3(3.25, 1.00, 8.89), 270.0, Vector3(2.00, 1.00, 2.66)],
-	["block-grass-overhang-large-tall", Vector3(-4.90, 1.00, 8.60), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-grass-overhang-corner", Vector3(-5.10, 2.60, 10.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	# The 3x4 marker (structure + baseplate area): 12 block-moving in 3x4.
-	["block-moving", Vector3(0.90, 2.00, 3.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(0.90, 2.00, 4.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(0.90, 2.00, 5.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(0.90, 2.00, 6.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(-0.10, 2.00, 3.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(-0.10, 2.00, 4.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(-0.10, 2.00, 5.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(-0.10, 2.00, 6.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(-1.10, 2.00, 3.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(-1.10, 2.00, 4.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(-1.10, 2.00, 5.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["block-moving", Vector3(-1.10, 2.00, 6.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	# Props (all on the lawn / chunks at y=2 → 0).
-	["tree-pine", Vector3(3.90, 2.00, 0.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["tree-pine-small", Vector3(3.90, 2.00, 8.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["tree-pine-small", Vector3(3.90, 2.00, 9.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["tree-pine-small", Vector3(2.90, 2.00, 9.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["tree-pine-small", Vector3(2.90, 2.00, 10.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["plant", Vector3(3.90, 2.00, 10.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["plant", Vector3(2.90, 2.00, 11.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["stones", Vector3(2.90, 2.00, 4.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["stones", Vector3(-0.10, 2.00, 8.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["flowers", Vector3(-3.10, 2.00, 8.00), 0.0, Vector3(1.0, 1.0, 1.0)],
-	["tree", Vector3(-4.10, 2.00, 2.00), 0.0, Vector3(1.0, 1.0, 1.0)],
+	["block-grass-large-tall", Vector3(0.00, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(0.00, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(4.50, 0.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-1.50, 0.00, 1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-1.50, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(0.00, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-1.50, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-3.00, 0.00, 3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-3.00, 0.00, 1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-3.00, 0.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-1.50, 0.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-1.50, 0.00, 3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(0.00, 0.00, 3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(0.00, 0.00, 1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(0.00, 0.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(6.00, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-snow-low-large", Vector3(5.25, 1.50, -5.25), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(4.50, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(4.50, 0.00, -4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(4.50, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(3.00, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(3.00, 0.00, -4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(3.00, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(1.50, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["hedge-corner", Vector3(2.00, 2.00, 0.00), 90.0, Vector3(1.00, 1.00, 1.00)],
+	["hedge-corner", Vector3(-3.50, 2.00, 0.00), 180.0, Vector3(1.00, 1.00, 1.00)],
+	["hedge-corner", Vector3(-3.50, 2.00, 5.00), 270.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(-3.00, 0.00, 4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["hedge-corner", Vector3(2.00, 2.00, 5.00), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-grass-large-tall", Vector3(6.00, 0.00, 0.00), 0.0, Vector3(1.25, 1.25, 1.25)],
+	["rocks", Vector3(6.44, 2.50, -0.05), 180.0, Vector3(1.00, 1.00, 1.00)],
+	["rocks", Vector3(6.63, 2.50, 0.28), 45.0, Vector3(1.00, 1.00, 1.00)],
+	["rocks", Vector3(6.62, 2.50, -0.52), 270.0, Vector3(1.00, 1.00, 1.00)],
+	["rocks", Vector3(5.87, 2.50, -0.85), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["rocks", Vector3(5.38, 2.50, 0.41), 90.0, Vector3(1.50, 1.50, 1.50)],
+	["stones", Vector3(5.40, 2.50, -0.40), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["rocks", Vector3(5.43, 2.00, -5.18), 270.0, Vector3(2.00, 2.00, 2.00)],
+	["stones", Vector3(-1.80, 2.00, -1.40), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["stones", Vector3(-1.52, 2.00, -1.78), 45.0, Vector3(1.00, 1.00, 1.00)],
+	["stones", Vector3(-1.30, 2.00, -1.36), 72.0, Vector3(1.00, 1.00, 1.00)],
+	["stones", Vector3(-1.01, 2.00, -1.74), 114.0, Vector3(1.00, 1.00, 1.00)],
+	["icosphere_half", Vector3(-1.60, 2.50, -4.89), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-snow-large", Vector3(-1.50, 1.50, -4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["icosphere_half", Vector3(-1.03, 2.50, -4.33), 240.0, Vector3(0.30, 0.30, 0.30)],
+	["icosphere_half", Vector3(-1.33, 2.50, -4.23), 240.0, Vector3(0.30, 0.30, 0.30)],
+	["icosphere_half", Vector3(-1.17, 2.50, -4.07), 270.0, Vector3(0.25, 0.25, 0.25)],
+	["icosphere_half", Vector3(-1.78, 2.50, -4.12), 315.0, Vector3(0.50, 0.50, 0.50)],
+	["stairs_half_corner", Vector3(3.30, 2.00, -2.20), 270.0, Vector3(1.00, 1.00, 1.00)],
+	["debris_stone", Vector3(1.90, 2.00, -2.90), 270.0, Vector3(1.00, 1.00, 1.00)],
+	["debris_stone", Vector3(1.40, 2.00, -2.50), 180.0, Vector3(1.00, 1.00, 1.00)],
 ]
 
-# The 3x4 marker box (structure + baseplate live here) — only block-moving
-# blocks are allowed inside it.
-const MARKER_X := 1.5
-const MARKER_Z := 1.5
+# The structure earmark: the L-bracket square (after CENTER_SHIFT) spans
+# x -2.75..2.75, z -2.5..2.5. Only the hedge-corner brackets may sit on its
+# rim; only grass platform tiles may sit inside (they are the floor).
+const MARKER_X := 2.75
+const MARKER_Z := 2.5
 
 
 func build(structure_id: String) -> void:

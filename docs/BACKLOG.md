@@ -63,6 +63,22 @@ design discussion first (user direction before code, per the workflow).
   slice. Keep the two layers distinct when this is eventually scoped.
 - Not before: biomes roll-out, structure pipeline, UI/HUD review.
 
+### 6. Diorama generator rules (Lua, Asset Forge)
+- Status: flagged (user, 2026-08-25): "the diorama generator needs work. I
+  think some rules need to be in place to make the structures created look
+  good as dioramas. currently it looks too random and in some aspects too
+  similar to each other as well. ... good to know that we can script together
+  dioramas. we'll explore this during scaling."
+- Fronts to explore when scoped:
+  - Composition rules: fewer models + overlap (the composed-platform
+    aesthetic from B27), structure-area earmark handling (square platform /
+    L-bracket markers), variety knobs so re-rolls differ beyond a seed.
+  - Anti-similarity: why outputs feel samey (profile/shape distributions,
+    corner/edge handling, prop placement) and how to widen the space.
+  - Scripted co-authoring: user hand-tweaks after F5 re-roll, generator
+    respects manual edits on re-run (selection-aware generation?).
+- Not before: mastaba pilot sign-off + this .model transcription flow stable.
+
 ## Parked/deferred elsewhere
 
 - Memory Atlas free-rotate exit resets tool to SINGLE on next swatch pick

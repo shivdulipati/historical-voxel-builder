@@ -22,29 +22,38 @@ func _ready() -> void:
 	ctl._load_structure(1)  # mastaba — builds blob diorama + raising beat
 	await get_tree().create_timer(1.5).timeout
 
-	# --- Transcription: 29 blocks from Test_01.model, marker box respected ---
+	# --- Transcription: 55 blocks from Mastaba_01.model ---
 	var dia: Node3D = ctl._diorama
 	var nodes := dia.get_children()
-	print("BLOB: total nodes=%d (want 29)" % nodes.size())
-	assert(nodes.size() == 29, "must transcribe all 29 blocks from the .model")
-	var moving := 0
-	var marker_violations := 0
+	print("BLOB: total nodes=%d (want 55)" % nodes.size())
+	assert(nodes.size() == 55, "must transcribe all 55 blocks from Mastaba_01.model")
+	# The structure earmark: 4 raised hedge-corner L-brackets at the corners
+	# of the square platform, landing at (±2.75, 0, ±2.5) after CENTER_SHIFT.
+	var hedges := []
+	for c in nodes:
+		var n := c as Node3D
+		if n != null and n.name.begins_with("hedge-corner"):
+			hedges.append(n.position)
+	print("BLOB: hedges=%d (want 4)" % hedges.size())
+	assert(hedges.size() == 4, "must be 4 hedge-corner earmark brackets")
+	for h in hedges:
+		assert(absf(absf(h.x) - 2.75) < 0.01 and absf(absf(h.z) - 2.5) < 0.01,
+			"hedge bracket must sit at an earmark corner (±2.75, ±2.5)")
+	# Center box (|x|<=1, |z|<=1 = structure/baseplate spot): only grass
+	# platform tiles may sit there (they are the floor).
+	var violations := 0
 	for c in nodes:
 		var n := c as Node3D
 		if n == null:
 			continue
-		if n.name.begins_with("block-moving"):
-			moving += 1
-		# The 3x4 marker box: only block-moving blocks may sit inside it.
-		if absf(n.position.x) <= 1.5 and absf(n.position.z) <= 1.5:
-			if not n.name.begins_with("block-moving"):
-				marker_violations += 1
-	print("BLOB: moving=%d marker-violations=%d (want 12 and 0)" % [moving, marker_violations])
-	assert(moving == 12, "the 3x4 marker must be 12 block-moving blocks")
-	assert(marker_violations == 0, "a non-marker block sits in the structure/baseplate area")
-	var base := dia.get_node("block-grass-overhang-large-tall_00")
-	assert(base.scale.is_equal_approx(Vector3(4.5, 1.1, 4.5)), "main base scale wrong")
-	assert(absf(base.position.y + 2.2) < 0.01, "main base top must sit at y=0")
+		if absf(n.position.x) <= 1.0 and absf(n.position.z) <= 1.0 \
+				and not n.name.begins_with("block-grass-large-tall"):
+			violations += 1
+	print("BLOB: center violations=%d (want 0)" % violations)
+	assert(violations == 0, "a non-platform block sits in the structure/baseplate area")
+	# Platform tile at AF (0,0,0) (index 19): base at y=-2, top at y=0.
+	var tile := dia.get_node("block-grass-large-tall_19")
+	assert(absf(tile.position.y + 2.0) < 0.01, "platform tile base must sit at y=-2")
 
 	# --- Sky: texture + beat tint + distinct palette per beat ---
 	assert(ctl._sky_mat != null, "sky material missing")
@@ -97,6 +106,8 @@ func _ready() -> void:
 	await get_tree().create_timer(0.3).timeout
 
 	# --- Captures: frame the whole island, then beat skies + views ---
+	ctl.current_beat = 0
+	ctl._apply_beat_sky()  # the beat-loop asserts above end at EXCAVATION
 	ctl._camera.size = 55.0
 	ctl._pivot.rotation = Vector3(-0.45, 0.8, 0.0)
 	ctl._pivot.position = Vector3.ZERO
