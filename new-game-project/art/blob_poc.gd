@@ -13,9 +13,13 @@ extends Node3D
 ## Pure visuals — no physics, no collisions.
 
 const Y_SHIFT := -2.0
-# Earmark (L-bracket square) center in AF coords: x -3.5..2, z 0..9.5
-# -> center (-0.75, 4.75). Shift so it lands on the game origin.
-const CENTER_SHIFT := Vector2(0.75, -4.75)
+# Earmark (L-bracket rectangle) center in AF coords: x -3.5..2, z 0..9.5
+# -> center (-0.75, 4.75). Asset Forge is LEFT-handed; Godot is RIGHT-handed,
+# so the x axis is mirrored in build() (game_x = -AF_x). The mirrored earmark
+# center (0.75, 4.75) is shifted onto the game origin: hedge L-brackets land
+# at (±2.75, 0, ±4.75). Rotations pass through UNCHANGED (the left-handed
+# rotation direction cancels the mirror — verified on all 4 hedge corners).
+const CENTER_SHIFT := Vector2(-0.75, -4.75)
 
 const M := {
 	"block-grass": "res://art/platformer/block-grass.glb",
@@ -142,7 +146,7 @@ func build(structure_id: String) -> void:
 		inst.name = "%s_%02d" % [b[0], i]
 		inst.scale = b[3]
 		inst.rotation.y = deg_to_rad(b[2])
-		inst.position = Vector3(b[1].x + CENTER_SHIFT.x, b[1].y + Y_SHIFT, b[1].z + CENTER_SHIFT.y)
+		inst.position = Vector3(-b[1].x + CENTER_SHIFT.x, b[1].y + Y_SHIFT, b[1].z + CENTER_SHIFT.y)
 		# AF material override replication (triplanar texture on every mesh).
 		if MATERIAL_TEX.has(b[0]):
 			var m := _get_override_mat(b[0])

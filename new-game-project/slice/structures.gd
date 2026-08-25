@@ -127,20 +127,20 @@ static func _mastaba() -> Dictionary:
 		"rubble":     Color("#8A7A5E"),
 	}
 	var core := _merge([
-		_fill(-2, 2, -1, 1, 0, "mudbrick"),   # base 5x3
-		_fill(-1, 1, 0, 0, 1, "mudbrick"),    # upper tier 3x1
+		_fill(-1, 1, -2, 2, 0, "mudbrick"),   # base 3x5 (BUILD 36: transposed so the build area's long axis aligns with the Mastaba_01 earmark)
+		_fill(0, 0, -1, 1, 1, "mudbrick"),    # upper tier 1x3
 	])
 	var zenith := _merge([
-		_fill(-1, 1, 0, 0, 2, "redband"),                       # cornice
-		_col(2, -1, 1, 1, "limestone"), _col(2, 1, 1, 1, "limestone"),
-		_col(2, -1, 0, 1, "limestone"), _col(2, 1, 0, 1, "limestone"),
-		_col(3, 0, 0, 1, "limestone"),                          # offering table
+		_fill(0, 0, -1, 1, 2, "redband"),                       # cornice
+		_col(-1, 2, 1, 1, "limestone"), _col(1, 2, 1, 1, "limestone"),
+		_col(-1, 2, 0, 1, "limestone"), _col(1, 2, 0, 1, "limestone"),
+		_col(0, 3, 0, 1, "limestone"),                          # offering table
 	])
 	var survivor := _merge([
-		_fill(-2, -1, -1, 1, 0, "mudbrick_old"),
-		_fill(0, 0, -1, 0, 0, "mudbrick_old"),
-		_fill(1, 2, 1, 1, 0, "mudbrick_old"),
-		_col(3, 0, 0, 1, "limestone"),
+		_fill(-1, 1, -2, -1, 0, "mudbrick_old"),
+		_fill(-1, 0, 0, 0, 0, "mudbrick_old"),
+		_fill(1, 1, 1, 2, 0, "mudbrick_old"),
+		_col(0, 3, 0, 1, "limestone"),
 	])
 	return {
 		"id": "mastaba",
@@ -149,7 +149,7 @@ static func _mastaba() -> Dictionary:
 		"core": core,
 		"zenith": zenith,
 		"survivor": survivor,
-		"limits": Vector3(3.0, 3.0, 1.0),
+		"limits": Vector3(1.0, 3.0, 3.0),  # transposed (BUILD 36): long axis along z, matching the earmark
 		"beat1_msg": "The house of eternity — lay its mudbrick walls.",
 		"beat2_msg": "The tomb stands.\nRestore its zenith — limestone, cornice, offering table.",
 		"epilogue": [
