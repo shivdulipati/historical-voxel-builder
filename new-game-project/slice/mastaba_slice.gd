@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 50
+const BUILD_NO := 51
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -133,10 +133,6 @@ var _hover_label: Label
 ## Sand-tune knob (BUILD 46): [ / ] adjust the sand texture density live in
 ## the editor; - / = rotate the pattern (BUILD 48). The user matches AF's
 ## look and reports the values.
-var _sand_scale := 1.0  # AF's true default (box UVs, 1 tile/unit)
-var _sand_rot := 0.0
-var _sand_scale_label: Label
-
 ## JSON save path: structure index, beat, completed cells, dust state, camera.
 const SAVE_PATH := "user://slice_save.json"
 var _saved_data: Dictionary = {}
@@ -369,28 +365,6 @@ func _build_hud() -> void:
 	_hover_label.add_theme_stylebox_override("normal", hover_bg)
 	_hover_label.visible = false
 	root.add_child(_hover_label)
-
-	# Sand-tune readout (bottom-left): shows the live density while tuning.
-	_sand_scale_label = Label.new()
-	_sand_scale_label.name = "SandScale"
-	_sand_scale_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
-	_sand_scale_label.offset_left = 14
-	_sand_scale_label.offset_bottom = -14
-	_sand_scale_label.add_theme_font_size_override("font_size", 26)
-	_sand_scale_label.add_theme_color_override("font_color", Color(0, 0, 0))
-	var ss_bg := StyleBoxFlat.new()
-	ss_bg.bg_color = Color(1, 1, 1, 0.88)
-	ss_bg.corner_radius_top_left = 8
-	ss_bg.corner_radius_top_right = 8
-	ss_bg.corner_radius_bottom_left = 8
-	ss_bg.corner_radius_bottom_right = 8
-	ss_bg.content_margin_left = 12
-	ss_bg.content_margin_right = 12
-	ss_bg.content_margin_top = 8
-	ss_bg.content_margin_bottom = 8
-	_sand_scale_label.add_theme_stylebox_override("normal", ss_bg)
-	_sand_scale_label.text = "SAND × %.2f rot %d°  ([ ] zoom · - = rotate)" % [_sand_scale, int(_sand_rot)]
-	root.add_child(_sand_scale_label)
 
 	# --- Top bar (below notch) ---
 	var top := PanelContainer.new()
@@ -1904,24 +1878,8 @@ func _any_block_grabbing() -> bool:
 
 
 func _input(event: InputEvent) -> void:
-	# --- Sand-tune knob: [ / ] density, - / = rotation (desktop driving). ---
+	# --- AF viewport lighting toggle (BUILD 50): our sun <-> AF's extracted rig. ---
 	if event is InputEventKey and event.pressed:
-		if event.keycode == KEY_BRACKETLEFT:
-			_sand_scale = maxf(0.05, _sand_scale - 0.05)
-			_apply_sand_scale()
-			return
-		if event.keycode == KEY_BRACKETRIGHT:
-			_sand_scale = minf(4.0, _sand_scale + 0.05)
-			_apply_sand_scale()
-			return
-		if event.keycode == KEY_MINUS:
-			_sand_rot = fposmod(_sand_rot - 5.0, 360.0)
-			_apply_sand_scale()
-			return
-		if event.keycode == KEY_EQUAL:
-			_sand_rot = fposmod(_sand_rot + 5.0, 360.0)
-			_apply_sand_scale()
-			return
 		if event.keycode == KEY_L:
 			_toggle_af_light()
 			return
@@ -2085,13 +2043,6 @@ func _pan_camera(pan_delta: Vector2) -> void:
 ## Hover inspection (desktop driving): raycast from the cursor against each
 ## diorama block's mesh AABB (the GLBs have no colliders — pure visuals) and
 ## show the BLOCKS entry: index, type, rotation, position.
-func _apply_sand_scale() -> void:
-	if _diorama != null:
-		_diorama.call("set_sand_scale", _sand_scale)
-		_diorama.call("set_sand_rot", _sand_rot)
-	if _sand_scale_label != null:
-		_sand_scale_label.text = "SAND × %.2f rot %d°  ([ ] zoom · - = rotate · L = AF light)" % [_sand_scale, int(_sand_rot)]
-	print("SAND SCALE: %.2f ROT: %d" % [_sand_scale, int(_sand_rot)])
 
 
 ## Toggle the extracted AF viewport lighting rig (L key) against the game's

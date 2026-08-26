@@ -127,43 +127,13 @@ const BLOCKS := [
 const MARKER_X := 2.75
 const MARKER_Z := 4.75
 
-# Sand-tune override (BUILD 46): the sand blocks carry AF's dune texture at
-# per-face UVs; the override shader makes the density live-adjustable so the
-# user can match AF's look in the editor ([ / ] keys) before the value is
-# locked in. The stairs keep their dark-stone treads (light material only).
-# The snow blocks are in the model with material custom1 (= the sand override)
-# — they keep their mound geometry/positions (replication, not approximation)
-# and get the sand texture via this override.
-const SAND_TUNE := [
-	"block-grass-large-tall", "stairs_half_corner", "debris_stone",
-	"block-snow-low-large", "block-snow-large",
-]
+# BUILD 51: AF material replication — the sand is BAKED into the GLBs now
+# (authored 5-point colormap UVs + AF's Nature/sand.png, metallic 0.25 /
+# roughness 0.75 — the .model's custom1 is mapping:1 = _Overwrite = authored
+# UVs, proven by decompiling AF's SetMapping + UVMapping.BoxUV). The only
+# runtime override left is the marble (_defaultMat): mapping:0 = box UVs.
 
 var _mat_cache := {}
-## Per-instance sand materials (BUILD 50): each carries its block's world
-## origin so the shader replicates AF's world-anchored box UVs exactly.
-var _sand_mats: Array = []
-
-
-func set_sand_scale(v: float) -> void:
-	for m in _sand_mats:
-		m.set_shader_parameter("scale", v)
-
-
-func set_sand_rot(v: float) -> void:
-	for m in _sand_mats:
-		m.set_shader_parameter("rot", v)
-
-
-func _get_sand_mat(pos: Vector3) -> ShaderMaterial:
-	var m := ShaderMaterial.new()
-	m.shader = load("res://art/sand_tune.gdshader")
-	m.set_shader_parameter("tex", load("res://art/textures/sand_dune.png"))
-	m.set_shader_parameter("scale", 1.0)
-	m.set_shader_parameter("rot", 0.0)
-	m.set_shader_parameter("origin", pos)
-	_sand_mats.append(m)
-	return m
 
 
 func build(structure_id: String) -> void:
@@ -178,20 +148,11 @@ func build(structure_id: String) -> void:
 		inst.scale = b[3]
 		inst.rotation.y = deg_to_rad(b[2])
 		inst.position = Vector3(-b[1].x + CENTER_SHIFT.x, b[1].y + Y_SHIFT, b[1].z + CENTER_SHIFT.y)
-		# AF material override replication (marble) + sand-tune override.
+		# AF material override replication: marble (_defaultMat) only — box UVs.
 		if MATERIAL_TEX.has(b[0]):
 			var m := _get_override_mat(b[0])
 			for mi in inst.find_children("*", "MeshInstance3D", true, false):
 				(mi as MeshInstance3D).material_override = m
-		if b[0] in SAND_TUNE:
-			var sm := _get_sand_mat(inst.position)
-			for mi in inst.find_children("*", "MeshInstance3D", true, false):
-				var mmi := mi as MeshInstance3D
-				if b[0] == "stairs_half_corner":
-					var am := mmi.get_active_material(0)
-					if am == null or not String(am.resource_name).contains("Light"):
-						continue
-				mmi.material_override = sm
 		add_child(inst)
 		i += 1
 
@@ -202,7 +163,6 @@ func _get_override_mat(block_type: String) -> Material:
 	var mat := ShaderMaterial.new()
 	mat.shader = load("res://art/sand_override.gdshader")
 	mat.set_shader_parameter("tex", load(MATERIAL_TEX[block_type]))
-	mat.set_shader_parameter("use_uv2", not MATERIAL_TEX[block_type].ends_with("marble.png"))
 	_mat_cache[block_type] = mat
 	return mat
 
