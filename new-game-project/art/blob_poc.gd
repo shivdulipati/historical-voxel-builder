@@ -23,7 +23,7 @@ const CENTER_SHIFT := Vector2(-0.75, -4.75)
 
 const M := {
 	"block-grass": "res://art/platformer/block-grass.glb",
-	"block-grass-large-tall": "res://art/platformer/block-grass-large-tall.glb",
+	"block-grass-large-tall": "res://art/platformer/block-grass-large-tall_sand.glb",
 	"block-grass-overhang-long": "res://art/platformer/block-grass-overhang-long.glb",
 	"block-grass-overhang-large-tall": "res://art/platformer/block-grass-overhang-large-tall.glb",
 	"block-grass-overhang-corner": "res://art/platformer/block-grass-overhang-corner.glb",
@@ -36,21 +36,18 @@ const M := {
 	"flowers": "res://art/platformer/flowers.glb",
 	"rocks": "res://art/platformer/rocks.glb",
 	"grass": "res://art/platformer/grass.glb",
-	"hedge-corner": "res://art/platformer/hedge-corner.glb",
+	"hedge-corner": "res://art/platformer/hedge-corner_sand.glb",
 	"block-snow-low-large": "res://art/platformer/block-snow-low-large.glb",
 	"block-snow-large": "res://art/platformer/block-snow-large.glb",
 	"icosphere_half": "res://art/platformer/icosphere_half.glb",
 	"stairs_half_corner": "res://art/platformer/stairs_half_corner.glb",
-	"debris_stone": "res://art/platformer/debris_stone.glb",
+	"debris_stone": "res://art/platformer/debris_stone_sand.glb",
 }
 
-# AF material overrides -> texture (the .model's custom1 = sand; the built-in
-# exports carry their own flat MTL colors). Sand blocks sample the baked
-# per-face UV1 (uniform tiling); marble uses the dome's own UVs.
+# AF material overrides -> texture. The sand blocks now CARRY the sand baked
+# into their GLBs (proper per-face UVs — no override needed). Only the marble
+# domes use the override shader (their own UVs).
 const MATERIAL_TEX := {
-	"block-grass-large-tall": "res://art/textures/sand.png",
-	"hedge-corner": "res://art/textures/sand.png",
-	"debris_stone": "res://art/textures/sand.png",
 	"icosphere_half": "res://art/textures/marble.png",
 }
 

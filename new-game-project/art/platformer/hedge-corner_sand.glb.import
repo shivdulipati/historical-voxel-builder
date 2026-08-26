@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bkrw2jt8r53bg"
-path="res://.godot/imported/stairs_half_corner.glb-aed448a09fecd0eabf59ed19697c3a9e.scn"
+uid="uid://dy53y1mduq4lh"
+path="res://.godot/imported/hedge-corner_sand.glb-b9151624e5a8c02805d1cdcecb3ed75d.scn"
 
 [deps]
 
-source_file="res://art/platformer/stairs_half_corner.glb"
-dest_files=["res://.godot/imported/stairs_half_corner.glb-aed448a09fecd0eabf59ed19697c3a9e.scn"]
+source_file="res://art/platformer/hedge-corner_sand.glb"
+dest_files=["res://.godot/imported/hedge-corner_sand.glb-b9151624e5a8c02805d1cdcecb3ed75d.scn"]
 
 [params]
 

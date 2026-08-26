@@ -3,13 +3,13 @@
 importer="scene"
 importer_version=1
 type="PackedScene"
-uid="uid://bkrw2jt8r53bg"
-path="res://.godot/imported/stairs_half_corner.glb-aed448a09fecd0eabf59ed19697c3a9e.scn"
+uid="uid://bl8epkdmg58dj"
+path="res://.godot/imported/block-grass-large-tall_sand.glb-37b31b9b180e4a96c84617ea7771f5e9.scn"
 
 [deps]
 
-source_file="res://art/platformer/stairs_half_corner.glb"
-dest_files=["res://.godot/imported/stairs_half_corner.glb-aed448a09fecd0eabf59ed19697c3a9e.scn"]
+source_file="res://art/platformer/block-grass-large-tall_sand.glb"
+dest_files=["res://.godot/imported/block-grass-large-tall_sand.glb-37b31b9b180e4a96c84617ea7771f5e9.scn"]
 
 [params]
 
