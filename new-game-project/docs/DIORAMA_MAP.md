@@ -6,6 +6,9 @@ change the 3rd value (degrees). To move it: the 2nd (AF coords). The game
 mirrors x and shifts the earmark center; the overlay shows the rendered game
 position + rotation.
 
+## Stair ring (practice mastaba) — rotations user-corrected 2026-08-26:
+`41` rot 270 · `42` rot 180 · `43` rot 0 · `44` rot 90 (verified visually in editor).
+
 `00` floor tiles (grass) — `["block-grass-large-tall", Vector3(0.00, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)]`  (game -0.75, -2.00, -6.25)
 `01` floor tiles (grass) — `["block-grass-large-tall", Vector3(1.50, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)]`  (game -2.25, -2.00, -6.25)
 `02` floor tiles (grass) — `["block-grass-large-tall", Vector3(1.50, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)]`  (game -2.25, -2.00, -7.75)
@@ -48,8 +51,8 @@ position + rotation.
 `39` marble domes — `["icosphere_half", Vector3(-1.17, 2.50, -4.07), 270.0, Vector3(0.25, 0.25, 0.25)]`  (game 0.42, 0.50, -8.82)
 `40` marble domes — `["icosphere_half", Vector3(-1.78, 2.50, -4.12), 315.0, Vector3(0.50, 0.50, 0.50)]`  (game 1.03, 0.50, -8.87)
 `41` PRACTICE MASTABA ring — `["stairs_half_corner", Vector3(3.30, 2.00, -2.20), 270.0, Vector3(1.00, 1.00, 1.00)]`  (game -4.05, 0.00, -6.95)
-`42` PRACTICE MASTABA ring — `["stairs_half_corner", Vector3(4.20, 2.00, -2.20), 0.0, Vector3(1.00, 1.00, 1.00)]`  (game -4.95, 0.00, -6.95)
-`43` PRACTICE MASTABA ring — `["stairs_half_corner", Vector3(3.30, 2.00, -3.20), 180.0, Vector3(1.00, 1.00, 1.00)]`  (game -4.05, 0.00, -7.95)
+`42` PRACTICE MASTABA ring — `["stairs_half_corner", Vector3(4.20, 2.00, -2.20), 180.0, Vector3(1.00, 1.00, 1.00)]`  (game -4.95, 0.00, -6.95)
+`43` PRACTICE MASTABA ring — `["stairs_half_corner", Vector3(3.30, 2.00, -3.20), 0.0, Vector3(1.00, 1.00, 1.00)]`  (game -4.05, 0.00, -7.95)
 `44` PRACTICE MASTABA ring — `["stairs_half_corner", Vector3(4.20, 2.00, -3.20), 90.0, Vector3(1.00, 1.00, 1.00)]`  (game -4.95, 0.00, -7.95)
 `45` debris bricks near ring — `["debris_stone", Vector3(1.90, 2.00, -2.90), 270.0, Vector3(1.00, 1.00, 1.00)]`  (game -2.65, 0.00, -7.65)
 `46` debris bricks near ring — `["debris_stone", Vector3(1.40, 2.00, -2.50), 180.0, Vector3(1.00, 1.00, 1.00)]`  (game -2.15, 0.00, -7.25)

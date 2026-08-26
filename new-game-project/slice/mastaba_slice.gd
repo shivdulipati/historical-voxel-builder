@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 40
+const BUILD_NO := 41
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -330,10 +330,19 @@ func _build_hud() -> void:
 	_hover_label = Label.new()
 	_hover_label.name = "HoverInfo"
 	_hover_label.position = Vector2(14, SAFE_TOP + 160)
-	_hover_label.add_theme_font_size_override("font_size", 17)
-	_hover_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.55))
-	_hover_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
-	_hover_label.add_theme_constant_override("outline_size", 6)
+	_hover_label.add_theme_font_size_override("font_size", 28)
+	_hover_label.add_theme_color_override("font_color", Color(0, 0, 0))
+	var hover_bg := StyleBoxFlat.new()
+	hover_bg.bg_color = Color(1, 1, 1, 0.88)
+	hover_bg.corner_radius_top_left = 8
+	hover_bg.corner_radius_top_right = 8
+	hover_bg.corner_radius_bottom_left = 8
+	hover_bg.corner_radius_bottom_right = 8
+	hover_bg.content_margin_left = 12
+	hover_bg.content_margin_right = 12
+	hover_bg.content_margin_top = 8
+	hover_bg.content_margin_bottom = 8
+	_hover_label.add_theme_stylebox_override("normal", hover_bg)
 	_hover_label.visible = false
 	root.add_child(_hover_label)
 
