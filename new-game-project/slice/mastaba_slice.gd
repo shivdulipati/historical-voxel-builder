@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 39
+const BUILD_NO := 40
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -117,6 +117,12 @@ const PAN_CLAMP := 18.0
 var _hud_root: Control
 var _debug_mode := false
 var _escape_layer: CanvasLayer
+## Desktop editor-driver controls (BUILD 40): mouse orbit/zoom/pan + hover
+## inspection of diorama entries — lets the user judge/tweak visuals directly
+## in Godot on the Mac instead of round-tripping builds.
+var _mouse_orbit := false
+var _mouse_pan := false
+var _hover_label: Label
 
 ## JSON save path: structure index, beat, completed cells, dust state, camera.
 const SAVE_PATH := "user://slice_save.json"
@@ -317,6 +323,19 @@ func _build_hud() -> void:
 	root.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_hud.add_child(root)
 	_hud_root = root
+
+	# Hover-inspect label (desktop driving): shows the diorama entry under the
+	# cursor — index, type, rotation, position — so the user can say "entry 54
+	# needs +90°" and the BLOCKS array line is unambiguous.
+	_hover_label = Label.new()
+	_hover_label.name = "HoverInfo"
+	_hover_label.position = Vector2(14, SAFE_TOP + 160)
+	_hover_label.add_theme_font_size_override("font_size", 17)
+	_hover_label.add_theme_color_override("font_color", Color(1.0, 0.95, 0.55))
+	_hover_label.add_theme_color_override("font_outline_color", Color(0, 0, 0, 0.8))
+	_hover_label.add_theme_constant_override("outline_size", 6)
+	_hover_label.visible = false
+	root.add_child(_hover_label)
 
 	# --- Top bar (below notch) ---
 	var top := PanelContainer.new()
@@ -1830,6 +1849,32 @@ func _any_block_grabbing() -> bool:
 
 
 func _input(event: InputEvent) -> void:
+	# --- Desktop editor-driver: mouse orbit (left-drag), pan (right-drag),
+	# zoom (wheel), hover-inspect diorama entries. Mobile ignores these. ---
+	if event is InputEventMouseButton:
+		_last_touch_time = Time.get_ticks_msec() / 1000.0
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
+			_set_cam_dist(_cam_dist - 3.0)
+			return
+		if event.button_index == MOUSE_BUTTON_WHEEL_DOWN and event.pressed:
+			_set_cam_dist(_cam_dist + 3.0)
+			return
+		if event.button_index == MOUSE_BUTTON_LEFT:
+			_mouse_orbit = event.pressed
+			return
+		if event.button_index == MOUSE_BUTTON_RIGHT:
+			_mouse_pan = event.pressed
+			return
+	if event is InputEventMouseMotion:
+		_last_touch_time = Time.get_ticks_msec() / 1000.0
+		if _mouse_orbit:
+			_apply_orbit(event.relative)
+		elif _mouse_pan:
+			_pan_camera(event.relative)
+		else:
+			_update_hover(event.position)
+		return
+
 	if event is InputEventScreenTouch:
 		_last_touch_time = Time.get_ticks_msec() / 1000.0
 		if event.pressed:
@@ -1861,7 +1906,7 @@ func _input(event: InputEvent) -> void:
 			_orbit_slop_accum += drag.relative.length()
 			if _orbit_slop_accum >= ORBIT_SLOP and not _any_block_grabbing() \
 					and not _tray_locked_touches.has(event.index):
-				_apply_orbit(drag)
+				_apply_orbit(drag.relative)
 		elif _gesture == 2:
 			var points := _touch_points.values()
 			var p0: Vector2 = points[0]
@@ -1905,12 +1950,12 @@ func _latch_gesture() -> void:
 		_orbit_slop_accum = 0.0
 
 
-func _apply_orbit(drag: InputEventScreenDrag) -> void:
-	_pivot.rotation.y -= drag.relative.x * 0.005
+func _apply_orbit(relative: Vector2) -> void:
+	_pivot.rotation.y -= relative.x * 0.005
 	# Pitch never goes above level (0.0): a positive pitch drops the camera
 	# BELOW the earth slab's top plane, where the near plane slices the slab
 	# and the hollow interior shows sky (BUILD 23 camera-clip bug).
-	_pivot.rotation.x = clampf(_pivot.rotation.x - drag.relative.y * 0.005, -PI / 2.0, 0.0)
+	_pivot.rotation.x = clampf(_pivot.rotation.x - relative.y * 0.005, -PI / 2.0, 0.0)
 
 	# Magnetic snap to 90° increments.
 	var snap_margin := 0.087  # ~5 degrees
@@ -1952,6 +1997,80 @@ func _pan_camera(pan_delta: Vector2) -> void:
 	# slices + backface-culled interior — the BUILD 23 camera-clip bug).
 	_pivot.position.x = clampf(_pivot.position.x, -PAN_CLAMP, PAN_CLAMP)
 	_pivot.position.z = clampf(_pivot.position.z, -PAN_CLAMP, PAN_CLAMP)
+
+
+## Hover inspection (desktop driving): raycast from the cursor against each
+## diorama block's mesh AABB (the GLBs have no colliders — pure visuals) and
+## show the BLOCKS entry: index, type, rotation, position.
+func _update_hover(screen_pos: Vector2) -> void:
+	var n := _hover_pick(screen_pos)
+	if n == null or _hover_label == null:
+		if _hover_label != null:
+			_hover_label.visible = false
+		return
+	var nm := String(n.name)
+	var idx := -1
+	var us := nm.rfind("_")
+	if us >= 0 and us < nm.length() - 1:
+		idx = nm.substr(us + 1).to_int()
+	var typ := nm.substr(0, us) if us >= 0 else nm
+	_hover_label.text = "idx %d · %s\nrot %s°   pos (%.2f, %.2f, %.2f)" % [
+		idx, typ,
+		snapped(rad_to_deg(n.rotation.y), 1.0),
+		n.position.x, n.position.y, n.position.z]
+	_hover_label.visible = true
+
+
+func _hover_pick(screen_pos: Vector2) -> Node3D:
+	if _diorama == null or _camera == null:
+		return null
+	var from := _camera.project_ray_origin(screen_pos)
+	var dir := _camera.project_ray_normal(screen_pos)
+	var best: Node3D = null
+	var best_t := INF
+	for c in _diorama.get_children():
+		var n := c as Node3D
+		if n == null:
+			continue
+		var mis := n.find_children("*", "MeshInstance3D", true, false)
+		if mis.is_empty():
+			continue
+		var mi := mis[0] as MeshInstance3D
+		var mesh := mi.mesh
+		if mesh == null:
+			continue
+		var aabb := mesh.get_aabb()
+		var inv := (n.global_transform * mi.transform).affine_inverse()
+		var t := _ray_aabb_t(inv * from, inv.basis * dir, aabb)
+		if t >= 0.0 and t < best_t:
+			best_t = t
+			best = n
+	return best
+
+
+func _ray_aabb_t(origin: Vector3, dir: Vector3, aabb: AABB) -> float:
+	var tmin := 0.0
+	var tmax := INF
+	for axis in 3:
+		var o := origin[axis]
+		var d := dir[axis]
+		var lo := aabb.position[axis]
+		var hi := aabb.position[axis] + aabb.size[axis]
+		if absf(d) < 1e-8:
+			if o < lo or o > hi:
+				return -1.0
+		else:
+			var t1 := (lo - o) / d
+			var t2 := (hi - o) / d
+			if t1 > t2:
+				var tmp := t1
+				t1 = t2
+				t2 = tmp
+			tmin = maxf(tmin, t1)
+			tmax = minf(tmax, t2)
+			if tmin > tmax:
+				return -1.0
+	return tmin
 
 
 # ============================================================================
