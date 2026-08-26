@@ -140,27 +140,30 @@ const SAND_TUNE := [
 ]
 
 var _mat_cache := {}
-var _sand_mat: ShaderMaterial = null
+## Per-instance sand materials (BUILD 50): each carries its block's world
+## origin so the shader replicates AF's world-anchored box UVs exactly.
+var _sand_mats: Array = []
 
 
 func set_sand_scale(v: float) -> void:
-	var m := _get_sand_mat()
-	m.set_shader_parameter("scale", v)
+	for m in _sand_mats:
+		m.set_shader_parameter("scale", v)
 
 
 func set_sand_rot(v: float) -> void:
-	var m := _get_sand_mat()
-	m.set_shader_parameter("rot", v)
+	for m in _sand_mats:
+		m.set_shader_parameter("rot", v)
 
 
-func _get_sand_mat() -> ShaderMaterial:
-	if _sand_mat == null:
-		_sand_mat = ShaderMaterial.new()
-		_sand_mat.shader = load("res://art/sand_tune.gdshader")
-		_sand_mat.set_shader_parameter("tex", load("res://art/textures/sand_dune.png"))
-		_sand_mat.set_shader_parameter("scale", 0.25)
-		_sand_mat.set_shader_parameter("rot", 0.0)
-	return _sand_mat
+func _get_sand_mat(pos: Vector3) -> ShaderMaterial:
+	var m := ShaderMaterial.new()
+	m.shader = load("res://art/sand_tune.gdshader")
+	m.set_shader_parameter("tex", load("res://art/textures/sand_dune.png"))
+	m.set_shader_parameter("scale", 1.0)
+	m.set_shader_parameter("rot", 0.0)
+	m.set_shader_parameter("origin", pos)
+	_sand_mats.append(m)
+	return m
 
 
 func build(structure_id: String) -> void:
@@ -181,7 +184,7 @@ func build(structure_id: String) -> void:
 			for mi in inst.find_children("*", "MeshInstance3D", true, false):
 				(mi as MeshInstance3D).material_override = m
 		if b[0] in SAND_TUNE:
-			var sm := _get_sand_mat()
+			var sm := _get_sand_mat(inst.position)
 			for mi in inst.find_children("*", "MeshInstance3D", true, false):
 				var mmi := mi as MeshInstance3D
 				if b[0] == "stairs_half_corner":

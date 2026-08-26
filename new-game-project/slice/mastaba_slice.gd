@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 49
+const BUILD_NO := 50
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -61,6 +61,13 @@ var _pivot: Node3D
 var _camera: Camera3D
 var _sun: DirectionalLight3D
 var _fill: DirectionalLight3D
+## AF viewport lighting rig (extracted from the app's level0 scene, BUILD 50):
+## warm directional RGB(1.0, 0.98, 0.92) @ 1.0 + Unity trilight ambient.
+## Toggle with the L key to compare against the game's sun side by side.
+var _af_light: DirectionalLight3D
+var _af_mode := false
+var _env_node: WorldEnvironment
+var _env: Environment
 var _touch_points := {}
 var _last_pinch_distance := 0.0
 var _last_pan_midpoint := Vector2.ZERO
@@ -126,7 +133,7 @@ var _hover_label: Label
 ## Sand-tune knob (BUILD 46): [ / ] adjust the sand texture density live in
 ## the editor; - / = rotate the pattern (BUILD 48). The user matches AF's
 ## look and reports the values.
-var _sand_scale := 0.25
+var _sand_scale := 1.0  # AF's true default (box UVs, 1 tile/unit)
 var _sand_rot := 0.0
 var _sand_scale_label: Label
 
@@ -257,10 +264,21 @@ func _build_world() -> void:
 	_fill.light_color = Color("#EADFC0")
 	_fill.light_energy = 0.4
 
+	# --- AF viewport light (extracted from AssetForge's level0 scene) ---
+	_af_light = DirectionalLight3D.new()
+	_af_light.name = "AFLight"
+	_af_light.position = Vector3(0.059, 0.94, 0.337) * 8.0
+	add_child(_af_light)
+	_af_light.look_at(Vector3.ZERO)
+	_af_light.light_color = Color(1.0, 0.98, 0.92)
+	_af_light.light_energy = 1.0
+	_af_light.visible = false
+
 	# --- Environment: beat-driven sky (floating slice — pure sky, no ground
 	# band) + sky-sampled ambient so night/dusk tint the whole scene.
-	var env := WorldEnvironment.new()
-	var environment := Environment.new()
+	_env_node = WorldEnvironment.new()
+	_env = Environment.new()
+	var environment := _env
 	environment.background_mode = Environment.BG_SKY
 	_sky_mat = ShaderMaterial.new()
 	_sky_mat.shader = load("res://art/sky_beat.gdshader")
@@ -269,8 +287,8 @@ func _build_world() -> void:
 	environment.sky.sky_material = _sky_mat
 	environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
 	environment.ambient_light_energy = 0.5
-	env.environment = environment
-	add_child(env)
+	_env_node.environment = environment
+	add_child(_env_node)
 	_apply_beat_sky()
 
 	# --- Floor (raycast target only — the VISIBLE ground is the earth slab).
@@ -1904,6 +1922,9 @@ func _input(event: InputEvent) -> void:
 			_sand_rot = fposmod(_sand_rot + 5.0, 360.0)
 			_apply_sand_scale()
 			return
+		if event.keycode == KEY_L:
+			_toggle_af_light()
+			return
 	# --- Desktop editor-driver: mouse orbit (left-drag), pan (right-drag),
 	# zoom (wheel), hover-inspect diorama entries. Mobile ignores these. ---
 	if event is InputEventMouseButton or event is InputEventMouseMotion:
@@ -2069,8 +2090,25 @@ func _apply_sand_scale() -> void:
 		_diorama.call("set_sand_scale", _sand_scale)
 		_diorama.call("set_sand_rot", _sand_rot)
 	if _sand_scale_label != null:
-		_sand_scale_label.text = "SAND × %.2f rot %d°  ([ ] zoom · - = rotate)" % [_sand_scale, int(_sand_rot)]
+		_sand_scale_label.text = "SAND × %.2f rot %d°  ([ ] zoom · - = rotate · L = AF light)" % [_sand_scale, int(_sand_rot)]
 	print("SAND SCALE: %.2f ROT: %d" % [_sand_scale, int(_sand_rot)])
+
+
+## Toggle the extracted AF viewport lighting rig (L key) against the game's
+## sun — the warm Unity directional + trilight ambient.
+func _toggle_af_light() -> void:
+	_af_mode = not _af_mode
+	_sun.visible = not _af_mode
+	_fill.visible = not _af_mode
+	_af_light.visible = _af_mode
+	if _af_mode:
+		_env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+		_env.ambient_light_color = Color(0.902, 0.929, 1.0)
+		_env.ambient_light_energy = 0.5
+	else:
+		_env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+		_env.ambient_light_energy = 0.5
+	print("AF LIGHT: %s" % ("ON" if _af_mode else "OFF"))
 
 
 func _update_hover(screen_pos: Vector2) -> void:
