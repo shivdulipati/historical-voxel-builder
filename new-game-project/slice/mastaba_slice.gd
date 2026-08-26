@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 41
+const BUILD_NO := 42
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -1860,8 +1860,15 @@ func _any_block_grabbing() -> bool:
 func _input(event: InputEvent) -> void:
 	# --- Desktop editor-driver: mouse orbit (left-drag), pan (right-drag),
 	# zoom (wheel), hover-inspect diorama entries. Mobile ignores these. ---
-	if event is InputEventMouseButton:
+	if event is InputEventMouseButton or event is InputEventMouseMotion:
+		# iOS/Android: Godot synthesizes mouse events from touches
+		# (emulate_mouse_from_touch) — ignoring them here keeps two-finger
+		# pan/pinch on the touch path instead of leaking into mouse-orbit
+		# (BUILD 41 regression: two-finger pan rotated the camera).
+		if OS.get_name() in ["iOS", "Android"]:
+			return
 		_last_touch_time = Time.get_ticks_msec() / 1000.0
+	if event is InputEventMouseButton:
 		if event.button_index == MOUSE_BUTTON_WHEEL_UP and event.pressed:
 			_set_cam_dist(_cam_dist - 3.0)
 			return
