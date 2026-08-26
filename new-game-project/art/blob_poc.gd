@@ -21,17 +21,6 @@ const Y_SHIFT := -2.0
 # rotation direction cancels the mirror — verified on all 4 hedge corners).
 const CENTER_SHIFT := Vector2(-0.75, -4.75)
 
-## BUILD 54 (epsilon experiment): the overlapping tiles' top faces are exactly
-## coplanar — the depth test can't separate equal depths, so the first-drawn
-## block wins the tie and the underlying top (with its bevels) renders through
-## the overlap. A per-instance micro-epsilon gives the depth test a real
-## difference: later-placed blocks (the overlapping ones) sit a hair higher and
-## occlude the earlier ones — the overlaps render solid. 0.001/block is
-## invisible at any zoom (66 blocks -> max 0.066). DISCRIMINATING TEST: if the
-## overlaps render solid, the coplanar tie was the cause; if the bevels still
-## read through, the cause is the exposed-edge shading, not the depth.
-const EPSILON_STEP := 0.001
-
 const M := {
 	"block-grass": "res://art/platformer/block-grass.glb",
 	"block-grass-large-tall": "res://art/platformer/block-grass-large-tall_sand.glb",
@@ -158,7 +147,7 @@ func build(structure_id: String) -> void:
 		inst.name = "%s_%02d" % [b[0], i]
 		inst.scale = b[3]
 		inst.rotation.y = deg_to_rad(b[2])
-		inst.position = Vector3(-b[1].x + CENTER_SHIFT.x, b[1].y + Y_SHIFT + i * EPSILON_STEP, b[1].z + CENTER_SHIFT.y)
+		inst.position = Vector3(-b[1].x + CENTER_SHIFT.x, b[1].y + Y_SHIFT, b[1].z + CENTER_SHIFT.y)
 		# AF material override replication: marble (_defaultMat) only — box UVs.
 		if MATERIAL_TEX.has(b[0]):
 			var m := _get_override_mat(b[0])
