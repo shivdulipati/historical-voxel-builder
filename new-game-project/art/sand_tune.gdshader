@@ -12,7 +12,9 @@ uniform float rot = 0.0;  // degrees — rotates the texture pattern
 void fragment() {
 	vec2 uv = UV * scale;
 	float r = radians(rot);
-	uv = mat2(cos(r), -sin(r), sin(r), cos(r)) * uv;
+	float c = cos(r);
+	float s = sin(r);
+	uv = vec2(uv.x * c - uv.y * s, uv.x * s + uv.y * c);
 	ALBEDO = texture(tex, uv).rgb;
 	METALLIC = 0.25;
 	ROUGHNESS = 0.75;
