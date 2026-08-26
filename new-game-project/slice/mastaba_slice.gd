@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 47
+const BUILD_NO := 48
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -124,8 +124,10 @@ var _mouse_orbit := false
 var _mouse_pan := false
 var _hover_label: Label
 ## Sand-tune knob (BUILD 46): [ / ] adjust the sand texture density live in
-## the editor so the user can match AF's look and report the value.
+## the editor; - / = rotate the pattern (BUILD 48). The user matches AF's
+## look and reports the values.
 var _sand_scale := 0.25
+var _sand_rot := 0.0
 var _sand_scale_label: Label
 
 ## JSON save path: structure index, beat, completed cells, dust state, camera.
@@ -369,7 +371,7 @@ func _build_hud() -> void:
 	ss_bg.content_margin_top = 8
 	ss_bg.content_margin_bottom = 8
 	_sand_scale_label.add_theme_stylebox_override("normal", ss_bg)
-	_sand_scale_label.text = "SAND × %.2f  (press [ or ] to tune)" % _sand_scale
+	_sand_scale_label.text = "SAND × %.2f rot %d°  ([ ] zoom · - = rotate)" % [_sand_scale, int(_sand_rot)]
 	root.add_child(_sand_scale_label)
 
 	# --- Top bar (below notch) ---
@@ -1884,7 +1886,7 @@ func _any_block_grabbing() -> bool:
 
 
 func _input(event: InputEvent) -> void:
-	# --- Sand-tune knob: [ / ] adjust the dune density live (desktop driving). ---
+	# --- Sand-tune knob: [ / ] density, - / = rotation (desktop driving). ---
 	if event is InputEventKey and event.pressed:
 		if event.keycode == KEY_BRACKETLEFT:
 			_sand_scale = maxf(0.05, _sand_scale - 0.05)
@@ -1892,6 +1894,14 @@ func _input(event: InputEvent) -> void:
 			return
 		if event.keycode == KEY_BRACKETRIGHT:
 			_sand_scale = minf(4.0, _sand_scale + 0.05)
+			_apply_sand_scale()
+			return
+		if event.keycode == KEY_MINUS:
+			_sand_rot = fposmod(_sand_rot - 5.0, 360.0)
+			_apply_sand_scale()
+			return
+		if event.keycode == KEY_EQUAL:
+			_sand_rot = fposmod(_sand_rot + 5.0, 360.0)
 			_apply_sand_scale()
 			return
 	# --- Desktop editor-driver: mouse orbit (left-drag), pan (right-drag),
@@ -2057,9 +2067,10 @@ func _pan_camera(pan_delta: Vector2) -> void:
 func _apply_sand_scale() -> void:
 	if _diorama != null:
 		_diorama.call("set_sand_scale", _sand_scale)
+		_diorama.call("set_sand_rot", _sand_rot)
 	if _sand_scale_label != null:
-		_sand_scale_label.text = "SAND × %.2f  (press [ or ] to tune)" % _sand_scale
-	print("SAND SCALE: %.2f" % _sand_scale)
+		_sand_scale_label.text = "SAND × %.2f rot %d°  ([ ] zoom · - = rotate)" % [_sand_scale, int(_sand_rot)]
+	print("SAND SCALE: %.2f ROT: %d" % [_sand_scale, int(_sand_rot)])
 
 
 func _update_hover(screen_pos: Vector2) -> void:

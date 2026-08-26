@@ -7,9 +7,13 @@ shader_type spatial;
 
 uniform sampler2D tex : source_color, filter_linear, repeat_enable;
 uniform float scale = 0.25;
+uniform float rot = 0.0;  // degrees — rotates the texture pattern
 
 void fragment() {
-	ALBEDO = texture(tex, UV * scale).rgb;
+	vec2 uv = UV * scale;
+	float r = radians(rot);
+	uv = mat2(cos(r), -sin(r), sin(r), cos(r)) * uv;
+	ALBEDO = texture(tex, uv).rgb;
 	METALLIC = 0.25;
 	ROUGHNESS = 0.75;
 }

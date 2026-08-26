@@ -148,12 +148,18 @@ func set_sand_scale(v: float) -> void:
 	m.set_shader_parameter("scale", v)
 
 
+func set_sand_rot(v: float) -> void:
+	var m := _get_sand_mat()
+	m.set_shader_parameter("rot", v)
+
+
 func _get_sand_mat() -> ShaderMaterial:
 	if _sand_mat == null:
 		_sand_mat = ShaderMaterial.new()
 		_sand_mat.shader = load("res://art/sand_tune.gdshader")
 		_sand_mat.set_shader_parameter("tex", load("res://art/textures/sand_dune.png"))
 		_sand_mat.set_shader_parameter("scale", 0.25)
+		_sand_mat.set_shader_parameter("rot", 0.0)
 	return _sand_mat
 
 
