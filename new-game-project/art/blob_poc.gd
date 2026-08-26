@@ -69,7 +69,7 @@ const BLOCKS := [
 	["block-grass-large-tall", Vector3(0.00, 0.00, 1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(0.00, 0.00, 0.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(6.00, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["block-grass-large-tall", Vector3(5.25, 0.00, -5.25), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-snow-low-large", Vector3(5.25, 1.50, -5.25), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(4.50, 0.00, -3.00), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(4.50, 0.00, -4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["block-grass-large-tall", Vector3(4.50, 0.00, -1.50), 0.0, Vector3(1.00, 1.00, 1.00)],
@@ -89,7 +89,7 @@ const BLOCKS := [
 	["stones", Vector3(-1.30, 2.00, -1.36), 72.0, Vector3(1.00, 1.00, 1.00)],
 	["stones", Vector3(-1.01, 2.00, -1.74), 114.0, Vector3(1.00, 1.00, 1.00)],
 	["icosphere_half", Vector3(-1.60, 2.50, -4.89), 0.0, Vector3(1.00, 1.00, 1.00)],
-	["block-grass-large-tall", Vector3(-1.50, 0.00, -4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
+	["block-snow-large", Vector3(-1.50, 1.50, -4.50), 0.0, Vector3(1.00, 1.00, 1.00)],
 	["icosphere_half", Vector3(-1.03, 2.50, -4.33), 240.0, Vector3(0.30, 0.30, 0.30)],
 	["icosphere_half", Vector3(-1.33, 2.50, -4.23), 240.0, Vector3(0.30, 0.30, 0.30)],
 	["icosphere_half", Vector3(-1.17, 2.50, -4.07), 270.0, Vector3(0.25, 0.25, 0.25)],
@@ -131,7 +131,13 @@ const MARKER_Z := 4.75
 # per-face UVs; the override shader makes the density live-adjustable so the
 # user can match AF's look in the editor ([ / ] keys) before the value is
 # locked in. The stairs keep their dark-stone treads (light material only).
-const SAND_TUNE := ["block-grass-large-tall", "stairs_half_corner", "debris_stone"]
+# The snow blocks are in the model with material custom1 (= the sand override)
+# — they keep their mound geometry/positions (replication, not approximation)
+# and get the sand texture via this override.
+const SAND_TUNE := [
+	"block-grass-large-tall", "stairs_half_corner", "debris_stone",
+	"block-snow-low-large", "block-snow-large",
+]
 
 var _mat_cache := {}
 var _sand_mat: ShaderMaterial = null

@@ -2,9 +2,9 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://t1e6clcsigmn"
-path.s3tc="res://.godot/imported/stairs_half_corner_sand_dune.png-85c0d2d39bfc0da6b6890f46347ccfac.s3tc.ctex"
-path.etc2="res://.godot/imported/stairs_half_corner_sand_dune.png-85c0d2d39bfc0da6b6890f46347ccfac.etc2.ctex"
+uid="uid://cgeumi24jfs4j"
+path.s3tc="res://.godot/imported/block-snow-large_sand_dune.png-2f4552bb020f41d02dcf2c54b7537fff.s3tc.ctex"
+path.etc2="res://.godot/imported/block-snow-large_sand_dune.png-2f4552bb020f41d02dcf2c54b7537fff.etc2.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc", "etc2_astc"],
 "vram_texture": true
@@ -15,8 +15,8 @@ generator_parameters={
 
 [deps]
 
-source_file="res://art/platformer/stairs_half_corner_sand_dune.png"
-dest_files=["res://.godot/imported/stairs_half_corner_sand_dune.png-85c0d2d39bfc0da6b6890f46347ccfac.s3tc.ctex", "res://.godot/imported/stairs_half_corner_sand_dune.png-85c0d2d39bfc0da6b6890f46347ccfac.etc2.ctex"]
+source_file="res://art/platformer/block-snow-large_sand_dune.png"
+dest_files=["res://.godot/imported/block-snow-large_sand_dune.png-2f4552bb020f41d02dcf2c54b7537fff.s3tc.ctex", "res://.godot/imported/block-snow-large_sand_dune.png-2f4552bb020f41d02dcf2c54b7537fff.etc2.ctex"]
 
 [params]
 
