@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 45
+const BUILD_NO := 46
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -123,6 +123,10 @@ var _escape_layer: CanvasLayer
 var _mouse_orbit := false
 var _mouse_pan := false
 var _hover_label: Label
+## Sand-tune knob (BUILD 46): [ / ] adjust the sand texture density live in
+## the editor so the user can match AF's look and report the value.
+var _sand_scale := 0.25
+var _sand_scale_label: Label
 
 ## JSON save path: structure index, beat, completed cells, dust state, camera.
 const SAVE_PATH := "user://slice_save.json"
@@ -345,6 +349,28 @@ func _build_hud() -> void:
 	_hover_label.add_theme_stylebox_override("normal", hover_bg)
 	_hover_label.visible = false
 	root.add_child(_hover_label)
+
+	# Sand-tune readout (bottom-left): shows the live density while tuning.
+	_sand_scale_label = Label.new()
+	_sand_scale_label.name = "SandScale"
+	_sand_scale_label.set_anchors_preset(Control.PRESET_BOTTOM_LEFT)
+	_sand_scale_label.offset_left = 14
+	_sand_scale_label.offset_bottom = -14
+	_sand_scale_label.add_theme_font_size_override("font_size", 26)
+	_sand_scale_label.add_theme_color_override("font_color", Color(0, 0, 0))
+	var ss_bg := StyleBoxFlat.new()
+	ss_bg.bg_color = Color(1, 1, 1, 0.88)
+	ss_bg.corner_radius_top_left = 8
+	ss_bg.corner_radius_top_right = 8
+	ss_bg.corner_radius_bottom_left = 8
+	ss_bg.corner_radius_bottom_right = 8
+	ss_bg.content_margin_left = 12
+	ss_bg.content_margin_right = 12
+	ss_bg.content_margin_top = 8
+	ss_bg.content_margin_bottom = 8
+	_sand_scale_label.add_theme_stylebox_override("normal", ss_bg)
+	_sand_scale_label.text = "SAND × %.2f  (press [ or ] to tune)" % _sand_scale
+	root.add_child(_sand_scale_label)
 
 	# --- Top bar (below notch) ---
 	var top := PanelContainer.new()
@@ -1858,6 +1884,16 @@ func _any_block_grabbing() -> bool:
 
 
 func _input(event: InputEvent) -> void:
+	# --- Sand-tune knob: [ / ] adjust the dune density live (desktop driving). ---
+	if event is InputEventKey and event.pressed:
+		if event.keycode == KEY_BRACKETLEFT:
+			_sand_scale = maxf(0.05, _sand_scale - 0.05)
+			_apply_sand_scale()
+			return
+		if event.keycode == KEY_BRACKETRIGHT:
+			_sand_scale = minf(4.0, _sand_scale + 0.05)
+			_apply_sand_scale()
+			return
 	# --- Desktop editor-driver: mouse orbit (left-drag), pan (right-drag),
 	# zoom (wheel), hover-inspect diorama entries. Mobile ignores these. ---
 	if event is InputEventMouseButton or event is InputEventMouseMotion:
@@ -2018,6 +2054,14 @@ func _pan_camera(pan_delta: Vector2) -> void:
 ## Hover inspection (desktop driving): raycast from the cursor against each
 ## diorama block's mesh AABB (the GLBs have no colliders — pure visuals) and
 ## show the BLOCKS entry: index, type, rotation, position.
+func _apply_sand_scale() -> void:
+	if _diorama != null:
+		_diorama.call("set_sand_scale", _sand_scale)
+	if _sand_scale_label != null:
+		_sand_scale_label.text = "SAND × %.2f  (press [ or ] to tune)" % _sand_scale
+	print("SAND SCALE: %.2f" % _sand_scale)
+
+
 func _update_hover(screen_pos: Vector2) -> void:
 	var n := _hover_pick(screen_pos)
 	if n == null or _hover_label == null:

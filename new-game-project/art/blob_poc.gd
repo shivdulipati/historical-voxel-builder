@@ -127,7 +127,28 @@ const BLOCKS := [
 const MARKER_X := 2.75
 const MARKER_Z := 4.75
 
+# Sand-tune override (BUILD 46): the sand blocks carry AF's dune texture at
+# per-face UVs; the override shader makes the density live-adjustable so the
+# user can match AF's look in the editor ([ / ] keys) before the value is
+# locked in. The stairs keep their dark-stone treads (light material only).
+const SAND_TUNE := ["block-grass-large-tall", "stairs_half_corner", "debris_stone"]
+
 var _mat_cache := {}
+var _sand_mat: ShaderMaterial = null
+
+
+func set_sand_scale(v: float) -> void:
+	var m := _get_sand_mat()
+	m.set_shader_parameter("scale", v)
+
+
+func _get_sand_mat() -> ShaderMaterial:
+	if _sand_mat == null:
+		_sand_mat = ShaderMaterial.new()
+		_sand_mat.shader = load("res://art/sand_tune.gdshader")
+		_sand_mat.set_shader_parameter("tex", load("res://art/textures/sand_dune.png"))
+		_sand_mat.set_shader_parameter("scale", 0.25)
+	return _sand_mat
 
 
 func build(structure_id: String) -> void:
@@ -142,11 +163,20 @@ func build(structure_id: String) -> void:
 		inst.scale = b[3]
 		inst.rotation.y = deg_to_rad(b[2])
 		inst.position = Vector3(-b[1].x + CENTER_SHIFT.x, b[1].y + Y_SHIFT, b[1].z + CENTER_SHIFT.y)
-		# AF material override replication (triplanar texture on every mesh).
+		# AF material override replication (marble) + sand-tune override.
 		if MATERIAL_TEX.has(b[0]):
 			var m := _get_override_mat(b[0])
 			for mi in inst.find_children("*", "MeshInstance3D", true, false):
 				(mi as MeshInstance3D).material_override = m
+		if b[0] in SAND_TUNE:
+			var sm := _get_sand_mat()
+			for mi in inst.find_children("*", "MeshInstance3D", true, false):
+				var mmi := mi as MeshInstance3D
+				if b[0] == "stairs_half_corner":
+					var am := mmi.get_active_material(0)
+					if am == null or not String(am.resource_name).contains("Light"):
+						continue
+				mmi.material_override = sm
 		add_child(inst)
 		i += 1
 
