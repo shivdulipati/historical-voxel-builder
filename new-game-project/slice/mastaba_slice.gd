@@ -10,7 +10,7 @@ const PIECES = preload("res://slice/pieces.gd")
 const DIORAMA = preload("res://art/blob_poc.gd")
 
 ## Build number shown in HUD + reflected in the export preset version.
-const BUILD_NO := 52
+const BUILD_NO := 53
 
 enum Beat { RAISING, RESTORATION, DECAY, EXCAVATION }
 enum Scaffold { GHOST, GHOST_PARTIAL, PLAN_ONLY }
@@ -263,7 +263,10 @@ func _build_world() -> void:
 	# --- AF viewport light (extracted from AssetForge's level0 scene) ---
 	_af_light = DirectionalLight3D.new()
 	_af_light.name = "AFLight"
-	_af_light.position = Vector3(0.059, 0.94, 0.337) * 8.0
+	# BUILD 53: x-mirrored — the game world mirrors AF's x (game_x = -AF_x),
+	# so the extracted light direction must be mirrored too (was un-mirrored
+	# in B50-52, shining from the wrong side and darkening the wrong bevels).
+	_af_light.position = Vector3(-0.059, 0.94, 0.337) * 8.0
 	add_child(_af_light)
 	_af_light.look_at(Vector3.ZERO)
 	_af_light.light_color = Color(1.0, 0.98, 0.92)
